@@ -8,9 +8,9 @@ This library is still in early development and not ready for production use by a
 
 ## Features
 
-- [ ] Basic connection and authentication
+- [x] Basic connection and authentication (partially done)
 - [ ] Collection creation and deletion
-- [ ] Collection retrieval and modification
+- [x] Collection retrieval and modification (partially done)
 - [ ] Document insertion, deletion, and update
 - [ ] Document retrieval by ID or filter
 - [ ] Vector similarity search with optional parameters
