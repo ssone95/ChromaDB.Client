@@ -9,21 +9,27 @@ namespace ChromaDB.Client.Services.Implementations
 {
     public class ChromaDBClient : IChromaDBClient, IDisposable
 	{
+        private readonly ConfigurationOptions _config;
         private HttpClient _httpClient;
-        public ChromaDBClient(string baseAddress)
+        public ChromaDBClient(ConfigurationOptions options)
         {
+            _config = options;
 			_httpClient = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress),
+                BaseAddress = _config.Uri,
             };
 
 		}
-        public ChromaDBClient(HttpClient httpClient)
+
+        public ChromaDBClient(HttpClient httpClient, ConfigurationOptions options)
         {
+            _config = options;
             _httpClient = httpClient;
+            _httpClient.BaseAddress = _config.Uri;
         }
 
-        private object _disposeLock = new object();
+        #region Dispose
+        private object _disposeLock = new();
         private bool _disposed = false;
 		public void Dispose()
 		{
@@ -40,5 +46,6 @@ namespace ChromaDB.Client.Services.Implementations
                 }
             }
 		}
+        #endregion
 	}
 }
