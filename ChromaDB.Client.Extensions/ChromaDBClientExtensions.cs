@@ -9,11 +9,7 @@ public static class ChromaDBClientExtensions
 {
     private static ConfigurationOptions DefaultConfigurationOptions(ConfigurationOptions? options = null) 
     {
-        options ??= new ConfigurationOptions(new Uri(ClientConstants.DefaultUri)) 
-        {
-            DatabaseName = ClientConstants.DefaultDatabase,
-            TenantName = ClientConstants.DefaultTenant
-        };
+        options ??= new ConfigurationOptions(new Uri(ClientConstants.DefaultUri));
         return options;
     }
     public static void AddChromaDBClient(this IServiceCollection services, Func<ConfigurationOptions?, ConfigurationOptions>? configurationOptions = null)
