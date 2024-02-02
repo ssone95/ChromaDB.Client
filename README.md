@@ -28,6 +28,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+## Important notice
 ### **This project is in no way associated with, or supported/funded by the original authors of ChromaDB. It's solely developed as a hobby project, and with sole purpose of connecting to the database itself, and making it more connectable with the rest of .NET ecosystem! All rights to ChromaDB go to the respective authors of the said software!**
 
 By using the provided library, you are also accepting the following terms provided by @chroma team: https://www.trychroma.com/terms
