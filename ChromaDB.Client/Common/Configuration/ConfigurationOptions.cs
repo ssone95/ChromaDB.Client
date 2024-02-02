@@ -1,38 +1,28 @@
-﻿namespace ChromaDB.Client;
+﻿using ChromaDB.Client.Common.Exceptions;
+
+namespace ChromaDB.Client;
 
 public class ConfigurationOptions
 {
-    public string DatabaseName { get; init; }
-    public string TenantName { get; init; }
     public Uri Uri { get; init; }
+    public string? Tenant { get; init; }
+    public string? Database { get; init; }
 
     public ConfigurationOptions() 
     {
-        DatabaseName = ClientConstants.DefaultDatabase;
-        TenantName = ClientConstants.DefaultTenant;
         Uri = new Uri(ClientConstants.DefaultUri);
     }
-
-    public ConfigurationOptions(string uri, string database = ClientConstants.DefaultDatabase, string tenant = ClientConstants.DefaultTenant) : this(new Uri(uri)) 
-    {
-        DatabaseName = database;
-        TenantName = tenant;
-    }
-
-    public ConfigurationOptions(Uri uri, string database = ClientConstants.DefaultDatabase, string tenant = ClientConstants.DefaultTenant) : this(uri) 
-    {
-        DatabaseName = database;
-        TenantName = tenant;
-    }
     
-    public ConfigurationOptions(string uri) : this(new Uri(uri))
+    public ConfigurationOptions(string uri, string? defaultTenant = null, string? defaultDatabase = null) : this(new Uri(uri), defaultTenant, defaultDatabase)
     {
+        if (string.IsNullOrEmpty(uri)) throw new ChromaDBGeneralException($"{this.GetType()}: Argument {nameof(uri)} cannot be null!");
+        if (!uri.EndsWith("/")) throw new ChromaDBGeneralException($"{this.GetType()}: Argument {nameof(uri)} must end with /");
     }
 
-    public ConfigurationOptions(Uri uri) 
+    public ConfigurationOptions(Uri uri, string? defaultTenant = null, string? defaultDatabase = null) 
     {
-        DatabaseName = ClientConstants.DefaultDatabase;
-        TenantName = ClientConstants.DefaultTenant;
         Uri = uri;
+        Tenant = defaultTenant;
+        Database = defaultDatabase;
     }
 }

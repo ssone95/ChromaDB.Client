@@ -1,4 +1,7 @@
-﻿using ChromaDB.Client.Services.Interfaces;
+﻿using ChromaDB.Client.Common.Helpers;
+using ChromaDB.Client.Models;
+using ChromaDB.Client.Models.Requests;
+using ChromaDB.Client.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,10 +10,13 @@ using System.Threading.Tasks;
 
 namespace ChromaDB.Client.Services.Implementations
 {
-    public class ChromaDBClient : IChromaDBClient, IDisposable
+    public class ChromaDBClient : IChromaDBClient
 	{
         private readonly ConfigurationOptions _config;
         private HttpClient _httpClient;
+        private Tenant _currentTenant = ClientConstants.DefaultTenant;
+        private Database _currentDatabase = ClientConstants.DefaultDatabase;
+
         public ChromaDBClient(ConfigurationOptions options)
         {
             _config = options;
@@ -18,6 +24,16 @@ namespace ChromaDB.Client.Services.Implementations
             {
                 BaseAddress = _config.Uri,
             };
+
+            if (!string.IsNullOrEmpty(options.Tenant))
+            {
+                _currentTenant = new Tenant(options.Tenant);
+            }
+
+            if (!string.IsNullOrEmpty(options.Database))
+            {
+                _currentDatabase = new Database(options.Database);
+            }
 
 		}
 
@@ -28,8 +44,28 @@ namespace ChromaDB.Client.Services.Implementations
             _httpClient.BaseAddress = _config.Uri;
         }
 
-        #region Dispose
-        private object _disposeLock = new();
+        public async Task<BaseResponse<List<Collection>>> GetCollections(string? tenant = null, string? database = null)
+        {
+            string tenantName = !string.IsNullOrEmpty(tenant) ? tenant : _currentTenant.Name;
+            string dbName = !string.IsNullOrEmpty(database) ? database : _currentDatabase.Name;
+
+			var requestParams = new RequestQueryParams().Add("{tenant}", tenantName).Add("{database}", dbName);
+			return await _httpClient.Get<Collection, List<Collection>>(requestParams);
+		}
+
+		public async Task<BaseResponse<Collection>> GetCollectionByName(string name, string? tenant = null, string? database = null)
+		{
+			string tenantName = !string.IsNullOrEmpty(tenant) ? tenant : _currentTenant.Name;
+			string dbName = !string.IsNullOrEmpty(database) ? database : _currentDatabase.Name;
+
+			var requestParams = new RequestQueryParams().Add("{collectionName}", name)
+                .Add("{tenant}", tenantName)
+                .Add("{database}", dbName);
+			return await _httpClient.Get<Collection, Collection>(requestParams);
+		}
+
+		#region Dispose
+		private object _disposeLock = new();
         private bool _disposed = false;
 		public void Dispose()
 		{
@@ -46,6 +82,6 @@ namespace ChromaDB.Client.Services.Implementations
                 }
             }
 		}
-        #endregion
+		#endregion
 	}
 }
