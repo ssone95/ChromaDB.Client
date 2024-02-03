@@ -28,8 +28,9 @@ namespace ChromaDB.Client.Models.Requests
 			return this;
 		}
 
-		public bool HasKeyInvariant(string key) => _queryParams.Keys.Count > 0 
-			&& _queryParams.Keys.Any(x => string.Equals(x, key, StringComparison.InvariantCultureIgnoreCase));
+		public bool HasKey(string key, StringComparison stringComparison = StringComparison.CurrentCulture) => _queryParams.Keys.Count > 0 
+			&& _queryParams.Keys.Any(x => string.Equals(x, key, stringComparison));
+		public bool HasKeyIgnoreCase(string key) => HasKey(key, StringComparison.InvariantCultureIgnoreCase);
 
 		public IDictionary<string, string> Build()
 		{

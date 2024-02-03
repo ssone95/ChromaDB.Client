@@ -13,6 +13,7 @@ namespace ChromaDB.Client.Common.Attributes
 	{
 		private HttpMethod _method;
 		public required Type Source { get; init; }
+		public Type? RequestType { get; init; } = null;
 		public required Type ResponseType { get; init; }
 		private string _endpoint { get; init; }
 		public string TargetEndpoint

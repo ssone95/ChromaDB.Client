@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace ChromaDB.Client.Models
 {
+	
 	public class Database
 	{
 		[JsonPropertyName("id")]

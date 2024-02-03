@@ -1,4 +1,6 @@
 ﻿using ChromaDB.Client.Common.Attributes;
+using ChromaDB.Client.Models.Requests;
+using ChromaDB.Client.Models.Responses;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,8 +10,10 @@ using System.Threading.Tasks;
 
 namespace ChromaDB.Client.Models
 {
-	[ChromaRoute("GET", TargetEndpoint = "collections/{collectionName}?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(Collection))]
+    [ChromaRoute("GET", TargetEndpoint = "collections/{collectionName}?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(Collection))]
 	[ChromaRoute("GET", TargetEndpoint = "collections?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(List<Collection>))]
+	[ChromaRoute("POST", TargetEndpoint = "collections/{collection_id}/get", Source = typeof(Collection), RequestType = typeof(CollectionGetRequest), ResponseType = typeof(CollectionEntriesResponse))]
+	[ChromaRoute("POST", TargetEndpoint = "collections/{collection_id}/query", Source = typeof(Collection), RequestType = typeof(CollectionQueryRequest), ResponseType = typeof(CollectionEntriesQueryResponse))]
 	public class Collection
 	{
 		[JsonPropertyName("id")]

@@ -13,17 +13,14 @@ namespace ChromaDB.Client.Services.Implementations
     public class ChromaDBClient : IChromaDBClient
 	{
         private readonly ConfigurationOptions _config;
-        private HttpClient _httpClient;
+        private IChromaDBHttpClient _httpClient;
         private Tenant _currentTenant = ClientConstants.DefaultTenant;
         private Database _currentDatabase = ClientConstants.DefaultDatabase;
 
-        public ChromaDBClient(ConfigurationOptions options)
+        public ChromaDBClient(ConfigurationOptions options, IChromaDBHttpClient httpClient)
         {
             _config = options;
-			_httpClient = new HttpClient()
-            {
-                BaseAddress = _config.Uri,
-            };
+            _httpClient = httpClient;
 
             if (!string.IsNullOrEmpty(options.Tenant))
             {
@@ -34,14 +31,13 @@ namespace ChromaDB.Client.Services.Implementations
             {
                 _currentDatabase = new Database(options.Database);
             }
-
 		}
 
-        public ChromaDBClient(HttpClient httpClient, ConfigurationOptions options)
+        public ChromaDBClient(IChromaDBHttpClient httpClient, ConfigurationOptions options)
         {
             _config = options;
             _httpClient = httpClient;
-            _httpClient.BaseAddress = _config.Uri;
+            _httpClient.BaseUri = _config.Uri;
         }
 
         public async Task<BaseResponse<List<Collection>>> GetCollections(string? tenant = null, string? database = null)
