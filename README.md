@@ -4,7 +4,7 @@ ChromaDB.Client is a C# cross-platform library for communication with ChromaDB V
 
 With ChromaDB.Client, you can easily connect to a ChromaDB instance, create and manage collections, perform CRUD operations on the data in the collections, and execute other available operations such as nearest neighbor search, aggregation, and filtering.
 
-This library is still in early development and not ready for production use by any means.
+**This library is still in early development and is not ready for production use by any means.**
 
 ## Features
 
