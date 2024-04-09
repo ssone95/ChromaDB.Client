@@ -14,7 +14,7 @@ namespace ChromaDB.Client.Common.Mappers
 		public static List<CollectionEntry> Map(this CollectionEntriesResponse response)
 		{
 			List<CollectionEntry> entries = new();
-			List<Guid> ids = response.Ids;
+			List<string> ids = response.Ids;
 			try
 			{
 				for (int i = 0; i < ids.Count; i++)

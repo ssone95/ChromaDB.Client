@@ -10,7 +10,7 @@ namespace ChromaDB.Client.Models.Responses
     public class CollectionEntriesResponse
     {
         [JsonPropertyName("ids")]
-        public required List<Guid> Ids { get; set; }
+        public required List<string> Ids { get; set; }
 
         [JsonPropertyName("embeddings")]
         public required List<List<float>> Embeddings { get; set; }
