@@ -10,7 +10,7 @@ namespace ChromaDB.Client.Models.Requests
 	public class CollectionGetRequest
 	{
 		[JsonPropertyName("ids")]
-		public required List<Guid> Ids { get; init; }
+		public required List<string> Ids { get; init; }
 
 		[JsonPropertyName("where")]
 		public IDictionary<string, object>? Where { get; init; }

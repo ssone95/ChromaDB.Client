@@ -29,7 +29,7 @@ namespace ChromaDB.Client.Console
 
 				BaseResponse<List<CollectionEntry>> getResponse = await string5Client.Get(new CollectionGetRequest()
 				{
-					Ids = new List<Guid>() { Guid.Parse("340a36ad-c38a-406c-be38-250174aee5a4") },
+					Ids = new List<string>() { "340a36ad-c38a-406c-be38-250174aee5a4" },
 					Include = new List<string>() { "metadatas", "documents", "embeddings" }
 				});
 
@@ -37,7 +37,7 @@ namespace ChromaDB.Client.Console
 
 				BaseResponse<CollectionEntriesQueryResponse> queryResponse = await string5Client.Query(new CollectionQueryRequest()
 				{
-					Ids = new List<Guid>() { Guid.Parse("340a36ad-c38a-406c-be38-250174aee5a4") },
+					Ids = new List<string>() { "340a36ad-c38a-406c-be38-250174aee5a4" },
 					Include = new List<string>() { "metadatas", "documents", "embeddings" },
 					QueryEmbeddings = new List<List<float>>()
 					{
