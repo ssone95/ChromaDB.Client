@@ -1,13 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
+		<OutputType>Exe</OutputType>
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
-		<None Include="..\README.md">
-			<PackagePath>\</PackagePath>
-			<Pack>true</Pack>
-		</None>
+		<ProjectReference Include="..\..\ChromaDB.Client\ChromaDB.Client.csproj" />
 	</ItemGroup>
 </Project>
