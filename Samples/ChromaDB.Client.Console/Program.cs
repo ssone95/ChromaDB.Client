@@ -4,7 +4,7 @@ using ChromaDB.Client.Models.Responses;
 using ChromaDB.Client.Services.Implementations;
 using ChromaDB.Client.Services.Interfaces;
 
-namespace ChromaDB.Client.Console;
+namespace ChromaDB.Client.Sample;
 
 internal class Program
 {
@@ -41,7 +41,7 @@ internal class Program
 		}
 		catch (Exception ex)
 		{
-			System.Console.WriteLine($"{ex}");
+			Console.WriteLine($"{ex}");
 		}
 	}
 }
