@@ -5,26 +5,26 @@ using ChromaDB.Client.Models.Responses;
 
 namespace ChromaDB.Client.Models;
 
-[ChromaRoute("GET", TargetEndpoint = "collections/{collectionName}?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(Collection))]
-[ChromaRoute("GET", TargetEndpoint = "collections?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(List<Collection>))]
-[ChromaRoute("POST", TargetEndpoint = "collections/{collection_id}/get", Source = typeof(Collection), RequestType = typeof(CollectionGetRequest), ResponseType = typeof(CollectionEntriesResponse))]
-[ChromaRoute("POST", TargetEndpoint = "collections/{collection_id}/query", Source = typeof(Collection), RequestType = typeof(CollectionQueryRequest), ResponseType = typeof(CollectionEntriesQueryResponse))]
+[ChromaGetRoute(Endpoint = "collections/{collectionName}?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(Collection))]
+[ChromaGetRoute(Endpoint = "collections?tenant={tenant}&database={database}", Source = typeof(Collection), ResponseType = typeof(List<Collection>))]
+[ChromaPostRoute(Endpoint = "collections/{collection_id}/get", Source = typeof(Collection), RequestType = typeof(CollectionGetRequest), ResponseType = typeof(CollectionEntriesResponse))]
+[ChromaPostRoute(Endpoint = "collections/{collection_id}/query", Source = typeof(Collection), RequestType = typeof(CollectionQueryRequest), ResponseType = typeof(CollectionEntriesQueryResponse))]
 public class Collection
 {
 	[JsonPropertyName("id")]
-	public Guid Id { get; set; }
+	public Guid Id { get; init; }
 
 	[JsonPropertyName("name")]
-	public string Name { get; set; }
+	public string Name { get; }
 
 	[JsonPropertyName("metadata")]
-	public IDictionary<string, object>? Metadata { get; set; }
+	public IDictionary<string, object>? Metadata { get; init; }
 
 	[JsonPropertyName("tenant")]
-	public string? Tenant { get; set; }
+	public string? Tenant { get; init; }
 
 	[JsonPropertyName("database")]
-	public string? Database { get; set; }
+	public string? Database { get; init; }
 
 	public Collection(string name)
 	{

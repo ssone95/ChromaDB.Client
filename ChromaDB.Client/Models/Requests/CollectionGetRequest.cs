@@ -23,5 +23,5 @@ public class CollectionGetRequest
 	public int? Offset { get; init; }
 
 	[JsonPropertyName("include")]
-	public required List<string> Include { get; set; }
+	public required List<string> Include { get; init; }
 }

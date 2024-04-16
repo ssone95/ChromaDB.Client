@@ -1,6 +1,4 @@
-﻿using ChromaDB.Client.Common.Exceptions;
-
-namespace ChromaDB.Client;
+﻿namespace ChromaDB.Client;
 
 public class ConfigurationOptions
 {
@@ -13,16 +11,14 @@ public class ConfigurationOptions
 		Uri = new Uri(ClientConstants.DefaultUri);
 	}
 
-	public ConfigurationOptions(string uri, string? defaultTenant = null, string? defaultDatabase = null) : this(new Uri(uri), defaultTenant, defaultDatabase)
-	{
-		if (string.IsNullOrEmpty(uri)) throw new ChromaDBGeneralException($"{this.GetType()}: Argument {nameof(uri)} cannot be null!");
-		if (!uri.EndsWith("/")) throw new ChromaDBGeneralException($"{this.GetType()}: Argument {nameof(uri)} must end with /");
-	}
-
 	public ConfigurationOptions(Uri uri, string? defaultTenant = null, string? defaultDatabase = null)
 	{
 		Uri = uri;
 		Tenant = defaultTenant;
 		Database = defaultDatabase;
 	}
+
+	public ConfigurationOptions(string uri, string? defaultTenant = null, string? defaultDatabase = null)
+		: this(new Uri(uri), defaultTenant, defaultDatabase)
+	{ }
 }

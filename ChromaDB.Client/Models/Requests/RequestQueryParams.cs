@@ -1,4 +1,6 @@
-﻿namespace ChromaDB.Client.Models.Requests;
+﻿using System.Globalization;
+
+namespace ChromaDB.Client.Models.Requests;
 
 public class RequestQueryParams
 {
@@ -18,16 +20,13 @@ public class RequestQueryParams
 	{
 		string urlEncodedQueryParam = Uri.EscapeDataString(value);
 		_queryParams[key] = urlEncodedQueryParam;
-
 		return this;
 	}
+	public RequestQueryParams Add(string key, IFormattable value) => Add(key, value.ToString(null, CultureInfo.InvariantCulture));
 
-	public bool HasKey(string key, StringComparison stringComparison = StringComparison.CurrentCulture) => _queryParams.Keys.Count > 0
-		&& _queryParams.Keys.Any(x => string.Equals(x, key, stringComparison));
+	public bool HasKey(string key, StringComparison stringComparison = StringComparison.InvariantCulture)
+		=> _queryParams.Keys.Any(x => string.Equals(x, key, stringComparison));
 	public bool HasKeyIgnoreCase(string key) => HasKey(key, StringComparison.InvariantCultureIgnoreCase);
 
-	public IDictionary<string, string> Build()
-	{
-		return _queryParams;
-	}
+	public IDictionary<string, string> Build() => _queryParams;
 }

@@ -6,6 +6,7 @@ namespace ChromaDB.Client.Services.Implementations;
 public class ChromaCollectionFactory : IChromaCollectionFactory
 {
 	private readonly ConfigurationOptions _config;
+
 	public ChromaCollectionFactory(ConfigurationOptions configurationOptions)
 	{
 		_config = configurationOptions;

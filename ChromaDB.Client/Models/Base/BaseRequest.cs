@@ -1,6 +1,4 @@
 ﻿namespace ChromaDB.Client;
 
-public class BaseRequest
-{
-
-}
+public abstract class BaseRequest
+{ }

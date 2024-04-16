@@ -5,5 +5,5 @@ namespace ChromaDB.Client.Models.Responses;
 public class GeneralError
 {
 	[JsonPropertyName("error")]
-	public string? ErrorMessage { get; set; }
+	public string? ErrorMessage { get; init; }
 }
