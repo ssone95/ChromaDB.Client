@@ -5,20 +5,20 @@ namespace ChromaDB.Client.Models.Responses;
 public class CollectionEntriesQueryResponse
 {
 	[JsonPropertyName("ids")]
-	public required List<List<string>> Ids { get; set; }
+	public required List<List<string>> Ids { get; init; }
 
 	[JsonPropertyName("embeddings")]
-	public required List<List<List<float>>> Embeddings { get; set; }
+	public required List<List<List<float>>> Embeddings { get; init; }
 
 	[JsonPropertyName("metadatas")]
-	public required List<List<Dictionary<string, object>>> Metadatas { get; set; }
+	public required List<List<Dictionary<string, object>>> Metadatas { get; init; }
 
 	[JsonPropertyName("uris")]
-	public required List<List<string?>> Uris { get; set; }
+	public required List<List<string?>> Uris { get; init; }
 
 	[JsonPropertyName("data")]
-	public required dynamic Data { get; set; }
+	public required dynamic Data { get; init; }
 
 	[JsonPropertyName("distances")]
-	public required List<List<float>> Distances { get; set; }
+	public required List<List<float>> Distances { get; init; }
 }

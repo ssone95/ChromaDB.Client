@@ -7,7 +7,7 @@ using ChromaDB.Client.Services.Interfaces;
 
 ConfigurationOptions configOptions = new(uri: "http://localhost:8000/api/v1/");
 using IChromaDBHttpClient httpClient = new ChromaDBHttpClient(configOptions);
-using IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
+IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
 BaseResponse<List<Collection>> collections = await client.GetCollections(database: "test", tenant: "nedeljko");
 

@@ -7,26 +7,14 @@ public static class CollectionEntryMapper
 {
 	public static List<CollectionEntry> Map(this CollectionEntriesResponse response)
 	{
-		List<CollectionEntry> entries = new();
-		List<string> ids = response.Ids;
-		try
-		{
-			for (int i = 0; i < ids.Count; i++)
+		return response.Ids
+			.Select((id, i) => new CollectionEntry(id)
 			{
-				entries.Add(new CollectionEntry()
-				{
-					Id = ids[i],
-					Data = response.Data,
-					Embeddings = response.Embeddings?.ElementAt(i) ?? null,
-					Metadata = response.Metadatas?.ElementAt(i) ?? null,
-					Uris = response.Uris?.ElementAt(i) ?? null
-				});
-			}
-		}
-		catch (Exception ex)
-		{
-			throw;
-		}
-		return entries;
+				Data = response.Data,
+				Embeddings = response.Embeddings?[i] ?? null,
+				Metadata = response.Metadatas?[i] ?? null,
+				Uris = response.Uris?[i] ?? null
+			})
+			.ToList();
 	}
 }

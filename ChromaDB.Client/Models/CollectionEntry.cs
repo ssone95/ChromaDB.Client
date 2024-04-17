@@ -2,9 +2,14 @@
 
 public class CollectionEntry
 {
-	public string Id { get; set; }
-	public List<float>? Embeddings { get; set; }
-	public Dictionary<string, object>? Metadata { get; set; }
-	public List<string?>? Uris { get; set; }
+	public string Id { get; }
+	public List<float>? Embeddings { get; init; }
+	public Dictionary<string, object>? Metadata { get; init; }
+	public List<string?>? Uris { get; init; }
 	public dynamic? Data { get; init; }
+
+	public CollectionEntry(string id)
+	{
+		Id = id;
+	}
 }

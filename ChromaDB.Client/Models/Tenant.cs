@@ -5,7 +5,7 @@ namespace ChromaDB.Client.Models;
 public class Tenant
 {
 	[JsonPropertyName("name")]
-	public string Name { get; init; }
+	public string Name { get; }
 
 	public Tenant(string name)
 	{
