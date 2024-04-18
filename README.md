@@ -19,6 +19,10 @@ With ChromaDB.Client, you can easily connect to a ChromaDB instance, create and 
 - [ ] Async and await support
 - [ ] Logging and error handling
 
+## Build status
+
+![CI](https://github.com/ssone95/ChromaDB.Client/actions/workflows/ci.yml/badge.svg)
+
 ## Important notice
 ### **This project is in no way associated with, or supported/funded by the original authors of ChromaDB. It's solely developed as a hobby project, and with sole purpose of connecting to the database itself, and making it more connectable with the rest of .NET ecosystem! All rights to ChromaDB go to the respective authors of the said software!**
 
