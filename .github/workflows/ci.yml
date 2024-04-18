@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  CONFIGURATION: Release
+
+jobs:
+  ci:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Build
+      run: dotnet build -c ${{ env.CONFIGURATION }}
+
+#    - name: Test
+#      run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal
