@@ -18,8 +18,6 @@ public abstract partial class ChromaRouteAttribute : Attribute
 		get => _endpoint;
 		init
 		{
-			ArgumentException.ThrowIfNullOrEmpty(value, nameof(Endpoint));
-
 			_endpoint = value;
 			_queryParams = PrepareQueryParams(_endpoint);
 		}
