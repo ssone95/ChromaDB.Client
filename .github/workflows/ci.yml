@@ -11,7 +11,7 @@ env:
 
 jobs:
   ci:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -24,5 +24,5 @@ jobs:
     - name: Build
       run: dotnet build -c ${{ env.CONFIGURATION }}
 
-#    - name: Test
-#      run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal
+    - name: Test
+      run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal --logger 'GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true'

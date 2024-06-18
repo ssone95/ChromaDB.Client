@@ -46,4 +46,9 @@ public class ChromaDBClient : IChromaDBClient
 			.Add("{database}", database);
 		return await _httpClient.Get<Collection, Collection>(requestParams);
 	}
+
+	public async Task<BaseResponse<Heartbeat>> Heartbeat()
+	{
+		return await _httpClient.Get<Heartbeat, Heartbeat>(new RequestQueryParams());
+	}
 }
