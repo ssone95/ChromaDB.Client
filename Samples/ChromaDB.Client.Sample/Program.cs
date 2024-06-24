@@ -9,6 +9,11 @@ ConfigurationOptions configOptions = new(uri: "http://localhost:8000/api/v1/");
 using IChromaDBHttpClient httpClient = new ChromaDBHttpClient(configOptions);
 IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
+BaseResponse<Collection> createCollectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+{
+	Name = "string5",
+}, database: "test", tenant: "nedeljko");
+
 BaseResponse<List<Collection>> collections = await client.GetCollections(database: "test", tenant: "nedeljko");
 
 BaseResponse<Collection> collection1 = await client.GetCollectionByName("string5", database: "test", tenant: "nedeljko");
@@ -18,7 +23,7 @@ IChromaCollectionClient string5Client = new ChromaCollectionFactory(configOption
 BaseResponse<List<CollectionEntry>> getResponse = await string5Client.Get(new CollectionGetRequest()
 {
 	Ids = ["340a36ad-c38a-406c-be38-250174aee5a4"],
-	Include = ["metadatas", "documents", "embeddings"]
+	Include = ["metadatas", "documents", "embeddings"],
 });
 
 BaseResponse<CollectionEntriesQueryResponse> queryResponse = await string5Client.Query(new CollectionQueryRequest()

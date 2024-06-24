@@ -51,4 +51,14 @@ public class ChromaDBClient : IChromaDBClient
 	{
 		return await _httpClient.Get<Heartbeat, Heartbeat>(new RequestQueryParams());
 	}
+
+	public async Task<BaseResponse<Collection>> CreateCollection(DBCreateCollectionRequest request, string? tenant = null, string? database = null)
+	{
+		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
+		database = database is not null and not [] ? database : _currentDatabase.Name;
+		RequestQueryParams requestParams = new RequestQueryParams()
+			.Add("{tenant}", tenant)
+			.Add("{database}", database);
+		return await _httpClient.Post<Collection, DBCreateCollectionRequest, Collection>(request, requestParams);
+	}
 }
