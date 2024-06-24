@@ -17,7 +17,15 @@ public static partial class HttpClientHelpers
 	{
 		AllowTrailingCommas = false,
 		ReferenceHandler = ReferenceHandler.IgnoreCycles,
-		ReadCommentHandling = JsonCommentHandling.Skip
+		ReadCommentHandling = JsonCommentHandling.Skip,
+	};
+
+	private static readonly JsonSerializerOptions DeserializerJsonSerializerOptions = new()
+	{
+		Converters =
+		{
+			new ObjectToInferredTypesJsonConverter(),
+		},
 	};
 
 	public static async Task<BaseResponse<TResponse>> Get<TSource, TResponse>(this IChromaDBHttpClient httpClient, RequestQueryParams? queryParams = null) where TSource : class
@@ -42,7 +50,7 @@ public static partial class HttpClientHelpers
 
 			return new BaseResponse<TResponse>(
 					data: responseBody is not null and not []
-						? JsonSerializer.Deserialize<TResponse>(responseBody)
+						? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
 						: default,
 					statusCode: httpResponseMessage.StatusCode);
 		}
@@ -93,7 +101,7 @@ public static partial class HttpClientHelpers
 
 			return new BaseResponse<TResponse>(
 					data: responseBody is not null and not []
-					? JsonSerializer.Deserialize<TResponse>(responseBody)
+					? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
 					: default,
 					statusCode: httpResponseMessage.StatusCode);
 		}
@@ -120,7 +128,7 @@ public static partial class HttpClientHelpers
 	{
 		try
 		{
-			GeneralError deserialized = JsonSerializer.Deserialize<GeneralError>(errorMessageBody)!;
+			GeneralError deserialized = JsonSerializer.Deserialize<GeneralError>(errorMessageBody, DeserializerJsonSerializerOptions)!;
 			Match match = ParseErrorMessageBodyRegex().Match(deserialized?.ErrorMessage ?? string.Empty);
 
 			return match.Success

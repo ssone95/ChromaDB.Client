@@ -11,6 +11,6 @@ public class ChromaDBAuthTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		await Assert.ThatAsync(client.Heartbeat, Throws.Nothing);	
+		await Assert.ThatAsync(client.Heartbeat, Throws.Nothing);
 	}
 }
