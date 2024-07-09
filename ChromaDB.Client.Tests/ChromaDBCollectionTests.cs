@@ -74,16 +74,45 @@ public class ChromaDBCollectionTests : ChromaDBTestsBase
 	[Test]
 	public async Task CreateCollectionAlreadyExists()
 	{
+		var name = $"collection{Random.Shared.Next()}";
+
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
 		await client.CreateCollection(new DBCreateCollectionRequest()
 		{
-			Name = $"collection_exists",
+			Name = name,
 		});
 		var result = await client.CreateCollection(new DBCreateCollectionRequest()
 		{
-			Name = $"collection_exists",
+			Name = name,
 		});
+		Assert.That(result.Success, Is.False);
+		Assert.That(result.ReasonPhrase, Is.Not.Null.And.Not.Empty);
+	}
+
+	[Test]
+	public async Task DeleteCollection()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var result = await client.DeleteCollection(name);
+		Assert.That(result.Success, Is.True);
+	}
+
+	[Test]
+	public async Task DeleteCollectionNotExists()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var result = await client.DeleteCollection(name);
 		Assert.That(result.Success, Is.False);
 		Assert.That(result.ReasonPhrase, Is.Not.Null.And.Not.Empty);
 	}

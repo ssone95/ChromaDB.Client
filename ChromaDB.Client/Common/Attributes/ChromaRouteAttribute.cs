@@ -43,3 +43,4 @@ public abstract partial class ChromaRouteAttribute : Attribute
 
 public sealed class ChromaGetRouteAttribute() : ChromaRouteAttribute("GET");
 public sealed class ChromaPostRouteAttribute() : ChromaRouteAttribute("POST");
+public sealed class ChromaDeleteRouteAttribute() : ChromaRouteAttribute("DELETE");
