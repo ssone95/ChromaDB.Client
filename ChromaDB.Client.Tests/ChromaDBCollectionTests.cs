@@ -64,4 +64,44 @@ public class ChromaDBCollectionTests : ChromaDBTestsBase
 		Assert.That(result.Success, Is.False);
 		Assert.That(result.ReasonPhrase, Is.Not.Null.And.Not.Empty);
 	}
+
+	[Test]
+	public async Task GetOrCreateCollectionDoesNotExist()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var result = await client.GetOrCreateCollection(new DBGetOrCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Is.Not.Null);
+		Assert.That(result.Data.Name, Is.EqualTo(name));
+	}
+
+	[Test]
+	public async Task GetOrCreateCollectionDoesExist()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var result1 = await client.GetOrCreateCollection(new DBGetOrCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var result2 = await client.GetOrCreateCollection(new DBGetOrCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		Assert.That(result1.Success, Is.True);
+		Assert.That(result1.Data, Is.Not.Null);
+		Assert.That(result1.Data.Name, Is.EqualTo(name));
+		Assert.That(result2.Success, Is.True);
+		Assert.That(result2.Data, Is.Not.Null);
+		Assert.That(result2.Data.Name, Is.EqualTo(name));
+		Assert.That(result1.Data.Id, Is.EqualTo(result2.Data.Id));
+	}
 }

@@ -1,12 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿namespace ChromaDB.Client.Models.Requests;
 
-namespace ChromaDB.Client.Models.Requests;
-
-public class DBCreateCollectionRequest
+public class DBCreateCollectionRequest : DBGetOrCreateCollectionRequestBase
 {
-	[JsonPropertyName("name")]
-	public required string Name { get; init; }
-
-	[JsonPropertyName("metadata")]
-	public IDictionary<string, object>? Metadata { get; init; }
+	protected override bool GetOrCreate { get; } = false;
 }

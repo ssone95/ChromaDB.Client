@@ -9,4 +9,5 @@ public interface IChromaDBClient
 	Task<BaseResponse<List<Collection>>> GetCollections(string? tenant = null, string? database = null);
 	Task<BaseResponse<Heartbeat>> Heartbeat();
 	Task<BaseResponse<Collection>> CreateCollection(DBCreateCollectionRequest request, string? tenant = null, string? database = null);
+	Task<BaseResponse<Collection>> GetOrCreateCollection(DBGetOrCreateCollectionRequest request, string? tenant = null, string? database = null);
 }
