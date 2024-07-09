@@ -8,6 +8,29 @@ namespace ChromaDB.Client.Tests;
 public class ChromaDBCollectionTests : ChromaDBTestsBase
 {
 	[Test]
+	public async Task ListCollectionsSimple()
+	{
+		var names = new[] { $"collection{Random.Shared.Next()}", $"collection{Random.Shared.Next()}" };
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = names[0],
+		});
+		await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = names[1],
+		});
+		var result = await client.ListCollections();
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Is.Not.Null);
+		Assert.That(result.Data, Has.Count.GreaterThanOrEqualTo(2));
+		Assert.That(result.Data.Select(x => x.Name), Contains.Item(names[0]));
+		Assert.That(result.Data.Select(x => x.Name), Contains.Item(names[1]));
+	}
+
+	[Test]
 	public async Task CreateCollectionWithoutMetadata()
 	{
 		var name = $"collection{Random.Shared.Next()}";

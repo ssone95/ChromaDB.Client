@@ -26,7 +26,7 @@ public class ChromaDBClient : IChromaDBClient
 			: ClientConstants.DefaultDatabase;
 	}
 
-	public async Task<BaseResponse<List<Collection>>> GetCollections(string? tenant = null, string? database = null)
+	public async Task<BaseResponse<List<Collection>>> ListCollections(string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
