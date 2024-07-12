@@ -28,5 +28,3 @@ With ChromaDB.Client, you can easily connect to a ChromaDB instance, create and 
 ### **This project is in no way associated with, or supported/funded by the original authors of ChromaDB. It's solely developed as a hobby project, and with sole purpose of connecting to the database itself, and making it more connectable with the rest of .NET ecosystem! All rights to ChromaDB go to the respective authors of the said software!**
 
 By using the provided library, you are also accepting the following terms provided by @chroma team: https://www.trychroma.com/terms
-
-<img src="https://trychroma.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F68f478ef-5a55-484c-bf83-1cd5859b8d14%2Fcolor.png?table=block&id=cac5ef40-1094-4c5b-851c-6da05029127b&spaceId=b8b7094f-a293-4449-83da-cdd15c398415&width=200">
