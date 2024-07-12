@@ -14,7 +14,7 @@ BaseResponse<Collection> createCollectionResponse = await client.CreateCollectio
 	Name = "string5",
 }, database: "test", tenant: "nedeljko");
 
-BaseResponse<List<Collection>> collections = await client.GetCollections(database: "test", tenant: "nedeljko");
+BaseResponse<List<Collection>> collections = await client.ListCollections(database: "test", tenant: "nedeljko");
 
 BaseResponse<Collection> collection1 = await client.GetCollectionByName("string5", database: "test", tenant: "nedeljko");
 
