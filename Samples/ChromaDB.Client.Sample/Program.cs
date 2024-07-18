@@ -16,7 +16,7 @@ BaseResponse<Collection> createCollectionResponse = await client.CreateCollectio
 
 BaseResponse<List<Collection>> collections = await client.ListCollections(database: "test", tenant: "nedeljko");
 
-BaseResponse<Collection> collection1 = await client.GetCollectionByName("string5", database: "test", tenant: "nedeljko");
+BaseResponse<Collection> collection1 = await client.GetCollection("string5", database: "test", tenant: "nedeljko");
 
 IChromaCollectionClient string5Client = new ChromaCollectionFactory(configOptions).Create(collection1.Data!, httpClient);
 
