@@ -124,6 +124,51 @@ public static partial class HttpClientHelpers
 		}
 	}
 
+	public static async Task<BaseResponse<TResponse>> Delete<TSource, TResponse>(this IChromaDBHttpClient httpClient, RequestQueryParams? queryParams = null) where TSource : class
+	{
+		(_, _, string endpoint, HttpMethod method, IReadOnlyList<string> queryArgs) = GetRouteDetailsByType<TSource, TResponse>(HttpMethod.Delete);
+		try
+		{
+			string formattedEndpoint = ValidateAndPrepareEndpoint<TSource>(queryArgs, endpoint, queryParams);
+
+			using HttpRequestMessage httpRequestMessage = new(method, requestUri: formattedEndpoint);
+			using HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(httpRequestMessage);
+
+			string? responseBody = httpResponseMessage.IsSuccessStatusCode switch
+			{
+				true => await httpResponseMessage.Content.ReadAsStringAsync(),
+				false when httpResponseMessage.StatusCode == HttpStatusCode.BadRequest
+					|| httpResponseMessage.StatusCode == HttpStatusCode.UnprocessableContent
+					|| httpResponseMessage.StatusCode == HttpStatusCode.InternalServerError
+					=> throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode) { ErrorMessageBody = await httpResponseMessage.Content.ReadAsStringAsync() },
+				_ => throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode)
+			};
+
+			return new BaseResponse<TResponse>(
+					data: responseBody is not null and not []
+						? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
+						: default,
+					statusCode: httpResponseMessage.StatusCode);
+		}
+		catch (ChromaDBGeneralException ex)
+		{
+			return new BaseResponse<TResponse>(data: default, statusCode: HttpStatusCode.InternalServerError, reasonPhrase: ex.Message);
+		}
+		catch (ChromaDBException ex)
+		{
+			return ex.ErrorMessageBody switch
+			{
+				not null and not [] => new BaseResponse<TResponse>(data: default, statusCode: ex.StatusCode!.Value, reasonPhrase: ParseErrorMessageBody(ex.ErrorMessageBody)),
+				_ => new BaseResponse<TResponse>(data: default, statusCode: ex.StatusCode!.Value)
+			};
+		}
+		catch (Exception ex)
+		{
+			// Decided on ServiceUnavailable error for all other exception types, we'll pass the exception message forward
+			return new BaseResponse<TResponse>(data: default, statusCode: HttpStatusCode.ServiceUnavailable, reasonPhrase: ex.Message);
+		}
+	}
+
 	private static string? ParseErrorMessageBody(string errorMessageBody)
 	{
 		try
