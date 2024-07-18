@@ -71,4 +71,9 @@ public class ChromaDBClient : IChromaDBClient
 			.Add("{database}", database);
 		return await _httpClient.Post<Collection, DBGetOrCreateCollectionRequest, Collection>(request, requestParams);
 	}
+
+	public async Task<BaseResponse<bool>> Reset()
+	{
+		return await _httpClient.Post<Reset, Reset, bool>(null, new RequestQueryParams());
+	}
 }
