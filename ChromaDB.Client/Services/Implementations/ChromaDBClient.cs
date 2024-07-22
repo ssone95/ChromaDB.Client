@@ -37,7 +37,7 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Get<Collection, List<Collection>>(requestParams);
 	}
 
-	public async Task<BaseResponse<Collection>> GetCollectionByName(string name, string? tenant = null, string? database = null)
+	public async Task<BaseResponse<Collection>> GetCollection(string name, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
@@ -71,6 +71,17 @@ public class ChromaDBClient : IChromaDBClient
 			.Add("{tenant}", tenant)
 			.Add("{database}", database);
 		return await _httpClient.Post<Collection, DBGetOrCreateCollectionRequest, Collection>(request, requestParams);
+	}
+
+	public async Task<BaseResponse<BaseResponse.None>> DeleteCollection(string name, string? tenant = null, string? database = null)
+	{
+		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
+		database = database is not null and not [] ? database : _currentDatabase.Name;
+		RequestQueryParams requestParams = new RequestQueryParams()
+			.Add("{collectionName}", name)
+			.Add("{tenant}", tenant)
+			.Add("{database}", database);
+		return await _httpClient.Delete<Collection, BaseResponse.None>(requestParams);
 	}
 
 	public async Task<BaseResponse<string>> GetVersion()

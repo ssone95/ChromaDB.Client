@@ -3,11 +3,20 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<IsPackable>true</IsPackable>
+		<VersionPrefix>0.9</VersionPrefix>
+		<PackageId>ChromaDB.Client</PackageId>
+		<PackageDescription>.NET SDK for Chroma database</PackageDescription>
+		<PackageTags>chroma chromadb vector database</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryType>git</RepositoryType>
+		<RepositoryUrl>https://github.com/ssone95/ChromaDB.Client</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/ssone95/ChromaDB.Client</PackageProjectUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	</PropertyGroup>
 	<ItemGroup>
-		<None Include="..\README.md">
-			<PackagePath>\</PackagePath>
-			<Pack>true</Pack>
-		</None>
+		<None Include="..\README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 </Project>

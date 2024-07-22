@@ -8,6 +8,7 @@ on:
 
 env:
   CONFIGURATION: Release
+  VERSION_SUFFIX: ci-${{ github.run_id }}
 
 jobs:
   ci:
@@ -22,7 +23,18 @@ jobs:
         dotnet-version: 8.0.x
 
     - name: Build
-      run: dotnet build -c ${{ env.CONFIGURATION }}
+      run: dotnet build -c ${{ env.CONFIGURATION }} --version-suffix '${{ env.VERSION_SUFFIX }}'
 
     - name: Test
       run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal --logger 'GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true'
+
+    - name: Pack
+      run: dotnet pack -c ${{ env.CONFIGURATION }} --no-build --version-suffix '${{ env.VERSION_SUFFIX }}'
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages
+        path: |
+          **/*.nupkg
+          **/*.snupkg
