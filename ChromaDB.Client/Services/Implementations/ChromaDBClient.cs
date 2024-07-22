@@ -2,6 +2,7 @@
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 using ChromaDB.Client.Services.Interfaces;
+using Version = ChromaDB.Client.Models.Version;
 
 namespace ChromaDB.Client.Services.Implementations;
 
@@ -81,5 +82,10 @@ public class ChromaDBClient : IChromaDBClient
 			.Add("{tenant}", tenant)
 			.Add("{database}", database);
 		return await _httpClient.Delete<Collection, BaseResponse.None>(requestParams);
+	}
+
+	public async Task<BaseResponse<string>> GetVersion()
+	{
+		return await _httpClient.Get<Version, string>();
 	}
 }

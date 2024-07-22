@@ -9,6 +9,8 @@ ConfigurationOptions configOptions = new(uri: "http://localhost:8000/api/v1/");
 using IChromaDBHttpClient httpClient = new ChromaDBHttpClient(configOptions);
 IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
+Console.WriteLine((await client.GetVersion()).Data);
+
 BaseResponse<Collection> createCollectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
 {
 	Name = "string5",
