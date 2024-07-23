@@ -17,3 +17,12 @@ public class BaseResponse<T>
 		ReasonPhrase = reasonPhrase;
 	}
 }
+
+public static class BaseResponse
+{
+	public class None
+	{
+		private None()
+		{ }
+	}
+}

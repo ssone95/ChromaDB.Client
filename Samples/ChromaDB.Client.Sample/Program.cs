@@ -9,6 +9,8 @@ ConfigurationOptions configOptions = new(uri: "http://localhost:8000/api/v1/");
 using IChromaDBHttpClient httpClient = new ChromaDBHttpClient(configOptions);
 IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
+Console.WriteLine((await client.GetVersion()).Data);
+
 BaseResponse<Collection> createCollectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
 {
 	Name = "string5",
@@ -16,7 +18,7 @@ BaseResponse<Collection> createCollectionResponse = await client.CreateCollectio
 
 BaseResponse<List<Collection>> collections = await client.ListCollections(database: "test", tenant: "nedeljko");
 
-BaseResponse<Collection> collection1 = await client.GetCollectionByName("string5", database: "test", tenant: "nedeljko");
+BaseResponse<Collection> collection1 = await client.GetCollection("string5", database: "test", tenant: "nedeljko");
 
 IChromaCollectionClient string5Client = new ChromaCollectionFactory(configOptions).Create(collection1.Data!, httpClient);
 

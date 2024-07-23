@@ -2,6 +2,7 @@
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 using ChromaDB.Client.Services.Interfaces;
+using Version = ChromaDB.Client.Models.Version;
 
 namespace ChromaDB.Client.Services.Implementations;
 
@@ -36,7 +37,7 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Get<Collection, List<Collection>>(requestParams);
 	}
 
-	public async Task<BaseResponse<Collection>> GetCollectionByName(string name, string? tenant = null, string? database = null)
+	public async Task<BaseResponse<Collection>> GetCollection(string name, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
@@ -72,6 +73,22 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Post<Collection, DBGetOrCreateCollectionRequest, Collection>(request, requestParams);
 	}
 
+	public async Task<BaseResponse<BaseResponse.None>> DeleteCollection(string name, string? tenant = null, string? database = null)
+	{
+		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
+		database = database is not null and not [] ? database : _currentDatabase.Name;
+		RequestQueryParams requestParams = new RequestQueryParams()
+			.Add("{collectionName}", name)
+			.Add("{tenant}", tenant)
+			.Add("{database}", database);
+		return await _httpClient.Delete<Collection, BaseResponse.None>(requestParams);
+	}
+
+	public async Task<BaseResponse<string>> GetVersion()
+	{
+		return await _httpClient.Get<Version, string>();
+	}
+  
 	public async Task<BaseResponse<bool>> Reset()
 	{
 		return await _httpClient.Post<Reset, Reset, bool>(null, new RequestQueryParams());
