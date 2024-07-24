@@ -73,14 +73,16 @@ public static partial class HttpClientHelpers
 		}
 	}
 
-	public static async Task<BaseResponse<TResponse>> Post<TSource, TInput, TResponse>(this IChromaDBHttpClient httpClient, TInput input, RequestQueryParams? queryParams = null) where TSource : class
+	public static async Task<BaseResponse<TResponse>> Post<TSource, TInput, TResponse>(this IChromaDBHttpClient httpClient, TInput? input, RequestQueryParams? queryParams = null) where TSource : class
 	{
 		(_, _, string endpoint, HttpMethod method, IReadOnlyList<string> queryArgs) = GetRouteDetailsByType<TSource, TResponse>(HttpMethod.Post, typeof(TInput));
 		try
 		{
 			string formattedEndpoint = ValidateAndPrepareEndpoint<TSource>(queryArgs, endpoint, queryParams);
 
-			string serializedInput = JsonSerializer.Serialize(input, PostJsonSerializerOptions);
+			string serializedInput = input is not null
+				? JsonSerializer.Serialize(input, PostJsonSerializerOptions)
+				: string.Empty;
 			using StringContent content = new(serializedInput, new MediaTypeHeaderValue("application/json"));
 			using HttpRequestMessage httpRequestMessage = new(method, requestUri: formattedEndpoint)
 			{

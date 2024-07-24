@@ -88,4 +88,9 @@ public class ChromaDBClient : IChromaDBClient
 	{
 		return await _httpClient.Get<Version, string>();
 	}
+  
+	public async Task<BaseResponse<bool>> Reset()
+	{
+		return await _httpClient.Post<Reset, Reset, bool>(null, new RequestQueryParams());
+	}
 }

@@ -12,4 +12,5 @@ public interface IChromaDBClient
 	Task<BaseResponse<Collection>> GetOrCreateCollection(DBGetOrCreateCollectionRequest request, string? tenant = null, string? database = null);
 	Task<BaseResponse<BaseResponse.None>> DeleteCollection(string name, string? tenant = null, string? database = null);
 	Task<BaseResponse<string>> GetVersion();
+	Task<BaseResponse<bool>> Reset();
 }
