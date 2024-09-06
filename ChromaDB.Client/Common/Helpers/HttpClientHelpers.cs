@@ -48,6 +48,13 @@ public static partial class HttpClientHelpers
 				_ => throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode)
 			};
 
+			if (typeof(TResponse) == typeof(BaseResponse.None))
+			{
+				return new BaseResponse<TResponse>(
+					data: (TResponse)(object)BaseResponse.None.Instance,
+					statusCode: httpResponseMessage.StatusCode);
+			}
+
 			return new BaseResponse<TResponse>(
 					data: responseBody is not null and not []
 						? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
@@ -101,10 +108,17 @@ public static partial class HttpClientHelpers
 				_ => throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode)
 			};
 
+			if (typeof(TResponse) == typeof(BaseResponse.None))
+			{
+				return new BaseResponse<TResponse>(
+					data: (TResponse)(object)BaseResponse.None.Instance,
+					statusCode: httpResponseMessage.StatusCode);
+			}
+
 			return new BaseResponse<TResponse>(
 					data: responseBody is not null and not []
-					? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
-					: default,
+						? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
+						: default,
 					statusCode: httpResponseMessage.StatusCode);
 		}
 		catch (ChromaDBGeneralException ex)
@@ -145,6 +159,13 @@ public static partial class HttpClientHelpers
 					=> throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode) { ErrorMessageBody = await httpResponseMessage.Content.ReadAsStringAsync() },
 				_ => throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode)
 			};
+
+			if (typeof(TResponse) == typeof(BaseResponse.None))
+			{
+				return new BaseResponse<TResponse>(
+					data: (TResponse)(object)BaseResponse.None.Instance,
+					statusCode: httpResponseMessage.StatusCode);
+			}
 
 			return new BaseResponse<TResponse>(
 					data: responseBody is not null and not []

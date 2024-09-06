@@ -8,4 +8,5 @@ public interface IChromaCollectionClient
 {
 	Task<BaseResponse<List<CollectionEntry>>> Get(CollectionGetRequest request);
 	Task<BaseResponse<CollectionEntriesQueryResponse>> Query(CollectionQueryRequest request);
+	Task<BaseResponse<BaseResponse.None>> Add(CollectionAddRequest request);
 }

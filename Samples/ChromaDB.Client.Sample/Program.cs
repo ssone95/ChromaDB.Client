@@ -20,7 +20,7 @@ BaseResponse<List<Collection>> collections = await client.ListCollections(databa
 
 BaseResponse<Collection> collection1 = await client.GetCollection("string5", database: "test", tenant: "nedeljko");
 
-IChromaCollectionClient string5Client = new ChromaCollectionFactory(configOptions).Create(collection1.Data!, httpClient);
+IChromaCollectionClient string5Client = new ChromaCollectionClient(collection1.Data!, httpClient);
 
 BaseResponse<List<CollectionEntry>> getResponse = await string5Client.Get(new CollectionGetRequest()
 {
