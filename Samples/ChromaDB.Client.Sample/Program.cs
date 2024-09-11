@@ -11,14 +11,7 @@ IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
 Console.WriteLine((await client.GetVersion()).Data);
 
-BaseResponse<Collection> createCollectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
-{
-	Name = "string5",
-}, database: "test", tenant: "nedeljko");
-
-BaseResponse<List<Collection>> collections = await client.ListCollections(database: "test", tenant: "nedeljko");
-
-BaseResponse<Collection> collection1 = await client.GetCollection("string5", database: "test", tenant: "nedeljko");
+BaseResponse<Collection> collection1 = await client.GetOrCreateCollection(new() { Name = "string5" });
 
 IChromaCollectionClient string5Client = new ChromaCollectionClient(collection1.Data!, httpClient);
 
@@ -27,6 +20,13 @@ BaseResponse<List<CollectionEntry>> getResponse = await string5Client.Get(new Co
 	Ids = ["340a36ad-c38a-406c-be38-250174aee5a4"],
 	Include = ["metadatas", "documents", "embeddings"],
 });
+if (getResponse.Success)
+{
+	foreach (var entry in getResponse.Data!)
+	{
+		Console.WriteLine(entry.Id);
+	}
+}
 
 BaseResponse<CollectionEntriesQueryResponse> queryResponse = await string5Client.Query(new CollectionQueryRequest()
 {
@@ -37,3 +37,10 @@ BaseResponse<CollectionEntriesQueryResponse> queryResponse = await string5Client
 		[1f, 0.5f, 0f, -0.5f, -1f]
 	],
 });
+if (queryResponse.Success)
+{
+	foreach (var id in queryResponse.Data!.Ids)
+	{
+		Console.WriteLine(id);
+	}
+}
