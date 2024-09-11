@@ -11,4 +11,5 @@ public interface IChromaCollectionClient
 	Task<BaseResponse<BaseResponse.None>> Add(CollectionAddRequest request);
 	Task<BaseResponse<BaseResponse.None>> Update(CollectionUpdateRequest request);
 	Task<BaseResponse<BaseResponse.None>> Upsert(CollectionUpsertRequest request);
+	Task<BaseResponse<List<string>>> Delete(CollectionDeleteRequest request);
 }
