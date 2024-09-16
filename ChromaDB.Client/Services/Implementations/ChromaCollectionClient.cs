@@ -33,4 +33,11 @@ public class ChromaCollectionClient : IChromaCollectionClient
 			.Add("{collection_id}", _collection.Id);
 		return await _httpClient.Post<Collection, CollectionQueryRequest, CollectionEntriesQueryResponse>(request, requestParams);
 	}
+
+	public async Task<BaseResponse<BaseResponse.None>> Add(CollectionAddRequest request)
+	{
+		RequestQueryParams requestParams = new RequestQueryParams()
+			.Add("{collection_id}", _collection.Id);
+		return await _httpClient.Post<Collection, CollectionAddRequest, BaseResponse.None>(request, requestParams);
+	}
 }
