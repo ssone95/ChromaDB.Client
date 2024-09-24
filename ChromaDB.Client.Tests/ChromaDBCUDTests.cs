@@ -260,6 +260,143 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 		Assert.That(result.Success, Is.True);
 	}
 
+	[Test]
+	public async Task DeleteByIdExisting()
+	{
+		var id = $"{Guid.NewGuid()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = await Init(httpClient);
+		await client.Add(new CollectionAddRequest()
+		{
+			Ids = [id],
+		});
+		var result = await client.Delete(new CollectionDeleteRequest()
+		{
+			Ids = [id],
+		});
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Has.Count.EqualTo(1));
+		Assert.That(result.Data[0], Is.EqualTo(id));
+	}
+
+	[Test]
+	public async Task DeleteByIdNonExisting()
+	{
+		var id = $"{Guid.NewGuid()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = await Init(httpClient);
+		var result = await client.Delete(new CollectionDeleteRequest()
+		{
+			Ids = [id],
+		});
+		Assert.That(result.Success, Is.True);
+		// https://github.com/chroma-core/chroma/issues/2841
+		//Assert.That(result.Data, Has.Count.EqualTo(0));
+	}
+
+	[Test]
+	public async Task DeleteByMultipleIds()
+	{
+		var id1 = $"{Guid.NewGuid()}";
+		var id2 = $"{Guid.NewGuid()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = await Init(httpClient);
+		await client.Add(new CollectionAddRequest()
+		{
+			Ids = [id1, id2],
+		});
+		var result = await client.Delete(new CollectionDeleteRequest()
+		{
+			Ids = [id1, id2],
+		});
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Has.Count.EqualTo(2));
+		Assert.That(result.Data[0], Is.EqualTo(id1));
+		Assert.That(result.Data[1], Is.EqualTo(id2));
+	}
+
+	[Test]
+	public async Task DeleteByMultipleIdsOneNonExisting()
+	{
+		var id1 = $"{Guid.NewGuid()}";
+		var id2 = $"{Guid.NewGuid()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = await Init(httpClient);
+		await client.Add(new CollectionAddRequest()
+		{
+			Ids = [id1],
+		});
+		var result = await client.Delete(new CollectionDeleteRequest()
+		{
+			Ids = [id1, id2],
+		});
+		Assert.That(result.Success, Is.True);
+		// https://github.com/chroma-core/chroma/issues/2841
+		//Assert.That(result.Data, Has.Count.EqualTo(1));
+		//Assert.That(result.Data[0], Is.EqualTo(id1));
+	}
+
+	[Test]
+	public async Task DeleteByMultipleIdsWithWhere()
+	{
+		var id1 = $"{Guid.NewGuid()}";
+		var id2 = $"{Guid.NewGuid()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = await Init(httpClient);
+		await client.Add(new CollectionAddRequest()
+		{
+			Ids = [id1, id2],
+			Metadatas = [new Dictionary<string, object>
+			{
+			}, new Dictionary<string, object>
+			{
+				{ "key", "value" },
+			}],
+		});
+		var result = await client.Delete(new CollectionDeleteRequest()
+		{
+			Ids = [id1, id2],
+			Where = new Dictionary<string, object>
+			{
+				{ "key", "value" },
+			},
+		});
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Has.Count.EqualTo(1));
+		Assert.That(result.Data[0], Is.EqualTo(id2));
+	}
+
+	[Test]
+	public async Task DeleteByMultipleIdsWithWhereDocument()
+	{
+		var id1 = $"{Guid.NewGuid()}";
+		var id2 = $"{Guid.NewGuid()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = await Init(httpClient);
+		await client.Add(new CollectionAddRequest()
+		{
+			Ids = [id1, id2],
+			Documents = ["doc1", "doc2"],
+		});
+		var result = await client.Delete(new CollectionDeleteRequest()
+		{
+			Ids = [id1, id2],
+			WhereDocument = new Dictionary<string, object>
+			{
+				{ "$contains", "2" },
+			},
+		});
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Has.Count.EqualTo(1));
+		Assert.That(result.Data[0], Is.EqualTo(id2));
+	}
+
 	async Task<ChromaCollectionClient> Init(ChromaDBHttpClient httpClient)
 	{
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
