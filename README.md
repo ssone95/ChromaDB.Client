@@ -12,7 +12,7 @@ With ChromaDB.Client, you can easily connect to a ChromaDB instance, create and 
 - [x] Collection creation
 - [x] Collection deletion
 - [x] Collection retrieval and modification (partially done)
-- [ ] Document insertion, deletion, and update
+- [x] Document insertion, deletion, and update
 - [ ] Document retrieval by ID or filter
 - [ ] Vector similarity search with optional parameters
 - [ ] Aggregation and grouping operations
