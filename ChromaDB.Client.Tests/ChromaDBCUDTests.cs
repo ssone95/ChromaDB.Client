@@ -242,7 +242,7 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 	}
 
 	[Test]
-	public async Task AUpsertithAll()
+	public async Task UpsertWithAll()
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
