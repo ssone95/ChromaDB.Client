@@ -211,4 +211,46 @@ public class ChromaDBCollectionTests : ChromaDBTestsBase
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.EqualTo(6));
 	}
+
+	[Test]
+	public async Task PeekDefault()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		await collectionClient.Add(new CollectionAddRequest()
+		{
+			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
+		});
+		var result = await collectionClient.Peek(new CollectionPeekRequest());
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data!.Count, Is.GreaterThan(0));
+	}
+
+	[Test]
+	public async Task PeekExplicitLimit()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		await collectionClient.Add(new CollectionAddRequest()
+		{
+			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
+		});
+		var result = await collectionClient.Peek(new CollectionPeekRequest() {  Limit = 2 });
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data!.Count, Is.EqualTo(2));
+	}
 }

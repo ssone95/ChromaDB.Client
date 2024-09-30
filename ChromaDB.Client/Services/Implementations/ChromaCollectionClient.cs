@@ -68,4 +68,13 @@ public class ChromaCollectionClient : IChromaCollectionClient
 			.Add("{collection_id}", _collection.Id);
 		return await _httpClient.Get<Collection, int>(requestParams);
 	}
+
+	public async Task<BaseResponse<List<CollectionEntry>>> Peek(CollectionPeekRequest request)
+	{
+		RequestQueryParams requestParams = new RequestQueryParams()
+			.Add("{collection_id}", _collection.Id);
+		BaseResponse<CollectionEntriesResponse> response = await _httpClient.Post<Collection, CollectionPeekRequest, CollectionEntriesResponse>(request, requestParams);
+		List<CollectionEntry> entries = response.Data?.Map() ?? [];
+		return new BaseResponse<List<CollectionEntry>>(entries, response.StatusCode, response.ReasonPhrase);
+	}
 }
