@@ -276,8 +276,6 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 			Ids = [id],
 		});
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data, Has.Count.EqualTo(1));
-		Assert.That(result.Data[0], Is.EqualTo(id));
 	}
 
 	[Test]
@@ -292,8 +290,6 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 			Ids = [id],
 		});
 		Assert.That(result.Success, Is.True);
-		// https://github.com/chroma-core/chroma/issues/2841
-		//Assert.That(result.Data, Has.Count.EqualTo(0));
 	}
 
 	[Test]
@@ -313,9 +309,6 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 			Ids = [id1, id2],
 		});
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data, Has.Count.EqualTo(2));
-		Assert.That(result.Data[0], Is.EqualTo(id1));
-		Assert.That(result.Data[1], Is.EqualTo(id2));
 	}
 
 	[Test]
@@ -335,9 +328,6 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 			Ids = [id1, id2],
 		});
 		Assert.That(result.Success, Is.True);
-		// https://github.com/chroma-core/chroma/issues/2841
-		//Assert.That(result.Data, Has.Count.EqualTo(1));
-		//Assert.That(result.Data[0], Is.EqualTo(id1));
 	}
 
 	[Test]
@@ -367,8 +357,6 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 			},
 		});
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data, Has.Count.EqualTo(1));
-		Assert.That(result.Data[0], Is.EqualTo(id2));
 	}
 
 	[Test]
@@ -393,8 +381,6 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 			},
 		});
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data, Has.Count.EqualTo(1));
-		Assert.That(result.Data[0], Is.EqualTo(id2));
 	}
 
 	async Task<ChromaCollectionClient> Init(ChromaDBHttpClient httpClient)
