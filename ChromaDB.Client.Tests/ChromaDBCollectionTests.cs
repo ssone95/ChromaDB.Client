@@ -253,4 +253,18 @@ public class ChromaDBCollectionTests : ChromaDBTestsBase
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 	}
+
+	[Test]
+	public async Task CountCollections()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var listResponse = await client.ListCollections();
+		Assert.That(listResponse.Success, Is.True);
+		var result = await client.CountCollections();
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Is.EqualTo(listResponse.Data!.Count));
+	}
 }
