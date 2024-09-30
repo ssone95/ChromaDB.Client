@@ -44,6 +44,17 @@ public static partial class HttpClientHelpers
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
+	public static async Task<BaseResponse<TResponse>> Put<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
+	{
+		using StringContent content = new(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Put, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
+		{
+			Content = content,
+			Headers = { Accept = { new MediaTypeWithQualityHeaderValue("application/json") } }
+		};
+		return await Send<TResponse>(httpClient, httpRequestMessage);
+	}
+
 	public static async Task<BaseResponse<TResponse>> Delete<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
 	{
 		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Delete, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));

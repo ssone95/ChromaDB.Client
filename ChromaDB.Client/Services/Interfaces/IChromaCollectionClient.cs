@@ -14,4 +14,5 @@ public interface IChromaCollectionClient
 	Task<BaseResponse<BaseResponse.None>> Delete(CollectionDeleteRequest request);
 	Task<BaseResponse<int>> Count();
 	Task<BaseResponse<List<CollectionEntry>>> Peek(CollectionPeekRequest request);
+	Task<BaseResponse<BaseResponse.None>> Modify(CollectionModifyRequest request);
 }

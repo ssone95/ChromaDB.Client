@@ -77,4 +77,11 @@ public class ChromaCollectionClient : IChromaCollectionClient
 		List<CollectionEntry> entries = response.Data?.Map() ?? [];
 		return new BaseResponse<List<CollectionEntry>>(entries, response.StatusCode, response.ReasonPhrase);
 	}
+
+	public async Task<BaseResponse<BaseResponse.None>> Modify(CollectionModifyRequest request)
+	{
+		RequestQueryParams requestParams = new RequestQueryParams()
+			.Insert("{collection_id}", _collection.Id);
+		return await _httpClient.Put<CollectionModifyRequest, BaseResponse.None>("collections/{collection_id}", request, requestParams);
+	}
 }

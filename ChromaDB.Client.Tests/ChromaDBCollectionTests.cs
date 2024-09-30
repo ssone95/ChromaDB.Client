@@ -267,4 +267,79 @@ public class ChromaDBCollectionTests : ChromaDBTestsBase
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.EqualTo(listResponse.Data!.Count));
 	}
+
+	[Test]
+	public async Task ModifyCollectionName()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+		var name2 = $"{name}_modified";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		var modifyResponse = await collectionClient.Modify(new CollectionModifyRequest()
+		{
+			Name = name2,
+		});
+		Assert.That(modifyResponse.Success, Is.True);
+	}
+
+	[Test]
+	public async Task ModifyCollectionMetadata()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+		var metadata = new Dictionary<string, object>()
+		{
+			{ "test", "foo" },
+			{ "test2", 10 },
+		};
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		var modifyResponse = await collectionClient.Modify(new CollectionModifyRequest()
+		{
+			Metadata = metadata,
+		});
+		Assert.That(modifyResponse.Success, Is.True);
+	}
+
+	[Test]
+	public async Task ModifyCollectionAll()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+		var name2 = $"{name}_modified";
+		var metadata = new Dictionary<string, object>()
+		{
+			{ "test", "foo" },
+			{ "test2", 10 },
+		};
+		var metadata2 = new Dictionary<string, object>()
+		{
+			{ "test", 10 },
+			{ "test3", "bar" },
+		};
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		var modifyResponse = await collectionClient.Modify(new CollectionModifyRequest()
+		{
+			Name = name2,
+			Metadata = metadata2,
+		});
+		Assert.That(modifyResponse.Success, Is.True);
+	}
 }
