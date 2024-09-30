@@ -55,10 +55,10 @@ public class ChromaCollectionClient : IChromaCollectionClient
 		return await _httpClient.Post<Collection, CollectionUpsertRequest, BaseResponse.None>(request, requestParams);
 	}
 
-	public async Task<BaseResponse<List<string>>> Delete(CollectionDeleteRequest request)
+	public async Task<BaseResponse<BaseResponse.None>> Delete(CollectionDeleteRequest request)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Add("{collection_id}", _collection.Id);
-		return await _httpClient.Post<Collection, CollectionDeleteRequest, List<string>>(request, requestParams);
+		return await _httpClient.Post<Collection, CollectionDeleteRequest, BaseResponse.None>(request, requestParams);
 	}
 }

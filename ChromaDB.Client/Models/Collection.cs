@@ -15,7 +15,7 @@ namespace ChromaDB.Client.Models;
 [ChromaPostRoute(Endpoint = "collections/{collection_id}/add", Source = typeof(Collection), RequestType = typeof(CollectionAddRequest), ResponseType = typeof(BaseResponse.None))]
 [ChromaPostRoute(Endpoint = "collections/{collection_id}/update", Source = typeof(Collection), RequestType = typeof(CollectionUpdateRequest), ResponseType = typeof(BaseResponse.None))]
 [ChromaPostRoute(Endpoint = "collections/{collection_id}/upsert", Source = typeof(Collection), RequestType = typeof(CollectionUpsertRequest), ResponseType = typeof(BaseResponse.None))]
-[ChromaPostRoute(Endpoint = "collections/{collection_id}/delete", Source = typeof(Collection), RequestType = typeof(CollectionDeleteRequest), ResponseType = typeof(List<string>))]
+[ChromaPostRoute(Endpoint = "collections/{collection_id}/delete", Source = typeof(Collection), RequestType = typeof(CollectionDeleteRequest), ResponseType = typeof(BaseResponse.None))]
 public class Collection
 {
 	[JsonPropertyName("id")]
