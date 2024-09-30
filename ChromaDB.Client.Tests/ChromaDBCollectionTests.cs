@@ -173,4 +173,42 @@ public class ChromaDBCollectionTests : ChromaDBTestsBase
 		Assert.That(result2.Data.Name, Is.EqualTo(name));
 		Assert.That(result1.Data.Id, Is.EqualTo(result2.Data.Id));
 	}
+
+	[Test]
+	public async Task CountEmptyCollection()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		var result = await collectionClient.Count();
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Is.EqualTo(0));
+	}
+
+	[Test]
+	public async Task CountNonEmptyCollection()
+	{
+		var name = $"collection{Random.Shared.Next()}";
+
+		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
+		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
+		var collectionResponse = await client.CreateCollection(new DBCreateCollectionRequest()
+		{
+			Name = name,
+		});
+		var collectionClient = new ChromaCollectionClient(collectionResponse.Data!, httpClient);
+		await collectionClient.Add(new CollectionAddRequest()
+		{
+			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
+		});
+		var result = await collectionClient.Count();
+		Assert.That(result.Success, Is.True);
+		Assert.That(result.Data, Is.EqualTo(6));
+	}
 }
