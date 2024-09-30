@@ -4,8 +4,10 @@ using ChromaDB.Client.Models.Responses;
 
 namespace ChromaDB.Client.Services.Interfaces;
 
-public interface IChromaCollectionClient
+public interface IChromaDBCollectionClient
 {
+	Collection Collection { get; }
+
 	Task<BaseResponse<List<CollectionEntry>>> Get(CollectionGetRequest request);
 	Task<BaseResponse<CollectionEntriesQueryResponse>> Query(CollectionQueryRequest request);
 	Task<BaseResponse<BaseResponse.None>> Add(CollectionAddRequest request);

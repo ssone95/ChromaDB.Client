@@ -1,6 +1,6 @@
 ﻿namespace ChromaDB.Client.Models.Requests;
 
-public class DBGetOrCreateCollectionRequest : DBGetOrCreateCollectionRequestBase
+public class GetOrCreateCollectionRequest : GetOrCreateCollectionRequestBase
 {
 	protected override bool GetOrCreate { get; } = true;
 }

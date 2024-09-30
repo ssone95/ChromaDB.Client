@@ -52,24 +52,24 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Get<Heartbeat>("", new RequestQueryParams());
 	}
 
-	public async Task<BaseResponse<Collection>> CreateCollection(DBCreateCollectionRequest request, string? tenant = null, string? database = null)
+	public async Task<BaseResponse<Collection>> CreateCollection(CreateCollectionRequest request, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
-		return await _httpClient.Post<DBCreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
+		return await _httpClient.Post<CreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 
-	public async Task<BaseResponse<Collection>> GetOrCreateCollection(DBGetOrCreateCollectionRequest request, string? tenant = null, string? database = null)
+	public async Task<BaseResponse<Collection>> GetOrCreateCollection(GetOrCreateCollectionRequest request, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
-		return await _httpClient.Post<DBGetOrCreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
+		return await _httpClient.Post<GetOrCreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 
 	public async Task<BaseResponse<BaseResponse.None>> DeleteCollection(string name, string? tenant = null, string? database = null)

@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
-public class ChromaDBResetTests
+public class ClientResetTests
 {
 	[TestFixture]
 	public class DefaultSettings : ChromaDBTestsBase
