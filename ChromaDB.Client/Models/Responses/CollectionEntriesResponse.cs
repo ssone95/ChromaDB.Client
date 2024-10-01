@@ -8,14 +8,17 @@ public class CollectionEntriesResponse
 	public required List<string> Ids { get; init; }
 
 	[JsonPropertyName("embeddings")]
-	public required List<List<float>> Embeddings { get; init; }
+	public required List<List<float>?> Embeddings { get; init; }
 
 	[JsonPropertyName("metadatas")]
-	public required List<Dictionary<string, object>> Metadatas { get; init; }
+	public required List<Dictionary<string, object>?> Metadatas { get; init; }
+
+	[JsonPropertyName("documents")]
+	public required List<string?> Documents { get; init; }
 
 	[JsonPropertyName("uris")]
-	public required List<List<string?>> Uris { get; init; }
+	public required List<List<string?>?> Uris { get; init; }
 
 	[JsonPropertyName("data")]
-	public required dynamic Data { get; init; }
+	public required dynamic? Data { get; init; }
 }

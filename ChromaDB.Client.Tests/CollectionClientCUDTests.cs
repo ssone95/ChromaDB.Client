@@ -369,7 +369,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		await client.Add(new CollectionAddRequest()
 		{
 			Ids = [id1, id2],
-			Documents = ["doc1", "doc2"],
+			Documents = ["Doc1", "Doc2"],
 		});
 		var result = await client.Delete(new CollectionDeleteRequest()
 		{
@@ -384,8 +384,9 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 
 	async Task<ChromaDBCollectionClient> Init(ChromaDBHttpClient httpClient)
 	{
+		var name = $"collection{Random.Shared.Next()}";
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var collectionResponse = await client.GetOrCreateCollection(new GetOrCreateCollectionRequest { Name = "cud_tests" });
+		var collectionResponse = await client.GetOrCreateCollection(new GetOrCreateCollectionRequest { Name = name });
 		Assert.That(collectionResponse.Success, Is.True);
 		var collection = collectionResponse.Data!;
 		return new ChromaDBCollectionClient(collection, httpClient);

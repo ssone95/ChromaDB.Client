@@ -10,10 +10,11 @@ public static class CollectionEntryMapper
 		return response.Ids
 			.Select((id, i) => new CollectionEntry(id)
 			{
+				Embeddings = response.Embeddings?[i],
+				Metadata = response.Metadatas?[i],
+				Document = response.Documents?[i],
+				Uris = response.Uris?[i],
 				Data = response.Data,
-				Embeddings = response.Embeddings?[i] ?? null,
-				Metadata = response.Metadatas?[i] ?? null,
-				Uris = response.Uris?[i] ?? null
 			})
 			.ToList();
 	}
