@@ -11,9 +11,9 @@ IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
 Console.WriteLine((await client.GetVersion()).Data);
 
-BaseResponse<Collection> collection1 = await client.GetOrCreateCollection(new() { Name = "string5" });
+BaseResponse<Collection> collectionResponse = await client.GetOrCreateCollection(new() { Name = "string5" });
 
-IChromaCollectionClient string5Client = new ChromaCollectionClient(collection1.Data!, httpClient);
+IChromaDBCollectionClient string5Client = new ChromaDBCollectionClient(collectionResponse.Data!, httpClient);
 
 BaseResponse<List<CollectionEntry>> getResponse = await string5Client.Get(new CollectionGetRequest()
 {

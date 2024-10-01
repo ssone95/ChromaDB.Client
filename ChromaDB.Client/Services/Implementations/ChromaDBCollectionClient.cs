@@ -7,16 +7,18 @@ using ChromaDB.Client.Services.Interfaces;
 
 namespace ChromaDB.Client.Services.Implementations;
 
-public class ChromaCollectionClient : IChromaCollectionClient
+public class ChromaDBCollectionClient : IChromaDBCollectionClient
 {
 	private readonly Collection _collection;
 	private readonly IChromaDBHttpClient _httpClient;
 
-	public ChromaCollectionClient(Collection collection, IChromaDBHttpClient httpClient)
+	public ChromaDBCollectionClient(Collection collection, IChromaDBHttpClient httpClient)
 	{
 		_collection = collection;
 		_httpClient = httpClient;
 	}
+
+	public Collection Collection => _collection;
 
 	public async Task<BaseResponse<List<CollectionEntry>>> Get(CollectionGetRequest request)
 	{

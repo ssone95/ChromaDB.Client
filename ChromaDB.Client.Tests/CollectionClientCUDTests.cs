@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace ChromaDB.Client.Tests;
 
 [TestFixture]
-public class ChromaDBCUDTests : ChromaDBTestsBase
+public class CollectionClientCUDTests : ChromaDBTestsBase
 {
 	[Test]
 	public async Task AddJustIds()
@@ -382,12 +382,12 @@ public class ChromaDBCUDTests : ChromaDBTestsBase
 		Assert.That(result.Success, Is.True);
 	}
 
-	async Task<ChromaCollectionClient> Init(ChromaDBHttpClient httpClient)
+	async Task<ChromaDBCollectionClient> Init(ChromaDBHttpClient httpClient)
 	{
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var collectionResponse = await client.GetOrCreateCollection(new DBGetOrCreateCollectionRequest { Name = "cud_tests" });
+		var collectionResponse = await client.GetOrCreateCollection(new GetOrCreateCollectionRequest { Name = "cud_tests" });
 		Assert.That(collectionResponse.Success, Is.True);
 		var collection = collectionResponse.Data!;
-		return new ChromaCollectionClient(collection, httpClient);
+		return new ChromaDBCollectionClient(collection, httpClient);
 	}
 }
