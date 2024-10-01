@@ -14,6 +14,12 @@ BaseResponse<Collection> collectionResponse = await client.GetOrCreateCollection
 
 IChromaDBCollectionClient string5Client = new ChromaDBCollectionClient(collectionResponse.Data!, httpClient);
 
+await string5Client.Add(new CollectionAddRequest()
+{
+	Ids = ["340a36ad-c38a-406c-be38-250174aee5a4"],
+	Embeddings = [[1f, 0.5f, 0f, -0.5f, -1f]],
+});
+
 BaseResponse<List<CollectionEntry>> getResponse = await string5Client.Get(new CollectionGetRequest()
 {
 	Ids = ["340a36ad-c38a-406c-be38-250174aee5a4"],
@@ -29,11 +35,7 @@ if (getResponse.Success)
 
 BaseResponse<List<List<CollectionQueryEntry>>> queryResponse = await string5Client.Query(new CollectionQueryRequest()
 {
-	QueryEmbeddings =
-	[
-		[1f, 0.5f, 0f, -0.5f, -1f],
-		[1.5f, 0f, 2f, -1f, -1.5f],
-	],
+	QueryEmbeddings = [[1f, 0.5f, 0f, -0.5f, -1f], [1.5f, 0f, 2f, -1f, -1.5f]],
 	Include = ["metadatas", "distances"],
 });
 if (queryResponse.Success)
