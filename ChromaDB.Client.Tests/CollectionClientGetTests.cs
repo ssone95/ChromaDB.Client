@@ -283,24 +283,24 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	}
 
 	[Test]
-	public async Task GetWhereDocumentIncludeDocument()
+	public async Task GetWhereDocumentIncludeDocuments()
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		var result = await client.Get(new CollectionGetRequest()
 		{
 			WhereDocument = new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
-			Include = [],
+			Include = ["documents"],
 		});
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.Null);
-		Assert.That(result.Data![0].Document, Is.Null);
+		Assert.That(result.Data![0].Document, Is.EqualTo(Doc1));
 	}
 
-	static readonly string Id1 = "Id1";
+	static readonly string Id1 = "id1";
 	static readonly string Id2 = "id2";
 	static readonly List<float> Embeddings1 = [1, 2, 3];
 	static readonly List<float> Embeddings2 = [1.4f, 1.5f, 99.33f];

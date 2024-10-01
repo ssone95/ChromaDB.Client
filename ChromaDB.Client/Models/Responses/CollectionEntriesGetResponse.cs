@@ -2,7 +2,7 @@
 
 namespace ChromaDB.Client.Models.Responses;
 
-public class CollectionEntriesResponse
+public class CollectionEntriesGetResponse
 {
 	[JsonPropertyName("ids")]
 	public required List<string> Ids { get; init; }

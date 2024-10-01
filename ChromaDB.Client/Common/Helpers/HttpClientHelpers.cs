@@ -118,7 +118,7 @@ public static partial class HttpClientHelpers
 
 			return match.Success
 				? match.Groups["errorMessage"]?.Value
-				: $"Couldn't identify the error message: {deserialized?.ErrorMessage}";
+				: $"Couldn't identify the error message: {errorMessageBody}";
 		}
 		catch
 		{

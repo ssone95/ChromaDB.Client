@@ -5,7 +5,7 @@ namespace ChromaDB.Client.Common.Mappers;
 
 public static class CollectionEntryMapper
 {
-	public static List<CollectionEntry> Map(this CollectionEntriesResponse response)
+	public static List<CollectionEntry> Map(this CollectionEntriesGetResponse response)
 	{
 		return response.Ids
 			.Select((id, i) => new CollectionEntry(id)
