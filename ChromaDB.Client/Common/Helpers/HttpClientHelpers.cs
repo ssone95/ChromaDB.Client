@@ -27,13 +27,13 @@ internal static partial class HttpClientHelpers
 		},
 	};
 
-	public static async Task<BaseResponse<TResponse>> Get<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
+	public static async Task<Response<TResponse>> Get<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
 	{
 		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Get, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
-	public static async Task<BaseResponse<TResponse>> Post<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
+	public static async Task<Response<TResponse>> Post<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
 		using StringContent content = new(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
 		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Post, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
@@ -44,7 +44,7 @@ internal static partial class HttpClientHelpers
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
-	public static async Task<BaseResponse<TResponse>> Put<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
+	public static async Task<Response<TResponse>> Put<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
 		using StringContent content = new(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
 		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Put, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
@@ -55,13 +55,13 @@ internal static partial class HttpClientHelpers
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
-	public static async Task<BaseResponse<TResponse>> Delete<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
+	public static async Task<Response<TResponse>> Delete<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
 	{
 		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Delete, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
-	private static async Task<BaseResponse<TResponse>> Send<TResponse>(IChromaDBHttpClient httpClient, HttpRequestMessage httpRequestMessage)
+	private static async Task<Response<TResponse>> Send<TResponse>(IChromaDBHttpClient httpClient, HttpRequestMessage httpRequestMessage)
 	{
 		try
 		{
@@ -77,31 +77,33 @@ internal static partial class HttpClientHelpers
 				_ => throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode)
 			};
 
-			if (typeof(TResponse) == typeof(BaseResponse.None))
+			if (typeof(TResponse) == typeof(Response.Empty))
 			{
-				return new BaseResponse<TResponse>(
-					data: (TResponse)(object)BaseResponse.None.Instance,
-					statusCode: httpResponseMessage.StatusCode);
+				return new Response<TResponse>(
+					statusCode: httpResponseMessage.StatusCode,
+					data: (TResponse)(object)Response.Empty.Instance);
 			}
 
-			return new BaseResponse<TResponse>(
+			return new Response<TResponse>(
+					statusCode: httpResponseMessage.StatusCode,
 					data: responseBody is not null and not []
 						? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
-						: default,
-					statusCode: httpResponseMessage.StatusCode);
+						: default);
 		}
 		catch (ChromaDBException ex)
 		{
-			return ex.ErrorMessageBody switch
-			{
-				not null and not [] => new BaseResponse<TResponse>(data: default, statusCode: ex.StatusCode!.Value, reasonPhrase: ParseErrorMessageBody(ex.ErrorMessageBody)),
-				_ => new BaseResponse<TResponse>(data: default, statusCode: ex.StatusCode!.Value)
-			};
+			return new Response<TResponse>(
+				statusCode: ex.StatusCode!.Value,
+				errorMessage: ex.ErrorMessageBody is not null and not []
+					? ParseErrorMessageBody(ex.ErrorMessageBody)
+					: default);
 		}
 		catch (Exception ex)
 		{
 			// Decided on ServiceUnavailable error for all other exception types, we'll pass the exception message forward
-			return new BaseResponse<TResponse>(data: default, statusCode: HttpStatusCode.ServiceUnavailable, reasonPhrase: ex.Message);
+			return new Response<TResponse>(
+				statusCode: HttpStatusCode.ServiceUnavailable,
+				errorMessage: ex.Message);
 		}
 	}
 

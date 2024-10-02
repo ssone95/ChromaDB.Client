@@ -7,13 +7,13 @@ public interface IChromaDBCollectionClient
 {
 	Collection Collection { get; }
 
-	Task<BaseResponse<List<CollectionEntry>>> Get(CollectionGetRequest request);
-	Task<BaseResponse<List<List<CollectionQueryEntry>>>> Query(CollectionQueryRequest request);
-	Task<BaseResponse<BaseResponse.None>> Add(CollectionAddRequest request);
-	Task<BaseResponse<BaseResponse.None>> Update(CollectionUpdateRequest request);
-	Task<BaseResponse<BaseResponse.None>> Upsert(CollectionUpsertRequest request);
-	Task<BaseResponse<BaseResponse.None>> Delete(CollectionDeleteRequest request);
-	Task<BaseResponse<int>> Count();
-	Task<BaseResponse<List<CollectionEntry>>> Peek(CollectionPeekRequest request);
-	Task<BaseResponse<BaseResponse.None>> Modify(CollectionModifyRequest request);
+	Task<Response<List<CollectionEntry>>> Get(CollectionGetRequest request);
+	Task<Response<List<List<CollectionQueryEntry>>>> Query(CollectionQueryRequest request);
+	Task<Response<Response.Empty>> Add(CollectionAddRequest request);
+	Task<Response<Response.Empty>> Update(CollectionUpdateRequest request);
+	Task<Response<Response.Empty>> Upsert(CollectionUpsertRequest request);
+	Task<Response<Response.Empty>> Delete(CollectionDeleteRequest request);
+	Task<Response<int>> Count();
+	Task<Response<List<CollectionEntry>>> Peek(CollectionPeekRequest request);
+	Task<Response<Response.Empty>> Modify(CollectionModifyRequest request);
 }

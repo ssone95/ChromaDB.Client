@@ -16,7 +16,7 @@ public class ClientResetTests
 			var client = new ChromaDBClient(ConfigurationOptions, httpClient);
 			var result = await client.Reset();
 			Assert.That(result.Success, Is.False);
-			Assert.That(result.ReasonPhrase, Contains.Substring("ALLOW_RESET"));
+			Assert.That(result.ErrorMessage, Contains.Substring("ALLOW_RESET"));
 		}
 	}
 
