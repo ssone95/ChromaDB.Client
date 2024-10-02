@@ -2,8 +2,8 @@
 
 namespace ChromaDB.Client.Models.Responses;
 
-public class GeneralError
+internal class GeneralError
 {
 	[JsonPropertyName("error")]
-	public string? ErrorMessage { get; init; }
+	public string? Error { get; init; }
 }

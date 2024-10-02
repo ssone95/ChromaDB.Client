@@ -22,7 +22,7 @@ public static class BaseResponse
 {
 	public class None
 	{
-		public static readonly None Instance = new None();
+		internal static readonly None Instance = new None();
 
 		private None()
 		{ }

@@ -2,7 +2,7 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class RequestQueryParams
+internal class RequestQueryParams
 {
 	private Dictionary<string, string> _queryParams;
 

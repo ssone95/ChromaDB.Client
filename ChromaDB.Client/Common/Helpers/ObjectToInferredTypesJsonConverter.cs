@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace ChromaDB.Client.Common.Helpers;
 
-public class ObjectToInferredTypesJsonConverter : JsonConverter<object>
+internal class ObjectToInferredTypesJsonConverter : JsonConverter<object>
 {
 	public override object Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		=> reader.TokenType switch
