@@ -134,7 +134,7 @@ public class ClientTests : ChromaDBTestsBase
 			Name = name,
 		});
 		Assert.That(result.Success, Is.False);
-		Assert.That(result.ReasonPhrase, Is.Not.Null.And.Not.Empty);
+		Assert.That(result.ErrorMessage, Is.Not.Null.And.Not.Empty);
 	}
 
 	[Test]
@@ -161,7 +161,7 @@ public class ClientTests : ChromaDBTestsBase
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
 		var result = await client.DeleteCollection(name);
 		Assert.That(result.Success, Is.False);
-		Assert.That(result.ReasonPhrase, Is.Not.Null.And.Not.Empty);
+		Assert.That(result.ErrorMessage, Is.Not.Null.And.Not.Empty);
 	}
 
 	[Test]

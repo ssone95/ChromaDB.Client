@@ -5,13 +5,13 @@ namespace ChromaDB.Client.Services.Interfaces;
 
 public interface IChromaDBClient
 {
-	Task<BaseResponse<Collection>> GetCollection(string name, string? tenant = null, string? database = null);
-	Task<BaseResponse<List<Collection>>> ListCollections(string? tenant = null, string? database = null);
-	Task<BaseResponse<Heartbeat>> Heartbeat();
-	Task<BaseResponse<Collection>> CreateCollection(CreateCollectionRequest request, string? tenant = null, string? database = null);
-	Task<BaseResponse<Collection>> GetOrCreateCollection(GetOrCreateCollectionRequest request, string? tenant = null, string? database = null);
-	Task<BaseResponse<BaseResponse.None>> DeleteCollection(string name, string? tenant = null, string? database = null);
-	Task<BaseResponse<string>> GetVersion();
-	Task<BaseResponse<bool>> Reset();
-	Task<BaseResponse<int>> CountCollections(string? tenant = null, string? database = null);
+	Task<Response<Collection>> GetCollection(string name, string? tenant = null, string? database = null);
+	Task<Response<List<Collection>>> ListCollections(string? tenant = null, string? database = null);
+	Task<Response<Heartbeat>> Heartbeat();
+	Task<Response<Collection>> CreateCollection(CreateCollectionRequest request, string? tenant = null, string? database = null);
+	Task<Response<Collection>> GetOrCreateCollection(GetOrCreateCollectionRequest request, string? tenant = null, string? database = null);
+	Task<Response<Response.Empty>> DeleteCollection(string name, string? tenant = null, string? database = null);
+	Task<Response<string>> GetVersion();
+	Task<Response<bool>> Reset();
+	Task<Response<int>> CountCollections(string? tenant = null, string? database = null);
 }
