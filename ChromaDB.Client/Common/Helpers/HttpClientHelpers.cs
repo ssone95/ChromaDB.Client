@@ -90,10 +90,6 @@ public static partial class HttpClientHelpers
 						: default,
 					statusCode: httpResponseMessage.StatusCode);
 		}
-		catch (ChromaDBGeneralException ex)
-		{
-			return new BaseResponse<TResponse>(data: default, statusCode: HttpStatusCode.InternalServerError, reasonPhrase: ex.Message);
-		}
 		catch (ChromaDBException ex)
 		{
 			return ex.ErrorMessageBody switch
