@@ -3,7 +3,7 @@ using ChromaDB.Client.Models.Responses;
 
 namespace ChromaDB.Client.Common.Mappers;
 
-public static class CollectionEntryMapper
+internal static class CollectionEntryMapper
 {
 	public static List<CollectionEntry> Map(this CollectionEntriesGetResponse response)
 	{

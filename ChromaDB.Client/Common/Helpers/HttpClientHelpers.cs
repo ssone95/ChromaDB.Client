@@ -10,7 +10,7 @@ using ChromaDB.Client.Services.Interfaces;
 
 namespace ChromaDB.Client.Common.Helpers;
 
-public static partial class HttpClientHelpers
+internal static partial class HttpClientHelpers
 {
 	private static readonly JsonSerializerOptions PostJsonSerializerOptions = new()
 	{
@@ -110,7 +110,7 @@ public static partial class HttpClientHelpers
 		try
 		{
 			GeneralError deserialized = JsonSerializer.Deserialize<GeneralError>(errorMessageBody, DeserializerJsonSerializerOptions)!;
-			Match match = ParseErrorMessageBodyRegex().Match(deserialized?.ErrorMessage ?? string.Empty);
+			Match match = ParseErrorMessageBodyRegex().Match(deserialized?.Error ?? string.Empty);
 
 			return match.Success
 				? match.Groups["errorMessage"]?.Value
