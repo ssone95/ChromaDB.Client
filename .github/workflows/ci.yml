@@ -8,7 +8,7 @@ on:
 
 env:
   CONFIGURATION: Release
-  VERSION_SUFFIX: ci-${{ github.run_id }}
+  DOTNET_VERSION: 8.0.x
 
 jobs:
   ci:
@@ -17,10 +17,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: CI version suffix
+      if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+      run: echo 'VERSION_SUFFIX=ci-${{ github.run_id }}' >> $GITHUB_ENV
+
+    - name: Release version suffix
+      if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      run: echo 'VERSION_SUFFIX=' >> $GITHUB_ENV
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Build
       run: dotnet build -c ${{ env.CONFIGURATION }} --version-suffix '${{ env.VERSION_SUFFIX }}'
@@ -38,3 +46,22 @@ jobs:
         path: |
           **/*.nupkg
           **/*.snupkg
+
+  publish:
+    needs: ci
+    if: ${{ github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Download
+      uses: actions/download-artifact@v4
+      with:
+        name: packages
+
+    - name: Publish to NuGet.org
+      run: dotnet nuget push '**/*.nupkg' --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
