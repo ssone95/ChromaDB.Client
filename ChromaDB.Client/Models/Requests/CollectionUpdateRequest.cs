@@ -2,7 +2,7 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class CollectionUpdateRequest
+internal class CollectionUpdateRequest
 {
 	[JsonPropertyName("ids")]
 	public required List<string> Ids { get; init; }

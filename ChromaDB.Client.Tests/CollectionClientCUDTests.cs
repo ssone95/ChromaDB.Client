@@ -73,10 +73,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id]);
-		var result = await client.Update(new CollectionUpdateRequest()
-		{
-			Ids = [id],
-		});
+		var result = await client.Update([id]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -88,11 +85,8 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id]);
-		var result = await client.Update(new CollectionUpdateRequest()
-		{
-			Ids = [id],
-			Embeddings = [[1f, 0.5f, 0f, -0.5f, -1f]],
-		});
+		var result = await client.Update([id],
+			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -104,15 +98,12 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id]);
-		var result = await client.Update(new CollectionUpdateRequest()
-		{
-			Ids = [id],
-			Metadatas = [new Dictionary<string, object>
+		var result = await client.Update([id],
+			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
-			}],
-		});
+			}]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -124,11 +115,8 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id]);
-		var result = await client.Update(new CollectionUpdateRequest()
-		{
-			Ids = [id],
-			Documents = ["test"],
-		});
+		var result = await client.Update([id],
+			documents: ["test"]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -140,17 +128,14 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id]);
-		var result = await client.Update(new CollectionUpdateRequest()
-		{
-			Ids = [id],
-			Embeddings = [[1f, 0.5f, 0f, -0.5f, -1f]],
-			Metadatas = [new Dictionary<string, object>
+		var result = await client.Update([id],
+			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]],
+			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}],
-			Documents = ["test"],
-		});
+			documents: ["test"]);
 		Assert.That(result.Success, Is.True);
 	}
 

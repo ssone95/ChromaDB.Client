@@ -10,7 +10,7 @@ public interface IChromaDBCollectionClient
 	Task<Response<List<CollectionEntry>>> Get(List<string>? ids = null, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, List<string>? include = null);
 	Task<Response<List<List<CollectionQueryEntry>>>> Query(List<List<float>> queryEmbeddings, int nResults = 10, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, List<string>? include = null);
 	Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
-	Task<Response<Response.Empty>> Update(CollectionUpdateRequest request);
+	Task<Response<Response.Empty>> Update(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
 	Task<Response<Response.Empty>> Upsert(CollectionUpsertRequest request);
 	Task<Response<Response.Empty>> Delete(List<string> ids, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null);
 	Task<Response<int>> Count();
