@@ -14,6 +14,6 @@ public interface IChromaDBCollectionClient
 	Task<Response<Response.Empty>> Upsert(CollectionUpsertRequest request);
 	Task<Response<Response.Empty>> Delete(List<string> ids, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null);
 	Task<Response<int>> Count();
-	Task<Response<List<CollectionEntry>>> Peek(CollectionPeekRequest request);
+	Task<Response<List<CollectionEntry>>> Peek(int? limit = 10);
 	Task<Response<Response.Empty>> Modify(string? name = null, IDictionary<string, object>? metadata = null);
 }

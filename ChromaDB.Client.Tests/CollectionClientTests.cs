@@ -33,7 +33,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
-		var result = await client.Peek(new CollectionPeekRequest());
+		var result = await client.Peek();
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.GreaterThan(0));
 	}
@@ -44,7 +44,8 @@ public class CollectionClientTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
-		var result = await client.Peek(new CollectionPeekRequest() { Limit = 2 });
+		var result = await client.Peek(
+			limit: 2);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 	}

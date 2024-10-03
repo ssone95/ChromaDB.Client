@@ -94,10 +94,14 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return await _httpClient.Get<int>("collections/{collection_id}/count", requestParams);
 	}
 
-	public async Task<Response<List<CollectionEntry>>> Peek(CollectionPeekRequest request)
+	public async Task<Response<List<CollectionEntry>>> Peek(int? limit = 10)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
+		CollectionPeekRequest request = new CollectionPeekRequest()
+		{
+			Limit = limit,
+		};
 		Response<CollectionEntriesGetResponse> response = await _httpClient.Post<CollectionPeekRequest, CollectionEntriesGetResponse>("collections/{collection_id}/get", request, requestParams);
 		List<CollectionEntry> entries = response.Data?.Map() ?? [];
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);
