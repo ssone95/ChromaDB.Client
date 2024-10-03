@@ -54,10 +54,8 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Modify(new CollectionModifyRequest()
-		{
-			Name = $"{client.Collection.Name}_modified",
-		});
+		var result = await client.Modify(
+			name: $"{client.Collection.Name}_modified");
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -72,10 +70,8 @@ public class CollectionClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Modify(new CollectionModifyRequest()
-		{
-			Metadata = metadata,
-		});
+		var result = await client.Modify(
+			metadata: metadata);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -90,11 +86,9 @@ public class CollectionClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Modify(new CollectionModifyRequest()
-		{
-			Name = $"{client.Collection.Name}_modified",
-			Metadata = metadata,
-		});
+		var result = await client.Modify(
+			name: $"{client.Collection.Name}_modified",
+			metadata: metadata);
 		Assert.That(result.Success, Is.True);
 	}
 
