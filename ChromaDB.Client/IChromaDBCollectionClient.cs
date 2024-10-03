@@ -9,7 +9,7 @@ public interface IChromaDBCollectionClient
 
 	Task<Response<List<CollectionEntry>>> Get(CollectionGetRequest request);
 	Task<Response<List<List<CollectionQueryEntry>>>> Query(CollectionQueryRequest request);
-	Task<Response<Response.Empty>> Add(CollectionAddRequest request);
+	Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
 	Task<Response<Response.Empty>> Update(CollectionUpdateRequest request);
 	Task<Response<Response.Empty>> Upsert(CollectionUpsertRequest request);
 	Task<Response<Response.Empty>> Delete(CollectionDeleteRequest request);

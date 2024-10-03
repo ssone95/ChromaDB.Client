@@ -21,10 +21,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		await client.Add(new CollectionAddRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
-		});
+		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
 		var result = await client.Count();
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.EqualTo(6));
@@ -35,10 +32,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		await client.Add(new CollectionAddRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
-		});
+		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
 		var result = await client.Peek(new CollectionPeekRequest());
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.GreaterThan(0));
@@ -49,10 +43,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		await client.Add(new CollectionAddRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
-		});
+		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
 		var result = await client.Peek(new CollectionPeekRequest() { Limit = 2 });
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));

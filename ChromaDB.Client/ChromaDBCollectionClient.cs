@@ -37,10 +37,17 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return new Response<List<List<CollectionQueryEntry>>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
-	public async Task<Response<Response.Empty>> Add(CollectionAddRequest request)
+	public async Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
+		CollectionAddRequest request = new CollectionAddRequest()
+		{
+			Ids = ids,
+			Embeddings = embeddings,
+			Metadatas = metadatas,
+			Documents = documents,
+		};
 		return await _httpClient.Post<CollectionAddRequest, Response.Empty>("collections/{collection_id}/add", request, requestParams);
 	}
 

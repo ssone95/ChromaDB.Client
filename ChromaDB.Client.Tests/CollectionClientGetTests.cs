@@ -326,13 +326,10 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 		Assert.That(collectionResponse.Success, Is.True);
 		var collection = collectionResponse.Data!;
 		var collectionClient = new ChromaDBCollectionClient(collection, httpClient);
-		var addResponse = await collectionClient.Add(new CollectionAddRequest()
-		{
-			Ids = [Id1, Id2],
-			Embeddings = [Embeddings1, Embeddings2],
-			Metadatas = [Metadata1, Metadata2],
-			Documents = [Doc1, Doc2],
-		});
+		var addResponse = await collectionClient.Add([Id1, Id2],
+			embeddings: [Embeddings1, Embeddings2],
+			metadatas: [Metadata1, Metadata2],
+			documents: [Doc1, Doc2]);
 		Assert.That(addResponse.Success, Is.True);
 		return collectionClient;
 	}
