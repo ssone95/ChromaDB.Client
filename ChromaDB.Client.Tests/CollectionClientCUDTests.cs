@@ -236,10 +236,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id]);
-		var result = await client.Delete(new CollectionDeleteRequest()
-		{
-			Ids = [id],
-		});
+		var result = await client.Delete([id]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -250,10 +247,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Delete(new CollectionDeleteRequest()
-		{
-			Ids = [id],
-		});
+		var result = await client.Delete([id]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -266,10 +260,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id1, id2]);
-		var result = await client.Delete(new CollectionDeleteRequest()
-		{
-			Ids = [id1, id2],
-		});
+		var result = await client.Delete([id1, id2]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -282,10 +273,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
 		await client.Add([id1]);
-		var result = await client.Delete(new CollectionDeleteRequest()
-		{
-			Ids = [id1, id2],
-		});
+		var result = await client.Delete([id1, id2]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -304,14 +292,11 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 			{
 				{ "key", "value" },
 			}]);
-		var result = await client.Delete(new CollectionDeleteRequest()
-		{
-			Ids = [id1, id2],
-			Where = new Dictionary<string, object>
+		var result = await client.Delete([id1, id2],
+			where: new Dictionary<string, object>
 			{
 				{ "key", "value" },
-			},
-		});
+			});
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -325,14 +310,11 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		var client = await Init(httpClient);
 		await client.Add([id1, id2],
 			documents: ["Doc1", "Doc2"]);
-		var result = await client.Delete(new CollectionDeleteRequest()
-		{
-			Ids = [id1, id2],
-			WhereDocument = new Dictionary<string, object>
+		var result = await client.Delete([id1, id2],
+			whereDocument: new Dictionary<string, object>
 			{
 				{ "$contains", "2" },
-			},
-		});
+			});
 		Assert.That(result.Success, Is.True);
 	}
 

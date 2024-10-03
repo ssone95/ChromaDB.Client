@@ -2,7 +2,7 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class CollectionDeleteRequest
+internal class CollectionDeleteRequest
 {
 	[JsonPropertyName("ids")]
 	public required List<string> Ids { get; init; }

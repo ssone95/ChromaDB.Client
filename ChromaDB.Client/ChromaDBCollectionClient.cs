@@ -65,10 +65,16 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return await _httpClient.Post<CollectionUpsertRequest, Response.Empty>("collections/{collection_id}/upsert", request, requestParams);
 	}
 
-	public async Task<Response<Response.Empty>> Delete(CollectionDeleteRequest request)
+	public async Task<Response<Response.Empty>> Delete(List<string> ids, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
+		CollectionDeleteRequest request = new CollectionDeleteRequest()
+		{
+			Ids = ids,
+			Where = where,
+			WhereDocument = whereDocument,
+		};
 		return await _httpClient.Post<CollectionDeleteRequest, Response.Empty>("collections/{collection_id}/delete", request, requestParams);
 	}
 
