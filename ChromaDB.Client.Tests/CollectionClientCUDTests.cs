@@ -1,4 +1,3 @@
-using ChromaDB.Client.Models.Requests;
 using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;

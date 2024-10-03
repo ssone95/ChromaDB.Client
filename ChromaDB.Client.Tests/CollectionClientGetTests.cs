@@ -1,5 +1,4 @@
-﻿using ChromaDB.Client.Models.Requests;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
@@ -15,7 +14,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1],
 			include: []);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.Null);
@@ -31,7 +30,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1],
 			include: ["embeddings"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0].Metadata, Is.Null);
@@ -47,7 +46,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1],
 			include: ["metadatas"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata1));
@@ -63,7 +62,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1],
 			include: ["documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.Null);
@@ -79,7 +78,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1],
 			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata1));
@@ -95,7 +94,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1, Id2],
 			include: []);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.Null);
@@ -115,7 +114,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1, Id2],
 			include: ["embeddings"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0].Metadata, Is.Null);
@@ -135,7 +134,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1, Id2],
 			include: ["metadatas"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata1));
@@ -155,7 +154,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1, Id2],
 			include: ["documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.Null);
@@ -175,7 +174,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			ids: [Id1, Id2],
 			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata1));
@@ -196,7 +195,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			include: ["embeddings", "metadatas", "documents"],
 			limit: 1);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata1));
@@ -214,7 +213,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			limit: 1,
 			offset: 1);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id2));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings2));
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata2));
@@ -230,7 +229,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			where: new Dictionary<string, object> { { MetadataKey2, Metadata2[MetadataKey2] } },
 			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id2));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings2));
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata2));
@@ -246,7 +245,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			where: new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
 			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0].Metadata, Is.EqualTo(Metadata1));
@@ -262,7 +261,7 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
 			include: ["documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0].Embeddings, Is.Null);
 		Assert.That(result.Data![0].Metadata, Is.Null);

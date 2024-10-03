@@ -1,5 +1,4 @@
-﻿using ChromaDB.Client.Models.Requests;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
@@ -35,7 +34,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
 		var result = await client.Peek();
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.GreaterThan(0));
+		Assert.That(result.Data, Is.Not.Empty);
 	}
 
 	[Test]
@@ -47,7 +46,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 		var result = await client.Peek(
 			limit: 2);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 	}
 
 	[Test]

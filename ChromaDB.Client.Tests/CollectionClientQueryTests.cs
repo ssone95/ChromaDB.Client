@@ -1,5 +1,4 @@
-﻿using ChromaDB.Client.Models.Requests;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
@@ -14,8 +13,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 		var result = await client.Query([Embeddings1],
 			include: ["distances", "embeddings"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
-		Assert.That(result.Data![0].Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
+		Assert.That(result.Data![0], Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Select(x => x.Distance), Has.Some.Not.EqualTo(0));
 		Assert.That(result.Data![0][0].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][0].Metadata, Is.Null);
@@ -33,8 +32,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 		var result = await client.Query([Embeddings1],
 			include: ["distances", "embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
-		Assert.That(result.Data![0].Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
+		Assert.That(result.Data![0], Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Select(x => x.Distance), Has.Some.Not.EqualTo(0));
 		Assert.That(result.Data![0][0].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][0].Metadata, Is.Not.Null.And.Not.Empty);
@@ -52,8 +51,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 		var result = await client.Query([Embeddings1, Embeddings2],
 			include: ["distances", "embeddings"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
-		Assert.That(result.Data![0].Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
+		Assert.That(result.Data![0], Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Select(x => x.Distance), Has.Some.Not.EqualTo(0));
 		Assert.That(result.Data![0][0].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][0].Metadata, Is.Null);
@@ -61,7 +60,7 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 		Assert.That(result.Data![0][1].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][1].Metadata, Is.Null);
 		Assert.That(result.Data![0][1].Document, Is.Null);
-		Assert.That(result.Data![1].Count, Is.EqualTo(2));
+		Assert.That(result.Data![1], Has.Count.EqualTo(2));
 		Assert.That(result.Data![1].Select(x => x.Distance), Has.Some.Not.EqualTo(0));
 		Assert.That(result.Data![1][0].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![1][0].Metadata, Is.Null);
@@ -79,8 +78,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 		var result = await client.Query([Embeddings1, Embeddings2],
 			include: ["distances", "embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
-		Assert.That(result.Data![0].Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
+		Assert.That(result.Data![0], Has.Count.EqualTo(2));
 		Assert.That(result.Data![0].Select(x => x.Distance), Has.Some.Not.EqualTo(0));
 		Assert.That(result.Data![0][0].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][0].Metadata, Is.Not.Null.And.Not.Empty);
@@ -88,7 +87,7 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 		Assert.That(result.Data![0][1].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][1].Metadata, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![0][1].Document, Is.Not.Null.And.Not.Empty);
-		Assert.That(result.Data![1].Count, Is.EqualTo(2));
+		Assert.That(result.Data![1], Has.Count.EqualTo(2));
 		Assert.That(result.Data![1].Select(x => x.Distance), Has.Some.Not.EqualTo(0));
 		Assert.That(result.Data![1][0].Embeddings, Is.Not.Null.And.Not.Empty);
 		Assert.That(result.Data![1][0].Metadata, Is.Not.Null.And.Not.Empty);
@@ -107,8 +106,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 			include: ["distances", "embeddings"],
 			nResults: 1);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(1));
-		Assert.That(result.Data![0].Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(1));
+		Assert.That(result.Data![0], Has.Count.EqualTo(1));
 		Assert.That(result.Data![0][0].Distance, Is.EqualTo(0));
 		Assert.That(result.Data![0][0].Embeddings, Is.EqualTo(Embeddings1));
 		Assert.That(result.Data![0][0].Metadata, Is.Null);
@@ -124,14 +123,14 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 			where: new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
 			include: ["distances"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
-		Assert.That(result.Data![0].Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
+		Assert.That(result.Data![0], Has.Count.EqualTo(1));
 		Assert.That(result.Data![0][0].Distance, Is.EqualTo(0));
 		Assert.That(result.Data![0][0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0][0].Embeddings, Is.Null);
 		Assert.That(result.Data![0][0].Metadata, Is.Null);
 		Assert.That(result.Data![0][0].Document, Is.Null);
-		Assert.That(result.Data![1].Count, Is.EqualTo(1));
+		Assert.That(result.Data![1], Has.Count.EqualTo(1));
 		Assert.That(result.Data![1][0].Distance, Is.GreaterThan(0));
 		Assert.That(result.Data![1][0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![1][0].Embeddings, Is.Null);
@@ -148,14 +147,14 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
 			include: ["distances"]);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
-		Assert.That(result.Data![0].Count, Is.EqualTo(1));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
+		Assert.That(result.Data![0], Has.Count.EqualTo(1));
 		Assert.That(result.Data![0][0].Distance, Is.EqualTo(0));
 		Assert.That(result.Data![0][0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![0][0].Embeddings, Is.Null);
 		Assert.That(result.Data![0][0].Metadata, Is.Null);
 		Assert.That(result.Data![0][0].Document, Is.Null);
-		Assert.That(result.Data![1].Count, Is.EqualTo(1));
+		Assert.That(result.Data![1], Has.Count.EqualTo(1));
 		Assert.That(result.Data![1][0].Distance, Is.GreaterThan(0));
 		Assert.That(result.Data![1][0].Id, Is.EqualTo(Id1));
 		Assert.That(result.Data![1][0].Embeddings, Is.Null);
