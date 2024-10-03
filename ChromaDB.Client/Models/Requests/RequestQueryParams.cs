@@ -5,7 +5,7 @@ namespace ChromaDB.Client.Models.Requests;
 
 internal class RequestQueryParams : IEnumerable<(string key, string value)>
 {
-	private Dictionary<string, string> _queryParams;
+	private readonly Dictionary<string, string> _queryParams;
 
 	public RequestQueryParams()
 	{
