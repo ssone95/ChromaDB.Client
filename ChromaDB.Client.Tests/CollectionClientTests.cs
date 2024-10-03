@@ -97,7 +97,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		var name = $"collection{Random.Shared.Next()}";
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var collectionResponse = await client.CreateCollection(new CreateCollectionRequest { Name = name });
+		var collectionResponse = await client.CreateCollection(name);
 		Assert.That(collectionResponse.Success, Is.True);
 		var collection = collectionResponse.Data!;
 		return new ChromaDBCollectionClient(collection, httpClient);

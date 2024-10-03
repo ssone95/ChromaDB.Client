@@ -52,23 +52,33 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Get<Heartbeat>("", new RequestQueryParams());
 	}
 
-	public async Task<Response<Collection>> CreateCollection(CreateCollectionRequest request, string? tenant = null, string? database = null)
+	public async Task<Response<Collection>> CreateCollection(string name, IDictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
+		CreateCollectionRequest request = new CreateCollectionRequest()
+		{
+			Name = name,
+			Metadata = metadata
+		};
 		return await _httpClient.Post<CreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 
-	public async Task<Response<Collection>> GetOrCreateCollection(GetOrCreateCollectionRequest request, string? tenant = null, string? database = null)
+	public async Task<Response<Collection>> GetOrCreateCollection(string name, IDictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
+		GetOrCreateCollectionRequest request = new GetOrCreateCollectionRequest()
+		{
+			Name = name,
+			Metadata = metadata
+		};
 		return await _httpClient.Post<GetOrCreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 

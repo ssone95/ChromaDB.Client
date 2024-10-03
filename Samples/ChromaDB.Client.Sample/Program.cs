@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using ChromaDB.Client;
 using ChromaDB.Client.Models;
-using ChromaDB.Client.Models.Requests;
 
 ConfigurationOptions configOptions = new(uri: "http://localhost:8000/api/v1/");
 using IChromaDBHttpClient httpClient = new ChromaDBHttpClient(configOptions);
@@ -9,7 +8,7 @@ IChromaDBClient client = new ChromaDBClient(configOptions, httpClient);
 
 Console.WriteLine((await client.GetVersion()).Data);
 
-Response<Collection> getOrCreateResponse = await client.GetOrCreateCollection(new() { Name = "string5" });
+Response<Collection> getOrCreateResponse = await client.GetOrCreateCollection("string5");
 Trace.Assert(getOrCreateResponse.Success);
 
 IChromaDBCollectionClient string5Client = new ChromaDBCollectionClient(getOrCreateResponse.Data, httpClient);
