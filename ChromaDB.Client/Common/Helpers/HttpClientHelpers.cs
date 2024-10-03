@@ -136,13 +136,9 @@ internal static partial class HttpClientHelpers
 	private static string ValidateAndPrepareEndpoint(string endpoint, RequestQueryParams queryParams)
 	{
 		var queryArgs = PrepareQueryParams(endpoint);
-
-		if (queryArgs is [])
-		{
-			return endpoint;
-		}
-
-		return FormatRequestUri(endpoint, queryParams);
+		return queryArgs is not []
+		? FormatRequestUri(endpoint, queryParams)
+		: endpoint;
 	}
 
 	private static string FormatRequestUri(string endpoint, RequestQueryParams queryParams)
