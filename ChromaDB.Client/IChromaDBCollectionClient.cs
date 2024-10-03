@@ -7,7 +7,7 @@ public interface IChromaDBCollectionClient
 {
 	Collection Collection { get; }
 
-	Task<Response<List<CollectionEntry>>> Get(CollectionGetRequest request);
+	Task<Response<List<CollectionEntry>>> Get(List<string>? ids = null, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, List<string>? include = null);
 	Task<Response<List<List<CollectionQueryEntry>>>> Query(CollectionQueryRequest request);
 	Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
 	Task<Response<Response.Empty>> Update(CollectionUpdateRequest request);

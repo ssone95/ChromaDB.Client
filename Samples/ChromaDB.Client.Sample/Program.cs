@@ -17,11 +17,7 @@ IChromaDBCollectionClient string5Client = new ChromaDBCollectionClient(getOrCrea
 Response<Response.Empty> addResponse = await string5Client.Add(["340a36ad-c38a-406c-be38-250174aee5a4"], embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]]);
 Trace.Assert(addResponse.Success);
 
-Response<List<CollectionEntry>> getResponse = await string5Client.Get(new CollectionGetRequest()
-{
-	Ids = ["340a36ad-c38a-406c-be38-250174aee5a4"],
-	Include = ["metadatas", "documents", "embeddings"],
-});
+Response<List<CollectionEntry>> getResponse = await string5Client.Get(["340a36ad-c38a-406c-be38-250174aee5a4"], include: ["metadatas", "documents", "embeddings"]);
 if (getResponse.Success)
 {
 	foreach (var entry in getResponse.Data)

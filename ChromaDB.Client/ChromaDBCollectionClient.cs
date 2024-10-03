@@ -19,10 +19,19 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public Collection Collection => _collection;
 
-	public async Task<Response<List<CollectionEntry>>> Get(CollectionGetRequest request)
+	public async Task<Response<List<CollectionEntry>>> Get(List<string>? ids = null, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, List<string>? include = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
+		CollectionGetRequest request = new CollectionGetRequest()
+		{
+			Ids = ids,
+			Where = where,
+			WhereDocument = whereDocument,
+			Limit = limit,
+			Offset = offset,
+			Include = include ?? ["metadatas", "documents"],
+		};
 		Response<CollectionEntriesGetResponse> response = await _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>("collections/{collection_id}/get", request, requestParams);
 		List<CollectionEntry> entries = response.Data?.Map() ?? [];
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);

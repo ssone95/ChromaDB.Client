@@ -11,11 +11,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1],
-			Include = [],
-		});
+		var result = await client.Get(
+			ids: [Id1],
+			include: []);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -29,11 +27,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1],
-			Include = ["embeddings"],
-		});
+		var result = await client.Get(
+			ids: [Id1],
+			include: ["embeddings"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -47,11 +43,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1],
-			Include = ["metadatas"],
-		});
+		var result = await client.Get(
+			ids: [Id1],
+			include: ["metadatas"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -65,11 +59,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1],
-			Include = ["documents"],
-		});
+		var result = await client.Get(
+			ids: [Id1],
+			include: ["documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -83,11 +75,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1],
-			Include = ["embeddings", "metadatas", "documents"],
-		});
+		var result = await client.Get(
+			ids: [Id1],
+			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -101,11 +91,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = [],
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: []);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -123,11 +111,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = ["embeddings"],
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: ["embeddings"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -145,11 +131,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = ["metadatas"],
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: ["metadatas"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -167,11 +151,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = ["documents"],
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: ["documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -189,11 +171,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = ["embeddings", "metadatas", "documents"],
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -211,12 +191,10 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = ["embeddings", "metadatas", "documents"],
-			Limit = 1,
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: ["embeddings", "metadatas", "documents"],
+			limit: 1);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -230,13 +208,11 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Ids = [Id1, Id2],
-			Include = ["embeddings", "metadatas", "documents"],
-			Limit = 1,
-			Offset = 1,
-		});
+		var result = await client.Get(
+			ids: [Id1, Id2],
+			include: ["embeddings", "metadatas", "documents"],
+			limit: 1,
+			offset: 1);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id2));
@@ -250,11 +226,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Where = new Dictionary<string, object> { { MetadataKey2, Metadata2[MetadataKey2] } },
-			Include = ["embeddings", "metadatas", "documents"],
-		});
+		var result = await client.Get(
+			where: new Dictionary<string, object> { { MetadataKey2, Metadata2[MetadataKey2] } },
+			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id2));
@@ -268,11 +242,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			Where = new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
-			Include = ["embeddings", "metadatas", "documents"],
-		});
+		var result = await client.Get(
+			where: new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
+			include: ["embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
@@ -286,11 +258,9 @@ public class CollectionClientGetTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Get(new CollectionGetRequest()
-		{
-			WhereDocument = new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
-			Include = ["documents"],
-		});
+		var result = await client.Get(
+			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
+			include: ["documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Id, Is.EqualTo(Id1));
