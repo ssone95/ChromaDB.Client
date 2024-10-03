@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using ChromaDB.Client.Common.Exceptions;
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 using ChromaDB.Client.Models.Responses;
@@ -67,36 +66,16 @@ internal static partial class HttpClientHelpers
 		{
 			using HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(httpRequestMessage);
 
-			string? responseBody = httpResponseMessage.IsSuccessStatusCode switch
+			return httpResponseMessage.IsSuccessStatusCode switch
 			{
-				true => await httpResponseMessage.Content.ReadAsStringAsync(),
+				true when typeof(TResponse) == typeof(Response.Empty) => CreateEmptyResponse(httpResponseMessage.StatusCode),
+				true => CreateDataResponse(httpResponseMessage.StatusCode, await httpResponseMessage.Content.ReadAsStringAsync()),
 				false when httpResponseMessage.StatusCode == HttpStatusCode.BadRequest
 					|| httpResponseMessage.StatusCode == HttpStatusCode.UnprocessableContent
 					|| httpResponseMessage.StatusCode == HttpStatusCode.InternalServerError
-					=> throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode) { ErrorMessageBody = await httpResponseMessage.Content.ReadAsStringAsync() },
-				_ => throw new ChromaDBException(httpResponseMessage.ReasonPhrase, null, httpResponseMessage.StatusCode)
+					=> CreateErrorResponse(httpResponseMessage.StatusCode, await httpResponseMessage.Content.ReadAsStringAsync()),
+				_ => CreateErrorResponse(httpResponseMessage.StatusCode, null),
 			};
-
-			if (typeof(TResponse) == typeof(Response.Empty))
-			{
-				return new Response<TResponse>(
-					statusCode: httpResponseMessage.StatusCode,
-					data: (TResponse)(object)Response.Empty.Instance);
-			}
-
-			return new Response<TResponse>(
-					statusCode: httpResponseMessage.StatusCode,
-					data: responseBody is not null and not []
-						? JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions)
-						: default);
-		}
-		catch (ChromaDBException ex)
-		{
-			return new Response<TResponse>(
-				statusCode: ex.StatusCode!.Value,
-				errorMessage: ex.ErrorMessageBody is not null and not []
-					? ParseErrorMessageBody(ex.ErrorMessageBody)
-					: default);
 		}
 		catch (Exception ex)
 		{
@@ -105,6 +84,23 @@ internal static partial class HttpClientHelpers
 				statusCode: HttpStatusCode.ServiceUnavailable,
 				errorMessage: ex.Message);
 		}
+
+		static Response<TResponse> CreateEmptyResponse(HttpStatusCode statusCode)
+			=> new(
+				statusCode: statusCode,
+				data: (TResponse)(object)Response.Empty.Instance);
+
+		static Response<TResponse> CreateDataResponse(HttpStatusCode statusCode, string responseBody)
+			=> new(
+				statusCode: statusCode,
+				data: JsonSerializer.Deserialize<TResponse>(responseBody, DeserializerJsonSerializerOptions));
+
+		static Response<TResponse> CreateErrorResponse(HttpStatusCode statusCode, string? errorMessageBody)
+			=> new(
+				statusCode: statusCode,
+				errorMessage: errorMessageBody is not null and not []
+					? ParseErrorMessageBody(errorMessageBody)
+					: default);
 	}
 
 	private static string? ParseErrorMessageBody(string errorMessageBody)
