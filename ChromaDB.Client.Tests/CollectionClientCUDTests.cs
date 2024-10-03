@@ -144,10 +144,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Upsert(new CollectionUpsertRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}"],
-		});
+		var result = await client.Upsert([$"{Guid.NewGuid()}"]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -156,11 +153,8 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Upsert(new CollectionUpsertRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}"],
-			Embeddings = [[1f, 0.5f, 0f, -0.5f, -1f]],
-		});
+		var result = await client.Upsert([$"{Guid.NewGuid()}"],
+			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -169,15 +163,12 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Upsert(new CollectionUpsertRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}"],
-			Metadatas = [new Dictionary<string, object>
+		var result = await client.Upsert([$"{Guid.NewGuid()}"],
+			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
-			}],
-		});
+			}]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -186,11 +177,8 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Upsert(new CollectionUpsertRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}"],
-			Documents = ["test"],
-		});
+		var result = await client.Upsert([$"{Guid.NewGuid()}"],
+			documents: ["test"]);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -199,17 +187,14 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Upsert(new CollectionUpsertRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}"],
-			Embeddings = [[1f, 0.5f, 0f, -0.5f, -1f]],
-			Metadatas = [new Dictionary<string, object>
+		var result = await client.Upsert([$"{Guid.NewGuid()}"],
+			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]],
+			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}],
-			Documents = ["test"],
-		});
+			documents: ["test"]);
 		Assert.That(result.Success, Is.True);
 	}
 

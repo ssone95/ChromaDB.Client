@@ -1,5 +1,4 @@
 ﻿using ChromaDB.Client.Models;
-using ChromaDB.Client.Models.Requests;
 
 namespace ChromaDB.Client;
 
@@ -11,7 +10,7 @@ public interface IChromaDBCollectionClient
 	Task<Response<List<List<CollectionQueryEntry>>>> Query(List<List<float>> queryEmbeddings, int nResults = 10, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, List<string>? include = null);
 	Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
 	Task<Response<Response.Empty>> Update(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
-	Task<Response<Response.Empty>> Upsert(CollectionUpsertRequest request);
+	Task<Response<Response.Empty>> Upsert(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null);
 	Task<Response<Response.Empty>> Delete(List<string> ids, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null);
 	Task<Response<int>> Count();
 	Task<Response<List<CollectionEntry>>> Peek(int limit = 10);
