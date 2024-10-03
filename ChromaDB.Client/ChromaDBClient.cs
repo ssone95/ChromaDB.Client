@@ -90,7 +90,7 @@ public class ChromaDBClient : IChromaDBClient
 
 	public async Task<Response<bool>> Reset()
 	{
-		return await _httpClient.Post<Reset, bool>("reset", null, new RequestQueryParams());
+		return await _httpClient.Post<ResetRequest, bool>("reset", null, new RequestQueryParams());
 	}
 
 	public async Task<Response<int>> CountCollections(string? tenant = null, string? database = null)
