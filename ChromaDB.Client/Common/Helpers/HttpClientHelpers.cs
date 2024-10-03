@@ -28,14 +28,14 @@ internal static partial class HttpClientHelpers
 
 	public static async Task<Response<TResponse>> Get<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
 	{
-		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Get, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));
+		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
 	public static async Task<Response<TResponse>> Post<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
-		using StringContent content = new(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
-		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Post, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
+		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
 		{
 			Content = content,
 			Headers = { Accept = { new MediaTypeWithQualityHeaderValue("application/json") } }
@@ -45,8 +45,8 @@ internal static partial class HttpClientHelpers
 
 	public static async Task<Response<TResponse>> Put<TInput, TResponse>(this IChromaDBHttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
-		using StringContent content = new(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
-		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Put, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
+		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Put, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
 		{
 			Content = content,
 			Headers = { Accept = { new MediaTypeWithQualityHeaderValue("application/json") } }
@@ -56,7 +56,7 @@ internal static partial class HttpClientHelpers
 
 	public static async Task<Response<TResponse>> Delete<TResponse>(this IChromaDBHttpClient httpClient, string endpoint, RequestQueryParams queryParams)
 	{
-		using HttpRequestMessage httpRequestMessage = new(HttpMethod.Delete, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));
+		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Delete, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams));
 		return await Send<TResponse>(httpClient, httpRequestMessage);
 	}
 
@@ -64,7 +64,7 @@ internal static partial class HttpClientHelpers
 	{
 		try
 		{
-			using HttpResponseMessage httpResponseMessage = await httpClient.SendAsync(httpRequestMessage);
+			using var httpResponseMessage = await httpClient.SendAsync(httpRequestMessage);
 
 			return httpResponseMessage.IsSuccessStatusCode switch
 			{
@@ -107,8 +107,8 @@ internal static partial class HttpClientHelpers
 	{
 		try
 		{
-			GeneralError deserialized = JsonSerializer.Deserialize<GeneralError>(errorMessageBody, DeserializerJsonSerializerOptions)!;
-			Match match = ParseErrorMessageBodyRegex().Match(deserialized?.Error ?? string.Empty);
+			var deserialized = JsonSerializer.Deserialize<GeneralError>(errorMessageBody, DeserializerJsonSerializerOptions)!;
+			var match = ParseErrorMessageBodyRegex().Match(deserialized?.Error ?? string.Empty);
 
 			return match.Success
 				? match.Groups["errorMessage"]?.Value
@@ -135,7 +135,7 @@ internal static partial class HttpClientHelpers
 
 	private static string ValidateAndPrepareEndpoint(string endpoint, RequestQueryParams queryParams)
 	{
-		List<string> queryArgs = PrepareQueryParams(endpoint);
+		var queryArgs = PrepareQueryParams(endpoint);
 
 		if (queryArgs is [])
 		{
@@ -147,10 +147,10 @@ internal static partial class HttpClientHelpers
 
 	private static string FormatRequestUri(string endpoint, RequestQueryParams queryParams)
 	{
-		string formattedEndpoint = endpoint;
+		var formattedEndpoint = endpoint;
 		foreach (var (key, value) in queryParams)
 		{
-			string urlEncodedQueryParam = Uri.EscapeDataString(value);
+			var urlEncodedQueryParam = Uri.EscapeDataString(value);
 			formattedEndpoint = formattedEndpoint.Replace(key, urlEncodedQueryParam);
 		}
 		return formattedEndpoint;

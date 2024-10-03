@@ -21,9 +21,9 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public async Task<Response<List<CollectionEntry>>> Get(List<string>? ids = null, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, List<string>? include = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionGetRequest request = new CollectionGetRequest()
+		var request = new CollectionGetRequest()
 		{
 			Ids = ids,
 			Where = where,
@@ -32,16 +32,16 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 			Offset = offset,
 			Include = include ?? ["metadatas", "documents"],
 		};
-		Response<CollectionEntriesGetResponse> response = await _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>("collections/{collection_id}/get", request, requestParams);
-		List<CollectionEntry> entries = response.Data?.Map() ?? [];
+		var response = await _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>("collections/{collection_id}/get", request, requestParams);
+		var entries = response.Data?.Map() ?? [];
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
 	public async Task<Response<List<List<CollectionQueryEntry>>>> Query(List<List<float>> queryEmbeddings, int nResults = 10, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, List<string>? include = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionQueryRequest request = new CollectionQueryRequest()
+		var request = new CollectionQueryRequest()
 		{
 			QueryEmbeddings = queryEmbeddings,
 			NResults = nResults,
@@ -50,15 +50,15 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 			Include = include ?? ["metadatas", "documents", "distances"],
 		};
 		var response = await _httpClient.Post<CollectionQueryRequest, CollectionEntriesQueryResponse>("collections/{collection_id}/query", request, requestParams);
-		List<List<CollectionQueryEntry>> entries = response.Data?.Map() ?? [];
+		var entries = response.Data?.Map() ?? [];
 		return new Response<List<List<CollectionQueryEntry>>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
 	public async Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<Dictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionAddRequest request = new CollectionAddRequest()
+		var request = new CollectionAddRequest()
 		{
 			Ids = ids,
 			Embeddings = embeddings,
@@ -70,9 +70,9 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public async Task<Response<Response.Empty>> Update(List<string> ids, List<List<float>>? embeddings = null, List<Dictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionUpdateRequest request = new CollectionUpdateRequest()
+		var request = new CollectionUpdateRequest()
 		{
 			Ids = ids,
 			Embeddings = embeddings,
@@ -84,9 +84,9 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public async Task<Response<Response.Empty>> Upsert(List<string> ids, List<List<float>>? embeddings = null, List<Dictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionUpsertRequest request = new CollectionUpsertRequest()
+		var request = new CollectionUpsertRequest()
 		{
 			Ids = ids,
 			Embeddings = embeddings,
@@ -98,9 +98,9 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public async Task<Response<Response.Empty>> Delete(List<string> ids, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionDeleteRequest request = new CollectionDeleteRequest()
+		var request = new CollectionDeleteRequest()
 		{
 			Ids = ids,
 			Where = where,
@@ -111,29 +111,29 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public async Task<Response<int>> Count()
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
 		return await _httpClient.Get<int>("collections/{collection_id}/count", requestParams);
 	}
 
 	public async Task<Response<List<CollectionEntry>>> Peek(int limit = 10)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionPeekRequest request = new CollectionPeekRequest()
+		var request = new CollectionPeekRequest()
 		{
 			Limit = limit,
 		};
-		Response<CollectionEntriesGetResponse> response = await _httpClient.Post<CollectionPeekRequest, CollectionEntriesGetResponse>("collections/{collection_id}/get", request, requestParams);
-		List<CollectionEntry> entries = response.Data?.Map() ?? [];
+		var response = await _httpClient.Post<CollectionPeekRequest, CollectionEntriesGetResponse>("collections/{collection_id}/get", request, requestParams);
+		var entries = response.Data?.Map() ?? [];
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
 	public async Task<Response<Response.Empty>> Modify(string? name = null, Dictionary<string, object>? metadata = null)
 	{
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
-		CollectionModifyRequest request = new CollectionModifyRequest()
+		var request = new CollectionModifyRequest()
 		{
 			Name = name,
 			Metadata = metadata,
