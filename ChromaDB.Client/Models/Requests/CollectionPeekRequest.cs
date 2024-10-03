@@ -2,8 +2,8 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class CollectionPeekRequest
+internal class CollectionPeekRequest
 {
 	[JsonPropertyName("limit")]
-	public int? Limit { get; init; } = 10;
+	public int Limit { get; init; }
 }

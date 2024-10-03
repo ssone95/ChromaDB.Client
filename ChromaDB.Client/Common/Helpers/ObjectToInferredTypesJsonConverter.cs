@@ -10,9 +10,9 @@ internal class ObjectToInferredTypesJsonConverter : JsonConverter<object>
 		{
 			JsonTokenType.True => true,
 			JsonTokenType.False => false,
-			JsonTokenType.Number when reader.TryGetInt64(out long l) => l,
+			JsonTokenType.Number when reader.TryGetInt64(out var l) => l,
 			JsonTokenType.Number => reader.GetDouble(),
-			JsonTokenType.String when reader.TryGetDateTime(out DateTime datetime) => datetime,
+			JsonTokenType.String when reader.TryGetDateTime(out var datetime) => datetime,
 			JsonTokenType.String => reader.GetString()!,
 			_ => JsonDocument.ParseValue(ref reader).RootElement.Clone()
 		};

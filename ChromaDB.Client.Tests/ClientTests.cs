@@ -1,6 +1,4 @@
-﻿using ChromaDB.Client.Models.Requests;
-using ChromaDB.Client.Services.Implementations;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
@@ -44,10 +42,7 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = name,
-		});
+		await client.CreateCollection(name);
 		var result = await client.GetCollection(name);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.Not.Null);
@@ -61,14 +56,8 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = names[0],
-		});
-		await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = names[1],
-		});
+		await client.CreateCollection(names[0]);
+		await client.CreateCollection(names[1]);
 		var result = await client.ListCollections();
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.Not.Null);
@@ -84,10 +73,7 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var result = await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = name,
-		});
+		var result = await client.CreateCollection(name);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.Not.Null);
 		Assert.That(result.Data.Name, Is.EqualTo(name));
@@ -105,11 +91,8 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var result = await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = name,
-			Metadata = metadata,
-		});
+		var result = await client.CreateCollection(name,
+			metadata: metadata);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.Not.Null);
 		Assert.That(result.Data.Name, Is.EqualTo(name));
@@ -125,14 +108,8 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = name,
-		});
-		var result = await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = name,
-		});
+		await client.CreateCollection(name);
+		var result = await client.CreateCollection(name);
 		Assert.That(result.Success, Is.False);
 		Assert.That(result.ErrorMessage, Is.Not.Null.And.Not.Empty);
 	}
@@ -144,10 +121,7 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		await client.CreateCollection(new CreateCollectionRequest()
-		{
-			Name = name,
-		});
+		await client.CreateCollection(name);
 		var result = await client.DeleteCollection(name);
 		Assert.That(result.Success, Is.True);
 	}
@@ -171,10 +145,7 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var result = await client.GetOrCreateCollection(new GetOrCreateCollectionRequest()
-		{
-			Name = name,
-		});
+		var result = await client.GetOrCreateCollection(name);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.Not.Null);
 		Assert.That(result.Data.Name, Is.EqualTo(name));
@@ -187,14 +158,8 @@ public class ClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var result1 = await client.GetOrCreateCollection(new GetOrCreateCollectionRequest()
-		{
-			Name = name,
-		});
-		var result2 = await client.GetOrCreateCollection(new GetOrCreateCollectionRequest()
-		{
-			Name = name,
-		});
+		var result1 = await client.GetOrCreateCollection(name);
+		var result2 = await client.GetOrCreateCollection(name);
 		Assert.That(result1.Success, Is.True);
 		Assert.That(result1.Data, Is.Not.Null);
 		Assert.That(result1.Data.Name, Is.EqualTo(name));

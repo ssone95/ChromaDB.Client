@@ -1,6 +1,4 @@
-﻿using ChromaDB.Client.Models.Requests;
-using ChromaDB.Client.Services.Implementations;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
@@ -22,10 +20,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		await client.Add(new CollectionAddRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
-		});
+		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
 		var result = await client.Count();
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data, Is.EqualTo(6));
@@ -36,13 +31,10 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		await client.Add(new CollectionAddRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
-		});
-		var result = await client.Peek(new CollectionPeekRequest());
+		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
+		var result = await client.Peek();
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.GreaterThan(0));
+		Assert.That(result.Data, Is.Not.Empty);
 	}
 
 	[Test]
@@ -50,13 +42,11 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		await client.Add(new CollectionAddRequest()
-		{
-			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
-		});
-		var result = await client.Peek(new CollectionPeekRequest() {  Limit = 2 });
+		await client.Add([$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"]);
+		var result = await client.Peek(
+			limit: 2);
 		Assert.That(result.Success, Is.True);
-		Assert.That(result.Data!.Count, Is.EqualTo(2));
+		Assert.That(result.Data, Has.Count.EqualTo(2));
 	}
 
 	[Test]
@@ -64,10 +54,8 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Modify(new CollectionModifyRequest()
-		{
-			Name = $"{client.Collection.Name}_modified",
-		});
+		var result = await client.Modify(
+			name: $"{client.Collection.Name}_modified");
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -82,10 +70,8 @@ public class CollectionClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Modify(new CollectionModifyRequest()
-		{
-			Metadata = metadata,
-		});
+		var result = await client.Modify(
+			metadata: metadata);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -100,11 +86,9 @@ public class CollectionClientTests : ChromaDBTestsBase
 
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Modify(new CollectionModifyRequest()
-		{
-			Name = $"{client.Collection.Name}_modified",
-			Metadata = metadata,
-		});
+		var result = await client.Modify(
+			name: $"{client.Collection.Name}_modified",
+			metadata: metadata);
 		Assert.That(result.Success, Is.True);
 	}
 
@@ -112,7 +96,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 	{
 		var name = $"collection{Random.Shared.Next()}";
 		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var collectionResponse = await client.CreateCollection(new CreateCollectionRequest { Name = name });
+		var collectionResponse = await client.CreateCollection(name);
 		Assert.That(collectionResponse.Success, Is.True);
 		var collection = collectionResponse.Data!;
 		return new ChromaDBCollectionClient(collection, httpClient);

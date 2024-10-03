@@ -2,7 +2,7 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class CollectionUpsertRequest
+internal class CollectionUpsertRequest
 {
 	[JsonPropertyName("ids")]
 	public required List<string> Ids { get; init; }
@@ -11,7 +11,7 @@ public class CollectionUpsertRequest
 	public List<List<float>>? Embeddings { get; init; }
 
 	[JsonPropertyName("metadatas")]
-	public List<IDictionary<string, object>>? Metadatas { get; init; }
+	public List<Dictionary<string, object>>? Metadatas { get; init; }
 
 	[JsonPropertyName("documents")]
 	public List<string>? Documents { get; init; }

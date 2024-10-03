@@ -2,13 +2,13 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public abstract class GetOrCreateCollectionRequestBase
+internal abstract class GetOrCreateCollectionRequestBase
 {
 	[JsonPropertyName("name")]
 	public required string Name { get; init; }
 
 	[JsonPropertyName("metadata")]
-	public IDictionary<string, object>? Metadata { get; init; }
+	public Dictionary<string, object>? Metadata { get; init; }
 
 	[JsonInclude]
 	[JsonPropertyName("get_or_create")]

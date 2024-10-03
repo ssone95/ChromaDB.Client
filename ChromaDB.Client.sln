@@ -11,12 +11,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChromaDB.Client.Sample", "S
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9233DFB0-413F-4182-8E2E-244385E916B0}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChromaDB.Client.Extensions", "ChromaDB.Client.Extensions\ChromaDB.Client.Extensions.csproj", "{674FD1C0-814B-4371-B74A-F68A1BC20CA4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChromaDB.Client.Tests", "ChromaDB.Client.Tests\ChromaDB.Client.Tests.csproj", "{B97D82A1-FB2F-43CF-A134-6AD27ADC5595}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChromaDB.Client.Tests", "ChromaDB.Client.Tests\ChromaDB.Client.Tests.csproj", "{B97D82A1-FB2F-43CF-A134-6AD27ADC5595}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

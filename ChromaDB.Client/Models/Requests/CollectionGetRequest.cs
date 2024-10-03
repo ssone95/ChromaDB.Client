@@ -2,16 +2,16 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class CollectionGetRequest
+internal class CollectionGetRequest
 {
 	[JsonPropertyName("ids")]
 	public List<string>? Ids { get; init; }
 
 	[JsonPropertyName("where")]
-	public IDictionary<string, object>? Where { get; init; }
+	public Dictionary<string, object>? Where { get; init; }
 
 	[JsonPropertyName("where_document")]
-	public IDictionary<string, object>? WhereDocument { get; init; }
+	public Dictionary<string, object>? WhereDocument { get; init; }
 
 	[JsonPropertyName("limit")]
 	public int? Limit { get; init; }

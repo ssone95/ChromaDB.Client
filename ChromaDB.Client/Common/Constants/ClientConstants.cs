@@ -1,6 +1,6 @@
 ﻿using ChromaDB.Client.Models;
 
-namespace ChromaDB.Client;
+namespace ChromaDB.Client.Common.Constants;
 
 public static class ClientConstants
 {

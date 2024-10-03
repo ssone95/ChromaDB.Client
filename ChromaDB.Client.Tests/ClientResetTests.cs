@@ -1,5 +1,4 @@
-﻿using ChromaDB.Client.Services.Implementations;
-using ChromaDB.Client.Tests.TestContainer;
+﻿using ChromaDB.Client.Tests.TestContainer;
 using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;

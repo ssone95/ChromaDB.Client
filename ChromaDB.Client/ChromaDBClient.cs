@@ -1,23 +1,19 @@
-﻿using ChromaDB.Client.Common.Helpers;
+﻿using ChromaDB.Client.Common.Constants;
+using ChromaDB.Client.Common.Helpers;
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
-using ChromaDB.Client.Services.Interfaces;
 
-namespace ChromaDB.Client.Services.Implementations;
+namespace ChromaDB.Client;
 
 public class ChromaDBClient : IChromaDBClient
 {
-	private readonly ConfigurationOptions _config;
 	private readonly IChromaDBHttpClient _httpClient;
-
-	private Tenant _currentTenant;
-	private Database _currentDatabase;
+	private readonly Tenant _currentTenant;
+	private readonly Database _currentDatabase;
 
 	public ChromaDBClient(ConfigurationOptions options, IChromaDBHttpClient httpClient)
 	{
-		_config = options;
 		_httpClient = httpClient;
-
 		_currentTenant = options.Tenant is not null and not []
 			? new Tenant(options.Tenant)
 			: ClientConstants.DefaultTenant;
@@ -30,7 +26,7 @@ public class ChromaDBClient : IChromaDBClient
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
 		return await _httpClient.Get<List<Collection>>("collections?tenant={tenant}&database={database}", requestParams);
@@ -40,7 +36,7 @@ public class ChromaDBClient : IChromaDBClient
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collectionName}", name)
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
@@ -52,23 +48,33 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Get<Heartbeat>("", new RequestQueryParams());
 	}
 
-	public async Task<Response<Collection>> CreateCollection(CreateCollectionRequest request, string? tenant = null, string? database = null)
+	public async Task<Response<Collection>> CreateCollection(string name, Dictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
+		var request = new CreateCollectionRequest()
+		{
+			Name = name,
+			Metadata = metadata
+		};
 		return await _httpClient.Post<CreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 
-	public async Task<Response<Collection>> GetOrCreateCollection(GetOrCreateCollectionRequest request, string? tenant = null, string? database = null)
+	public async Task<Response<Collection>> GetOrCreateCollection(string name, Dictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
+		var request = new GetOrCreateCollectionRequest()
+		{
+			Name = name,
+			Metadata = metadata
+		};
 		return await _httpClient.Post<GetOrCreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 
@@ -76,7 +82,7 @@ public class ChromaDBClient : IChromaDBClient
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{collectionName}", name)
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
@@ -90,14 +96,14 @@ public class ChromaDBClient : IChromaDBClient
 
 	public async Task<Response<bool>> Reset()
 	{
-		return await _httpClient.Post<Reset, bool>("reset", null, new RequestQueryParams());
+		return await _httpClient.Post<ResetRequest, bool>("reset", null, new RequestQueryParams());
 	}
 
 	public async Task<Response<int>> CountCollections(string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
-		RequestQueryParams requestParams = new RequestQueryParams()
+		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
 		return await _httpClient.Get<int>("count_collections?tenant={tenant}&database={database}", requestParams);

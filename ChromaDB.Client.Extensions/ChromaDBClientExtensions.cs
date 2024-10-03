@@ -1,5 +1,4 @@
-﻿using ChromaDB.Client.Services.Implementations;
-using ChromaDB.Client.Services.Interfaces;
+﻿using ChromaDB.Client.Common.Constants;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ChromaDB.Client.Extensions;
