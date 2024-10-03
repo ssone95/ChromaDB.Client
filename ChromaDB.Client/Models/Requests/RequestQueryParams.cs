@@ -1,8 +1,9 @@
-﻿using System.Globalization;
+﻿using System.Collections;
+using System.Globalization;
 
 namespace ChromaDB.Client.Models.Requests;
 
-internal class RequestQueryParams
+internal class RequestQueryParams : IEnumerable<(string key, string value)>
 {
 	private Dictionary<string, string> _queryParams;
 
@@ -11,12 +12,17 @@ internal class RequestQueryParams
 		_queryParams = new Dictionary<string, string>(StringComparer.Ordinal);
 	}
 
+	public IEnumerator<(string key, string value)> GetEnumerator()
+		=> _queryParams
+			.Select(kvp => (kvp.Key, kvp.Value))
+			.GetEnumerator();
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
 	public RequestQueryParams Insert(string key, string value)
 	{
 		_queryParams[key] = value;
 		return this;
 	}
-	public RequestQueryParams Insert(string key, IFormattable value) => Insert(key, value.ToString(null, CultureInfo.InvariantCulture));
-
-	public IDictionary<string, string> Build() => _queryParams;
+	public RequestQueryParams Insert(string key, IFormattable value)
+		=> Insert(key, value.ToString(null, CultureInfo.InvariantCulture));
 }

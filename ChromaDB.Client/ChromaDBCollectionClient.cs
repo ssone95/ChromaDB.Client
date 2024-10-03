@@ -19,7 +19,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 
 	public Collection Collection => _collection;
 
-	public async Task<Response<List<CollectionEntry>>> Get(List<string>? ids = null, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, List<string>? include = null)
+	public async Task<Response<List<CollectionEntry>>> Get(List<string>? ids = null, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, List<string>? include = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -37,7 +37,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
-	public async Task<Response<List<List<CollectionQueryEntry>>>> Query(List<List<float>> queryEmbeddings, int nResults = 10, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, List<string>? include = null)
+	public async Task<Response<List<List<CollectionQueryEntry>>>> Query(List<List<float>> queryEmbeddings, int nResults = 10, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, List<string>? include = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -54,7 +54,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return new Response<List<List<CollectionQueryEntry>>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
-	public async Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null)
+	public async Task<Response<Response.Empty>> Add(List<string> ids, List<List<float>>? embeddings = null, List<Dictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -68,7 +68,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return await _httpClient.Post<CollectionAddRequest, Response.Empty>("collections/{collection_id}/add", request, requestParams);
 	}
 
-	public async Task<Response<Response.Empty>> Update(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null)
+	public async Task<Response<Response.Empty>> Update(List<string> ids, List<List<float>>? embeddings = null, List<Dictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -82,7 +82,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return await _httpClient.Post<CollectionUpdateRequest, Response.Empty>("collections/{collection_id}/update", request, requestParams);
 	}
 
-	public async Task<Response<Response.Empty>> Upsert(List<string> ids, List<List<float>>? embeddings = null, List<IDictionary<string, object>>? metadatas = null, List<string>? documents = null)
+	public async Task<Response<Response.Empty>> Upsert(List<string> ids, List<List<float>>? embeddings = null, List<Dictionary<string, object>>? metadatas = null, List<string>? documents = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -96,7 +96,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return await _httpClient.Post<CollectionUpsertRequest, Response.Empty>("collections/{collection_id}/upsert", request, requestParams);
 	}
 
-	public async Task<Response<Response.Empty>> Delete(List<string> ids, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null)
+	public async Task<Response<Response.Empty>> Delete(List<string> ids, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -129,7 +129,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
-	public async Task<Response<Response.Empty>> Modify(string? name = null, IDictionary<string, object>? metadata = null)
+	public async Task<Response<Response.Empty>> Modify(string? name = null, Dictionary<string, object>? metadata = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);

@@ -148,10 +148,10 @@ internal static partial class HttpClientHelpers
 	private static string FormatRequestUri(string endpoint, RequestQueryParams queryParams)
 	{
 		string formattedEndpoint = endpoint;
-		foreach (KeyValuePair<string, string> entry in queryParams.Build())
+		foreach (var (key, value) in queryParams)
 		{
-			string urlEncodedQueryParam = Uri.EscapeDataString(entry.Value);
-			formattedEndpoint = formattedEndpoint.Replace(entry.Key, urlEncodedQueryParam);
+			string urlEncodedQueryParam = Uri.EscapeDataString(value);
+			formattedEndpoint = formattedEndpoint.Replace(key, urlEncodedQueryParam);
 		}
 		return formattedEndpoint;
 	}

@@ -8,5 +8,5 @@ internal class CollectionModifyRequest
 	public string? Name { get; init; }
 
 	[JsonPropertyName("metadata")]
-	public IDictionary<string, object>? Metadata { get; init; }
+	public Dictionary<string, object>? Metadata { get; init; }
 }

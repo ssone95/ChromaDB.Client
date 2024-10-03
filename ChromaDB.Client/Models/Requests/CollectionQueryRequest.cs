@@ -11,10 +11,10 @@ internal class CollectionQueryRequest
 	public int NResults { get; init; } = 10;
 
 	[JsonPropertyName("where")]
-	public IDictionary<string, object>? Where { get; init; }
+	public Dictionary<string, object>? Where { get; init; }
 
 	[JsonPropertyName("where_document")]
-	public IDictionary<string, object>? WhereDocument { get; init; }
+	public Dictionary<string, object>? WhereDocument { get; init; }
 
 	[JsonPropertyName("include")]
 	public required List<string> Include { get; init; }

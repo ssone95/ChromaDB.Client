@@ -11,7 +11,7 @@ public class Collection
 	public string Name { get; }
 
 	[JsonPropertyName("metadata")]
-	public IDictionary<string, object>? Metadata { get; init; }
+	public Dictionary<string, object>? Metadata { get; init; }
 
 	[JsonPropertyName("tenant")]
 	public string? Tenant { get; init; }

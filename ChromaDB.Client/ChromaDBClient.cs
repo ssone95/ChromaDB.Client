@@ -52,7 +52,7 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Get<Heartbeat>("", new RequestQueryParams());
 	}
 
-	public async Task<Response<Collection>> CreateCollection(string name, IDictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
+	public async Task<Response<Collection>> CreateCollection(string name, Dictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
@@ -67,7 +67,7 @@ public class ChromaDBClient : IChromaDBClient
 		return await _httpClient.Post<CreateCollectionRequest, Collection>("collections?tenant={tenant}&database={database}", request, requestParams);
 	}
 
-	public async Task<Response<Collection>> GetOrCreateCollection(string name, IDictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
+	public async Task<Response<Collection>> GetOrCreateCollection(string name, Dictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
 	{
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;

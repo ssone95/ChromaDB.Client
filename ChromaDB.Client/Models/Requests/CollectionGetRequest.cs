@@ -8,10 +8,10 @@ internal class CollectionGetRequest
 	public List<string>? Ids { get; init; }
 
 	[JsonPropertyName("where")]
-	public IDictionary<string, object>? Where { get; init; }
+	public Dictionary<string, object>? Where { get; init; }
 
 	[JsonPropertyName("where_document")]
-	public IDictionary<string, object>? WhereDocument { get; init; }
+	public Dictionary<string, object>? WhereDocument { get; init; }
 
 	[JsonPropertyName("limit")]
 	public int? Limit { get; init; }
