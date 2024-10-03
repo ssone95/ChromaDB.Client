@@ -1,4 +1,4 @@
-﻿namespace ChromaDB.Client.Services.Interfaces;
+﻿namespace ChromaDB.Client;
 
 public interface IChromaDBHttpClient : IDisposable
 {

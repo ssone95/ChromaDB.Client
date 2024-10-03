@@ -2,8 +2,6 @@
 using ChromaDB.Client;
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
-using ChromaDB.Client.Services.Implementations;
-using ChromaDB.Client.Services.Interfaces;
 
 ConfigurationOptions configOptions = new(uri: "http://localhost:8000/api/v1/");
 using IChromaDBHttpClient httpClient = new ChromaDBHttpClient(configOptions);

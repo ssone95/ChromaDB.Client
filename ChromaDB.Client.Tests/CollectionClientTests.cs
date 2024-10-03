@@ -1,5 +1,4 @@
 ﻿using ChromaDB.Client.Models.Requests;
-using ChromaDB.Client.Services.Implementations;
 using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
@@ -54,7 +53,7 @@ public class CollectionClientTests : ChromaDBTestsBase
 		{
 			Ids = [$"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}", $"{Guid.NewGuid()}"],
 		});
-		var result = await client.Peek(new CollectionPeekRequest() {  Limit = 2 });
+		var result = await client.Peek(new CollectionPeekRequest() { Limit = 2 });
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 	}

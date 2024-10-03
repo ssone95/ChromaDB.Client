@@ -3,9 +3,8 @@ using ChromaDB.Client.Common.Mappers;
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 using ChromaDB.Client.Models.Responses;
-using ChromaDB.Client.Services.Interfaces;
 
-namespace ChromaDB.Client.Services.Implementations;
+namespace ChromaDB.Client;
 
 public class ChromaDBCollectionClient : IChromaDBCollectionClient
 {

@@ -1,6 +1,4 @@
-﻿using ChromaDB.Client.Services.Interfaces;
-
-namespace ChromaDB.Client.Services.Implementations;
+﻿namespace ChromaDB.Client;
 
 public class ChromaDBHttpClient : HttpClient, IChromaDBHttpClient
 {

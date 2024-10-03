@@ -1,9 +1,9 @@
-﻿using ChromaDB.Client.Common.Helpers;
+﻿using ChromaDB.Client.Common.Constants;
+using ChromaDB.Client.Common.Helpers;
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
-using ChromaDB.Client.Services.Interfaces;
 
-namespace ChromaDB.Client.Services.Implementations;
+namespace ChromaDB.Client;
 
 public class ChromaDBClient : IChromaDBClient
 {

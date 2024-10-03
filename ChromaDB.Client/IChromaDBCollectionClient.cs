@@ -1,7 +1,7 @@
 ﻿using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 
-namespace ChromaDB.Client.Services.Interfaces;
+namespace ChromaDB.Client;
 
 public interface IChromaDBCollectionClient
 {

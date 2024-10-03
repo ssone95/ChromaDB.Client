@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 
-namespace ChromaDB.Client;
+namespace ChromaDB.Client.Models;
 
 public sealed class Response<T>
 {

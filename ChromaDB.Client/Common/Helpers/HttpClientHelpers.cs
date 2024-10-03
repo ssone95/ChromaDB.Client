@@ -4,9 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using ChromaDB.Client.Common.Exceptions;
+using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 using ChromaDB.Client.Models.Responses;
-using ChromaDB.Client.Services.Interfaces;
 
 namespace ChromaDB.Client.Common.Helpers;
 

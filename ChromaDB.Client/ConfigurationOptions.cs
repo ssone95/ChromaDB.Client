@@ -1,4 +1,6 @@
-﻿namespace ChromaDB.Client;
+﻿using ChromaDB.Client.Common.Constants;
+
+namespace ChromaDB.Client;
 
 public class ConfigurationOptions
 {
