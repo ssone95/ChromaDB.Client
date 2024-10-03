@@ -9,15 +9,13 @@ public class ChromaDBClient : IChromaDBClient
 {
 	private readonly ConfigurationOptions _config;
 	private readonly IChromaDBHttpClient _httpClient;
-
-	private Tenant _currentTenant;
-	private Database _currentDatabase;
+	private readonly Tenant _currentTenant;
+	private readonly Database _currentDatabase;
 
 	public ChromaDBClient(ConfigurationOptions options, IChromaDBHttpClient httpClient)
 	{
 		_config = options;
 		_httpClient = httpClient;
-
 		_currentTenant = options.Tenant is not null and not []
 			? new Tenant(options.Tenant)
 			: ClientConstants.DefaultTenant;
