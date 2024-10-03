@@ -37,10 +37,18 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return new Response<List<CollectionEntry>>(response.StatusCode, entries, response.ErrorMessage);
 	}
 
-	public async Task<Response<List<List<CollectionQueryEntry>>>> Query(CollectionQueryRequest request)
+	public async Task<Response<List<List<CollectionQueryEntry>>>> Query(List<List<float>> queryEmbeddings, int nResults = 10, IDictionary<string, object>? where = null, IDictionary<string, object>? whereDocument = null, List<string>? include = null)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
+		CollectionQueryRequest request = new CollectionQueryRequest()
+		{
+			QueryEmbeddings = queryEmbeddings,
+			NResults = nResults,
+			Where = where,
+			WhereDocument = whereDocument,
+			Include = include ?? ["metadatas", "documents", "distances"],
+		};
 		var response = await _httpClient.Post<CollectionQueryRequest, CollectionEntriesQueryResponse>("collections/{collection_id}/query", request, requestParams);
 		List<List<CollectionQueryEntry>> entries = response.Data?.Map() ?? [];
 		return new Response<List<List<CollectionQueryEntry>>>(response.StatusCode, entries, response.ErrorMessage);
@@ -94,7 +102,7 @@ public class ChromaDBCollectionClient : IChromaDBCollectionClient
 		return await _httpClient.Get<int>("collections/{collection_id}/count", requestParams);
 	}
 
-	public async Task<Response<List<CollectionEntry>>> Peek(int? limit = 10)
+	public async Task<Response<List<CollectionEntry>>> Peek(int limit = 10)
 	{
 		RequestQueryParams requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);

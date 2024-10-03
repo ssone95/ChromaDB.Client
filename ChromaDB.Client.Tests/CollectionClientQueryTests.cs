@@ -11,11 +11,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1],
-			Include = ["distances", "embeddings"],
-		});
+		var result = await client.Query([Embeddings1],
+			include: ["distances", "embeddings"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Count, Is.EqualTo(2));
@@ -33,11 +30,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1],
-			Include = ["distances", "embeddings", "metadatas", "documents"],
-		});
+		var result = await client.Query([Embeddings1],
+			include: ["distances", "embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Count, Is.EqualTo(2));
@@ -55,11 +49,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1, Embeddings2],
-			Include = ["distances", "embeddings"],
-		});
+		var result = await client.Query([Embeddings1, Embeddings2],
+			include: ["distances", "embeddings"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Count, Is.EqualTo(2));
@@ -85,11 +76,8 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1, Embeddings2],
-			Include = ["distances", "embeddings", "metadatas", "documents"],
-		});
+		var result = await client.Query([Embeddings1, Embeddings2],
+			include: ["distances", "embeddings", "metadatas", "documents"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Count, Is.EqualTo(2));
@@ -115,12 +103,9 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1],
-			Include = ["distances", "embeddings"],
-			NResults = 1,
-		});
+		var result = await client.Query([Embeddings1],
+			include: ["distances", "embeddings"],
+			nResults: 1);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(1));
 		Assert.That(result.Data![0].Count, Is.EqualTo(1));
@@ -135,12 +120,9 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1, Embeddings2],
-			Where = new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
-			Include = ["distances"],
-		});
+		var result = await client.Query([Embeddings1, Embeddings2],
+			where: new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
+			include: ["distances"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Count, Is.EqualTo(1));
@@ -162,12 +144,9 @@ public class CollectionClientQueryTests : ChromaDBTestsBase
 	{
 		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
 		var client = await Init(httpClient);
-		var result = await client.Query(new CollectionQueryRequest()
-		{
-			QueryEmbeddings = [Embeddings1, Embeddings2],
-			WhereDocument = new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
-			Include = ["distances"],
-		});
+		var result = await client.Query([Embeddings1, Embeddings2],
+			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
+			include: ["distances"]);
 		Assert.That(result.Success, Is.True);
 		Assert.That(result.Data!.Count, Is.EqualTo(2));
 		Assert.That(result.Data![0].Count, Is.EqualTo(1));

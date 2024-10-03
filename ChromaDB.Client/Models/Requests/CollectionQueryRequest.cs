@@ -2,10 +2,10 @@
 
 namespace ChromaDB.Client.Models.Requests;
 
-public class CollectionQueryRequest
+internal class CollectionQueryRequest
 {
 	[JsonPropertyName("query_embeddings")]
-	public required List<List<float>>? QueryEmbeddings { get; init; }
+	public required List<List<float>> QueryEmbeddings { get; init; }
 
 	[JsonPropertyName("n_results")]
 	public int NResults { get; init; } = 10;
@@ -17,5 +17,5 @@ public class CollectionQueryRequest
 	public IDictionary<string, object>? WhereDocument { get; init; }
 
 	[JsonPropertyName("include")]
-	public List<string> Include { get; init; } = ["metadatas", "documents", "distances"];
+	public required List<string> Include { get; init; }
 }

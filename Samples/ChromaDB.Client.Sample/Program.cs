@@ -26,11 +26,8 @@ if (getResponse.Success)
 	}
 }
 
-Response<List<List<CollectionQueryEntry>>> queryResponse = await string5Client.Query(new CollectionQueryRequest()
-{
-	QueryEmbeddings = [[1f, 0.5f, 0f, -0.5f, -1f], [1.5f, 0f, 2f, -1f, -1.5f]],
-	Include = ["metadatas", "distances"],
-});
+Response<List<List<CollectionQueryEntry>>> queryResponse = await string5Client.Query([[1f, 0.5f, 0f, -0.5f, -1f], [1.5f, 0f, 2f, -1f, -1.5f]],
+	include: ["metadatas", "distances"]);
 if (queryResponse.Success)
 {
 	foreach (var item in queryResponse.Data)
