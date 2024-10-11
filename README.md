@@ -1,30 +1,18 @@
 # ChromaDB.Client
 
-ChromaDB.Client is a C# cross-platform library for communication with ChromaDB Vector database. ChromaDB is a fast and scalable database that uses vector similarity search to enable complex queries on high-dimensional data.
+_ChromaDB.Client_ is a C# cross-platform library for communication with Chroma vector database. Chroma is the AI-native open-source vector database. Chroma makes it easy to build LLM apps by making knowledge, facts, and skills pluggable for LLMs.
 
-With ChromaDB.Client, you can easily connect to a ChromaDB instance, create and manage collections, perform CRUD operations on the data in the collections, and execute other available operations such as nearest neighbor search, aggregation, and filtering.
+With _ChromaDB.Client_, you can easily connect to a Chroma instance, create and manage collections, perform CRUD operations on the data in the collections, and execute other available operations such as nearest neighbor search and filtering.
 
-**This library is still in early development and is not ready for production use by any means.**
+## Example
 
-## Features
+<!-- MARKDOWN-AUTO-DOCS:START (CODE:src=./Samples/ChromaDB.Client.Sample/Program.cs) -->
+<!-- MARKDOWN-AUTO-DOCS:END -->
 
-- [x] Basic connection and authentication (partially done)
-- [x] Collection creation
-- [x] Collection deletion
-- [x] Collection retrieval and modification (partially done)
-- [x] Document insertion, deletion, and update
-- [ ] Document retrieval by ID or filter
-- [ ] Vector similarity search with optional parameters
-- [ ] Aggregation and grouping operations
-- [ ] Batch operations and transactions
-- [ ] Async and await support
-- [ ] Logging and error handling
+## Status
 
-## Build status
-
-![CI](https://github.com/ssone95/ChromaDB.Client/actions/workflows/ci.yml/badge.svg)
-
-## Important notice
-### **This project is in no way associated with, or supported/funded by the original authors of ChromaDB. It's solely developed as a hobby project, and with sole purpose of connecting to the database itself, and making it more connectable with the rest of .NET ecosystem! All rights to ChromaDB go to the respective authors of the said software!**
-
-By using the provided library, you are also accepting the following terms provided by @chroma team: https://www.trychroma.com/terms
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ChromaDB.Client)](https://img.shields.io/nuget/v/ChromaDB.Client)
+[![NuGet](https://img.shields.io/nuget/v/ChromaDB.Client)](https://img.shields.io/nuget/v/ChromaDB.Client)
+[![NuGet Prerelease](https://img.shields.io/nuget/vpre/ChromaDB.Client)](https://img.shields.io/nuget/v/ChromaDB.Client)
+[![License](https://img.shields.io/github/license/ssone95/ChromaDB.Client)](https://github.com/ssone95/ChromaDB.Client/LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/ssone95/ChromaDB.Client/ci.yml)](https://github.com/ssone95/ChromaDB.Client/actions/workflows/ci.yml)
