@@ -49,8 +49,8 @@ if (queryResponse.Success)
 
 ## Status
 
-[![NuGet Downloads](https://img.shields.io/nuget/dt/ChromaDB.Client)](https://img.shields.io/nuget/v/ChromaDB.Client)
-[![NuGet](https://img.shields.io/nuget/v/ChromaDB.Client)](https://img.shields.io/nuget/v/ChromaDB.Client)
-[![NuGet Prerelease](https://img.shields.io/nuget/vpre/ChromaDB.Client)](https://img.shields.io/nuget/v/ChromaDB.Client)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ChromaDB.Client)](https://www.nuget.org/packages/ChromaDB.Client/)
+[![NuGet](https://img.shields.io/nuget/v/ChromaDB.Client)](https://www.nuget.org/packages/ChromaDB.Client/)
+[![NuGet Prerelease](https://img.shields.io/nuget/vpre/ChromaDB.Client)](https://www.nuget.org/packages/ChromaDB.Client/)
 [![License](https://img.shields.io/github/license/ssone95/ChromaDB.Client)](https://github.com/ssone95/ChromaDB.Client/LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/ssone95/ChromaDB.Client/ci.yml)](https://github.com/ssone95/ChromaDB.Client/actions/workflows/ci.yml)
