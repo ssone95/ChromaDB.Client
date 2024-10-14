@@ -5,7 +5,7 @@ namespace ChromaDB.Client.Models.Requests;
 internal class CollectionQueryRequest
 {
 	[JsonPropertyName("query_embeddings")]
-	public required List<List<float>> QueryEmbeddings { get; init; }
+	public required List<ReadOnlyMemory<float>> QueryEmbeddings { get; init; }
 
 	[JsonPropertyName("n_results")]
 	public int NResults { get; init; } = 10;

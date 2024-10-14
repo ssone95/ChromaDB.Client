@@ -8,7 +8,7 @@ internal class CollectionEntriesGetResponse
 	public required List<string> Ids { get; init; }
 
 	[JsonPropertyName("embeddings")]
-	public required List<List<float>?> Embeddings { get; init; }
+	public required List<ReadOnlyMemory<float>?> Embeddings { get; init; }
 
 	[JsonPropertyName("metadatas")]
 	public required List<Dictionary<string, object>?> Metadatas { get; init; }

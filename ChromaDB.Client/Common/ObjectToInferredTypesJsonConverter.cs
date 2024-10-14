@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace ChromaDB.Client.Common.Helpers;
+namespace ChromaDB.Client.Common;
 
 internal class ObjectToInferredTypesJsonConverter : JsonConverter<object>
 {

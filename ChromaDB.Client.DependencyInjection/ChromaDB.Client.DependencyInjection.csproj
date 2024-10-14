@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>true</IsPackable>
+		<VersionPrefix>0.9.1</VersionPrefix>
+		<PackageId>ChromaDB.Client.DependencyInjection</PackageId>
+		<PackageDescription>.NET SDK for Chroma database</PackageDescription>
+		<PackageTags>chroma chromadb vector database</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryType>git</RepositoryType>
+		<RepositoryUrl>https://github.com/ssone95/ChromaDB.Client</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/ssone95/ChromaDB.Client</PackageProjectUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="..\README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\ChromaDB.Client\ChromaDB.Client.csproj" />
+	</ItemGroup>
+</Project>

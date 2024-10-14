@@ -15,7 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChromaDB.Client.Extensions", "ChromaDB.Client.Extensions\ChromaDB.Client.Extensions.csproj", "{674FD1C0-814B-4371-B74A-F68A1BC20CA4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChromaDB.Client.DependencyInjection", "ChromaDB.Client.DependencyInjection\ChromaDB.Client.DependencyInjection.csproj", "{674FD1C0-814B-4371-B74A-F68A1BC20CA4}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChromaDB.Client.Tests", "ChromaDB.Client.Tests\ChromaDB.Client.Tests.csproj", "{B97D82A1-FB2F-43CF-A134-6AD27ADC5595}"
 EndProject
