@@ -239,10 +239,7 @@ public class CollectionClientCUDTests : ChromaTestsBase
 		await client.Add([id1, id2],
 			documents: ["Doc1", "Doc2"]);
 		await client.Delete([id1, id2],
-			whereDocument: new Dictionary<string, object>
-			{
-				{ "$contains", "2" },
-			});
+			whereDocument: ChromaWhereDocument.Contains("2"));
 	}
 
 	async Task<ChromaCollectionClient> Init()

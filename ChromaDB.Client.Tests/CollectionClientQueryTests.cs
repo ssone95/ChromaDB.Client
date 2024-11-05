@@ -132,7 +132,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
+			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));

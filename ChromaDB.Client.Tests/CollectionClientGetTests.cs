@@ -225,7 +225,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
+			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
 			include: ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
