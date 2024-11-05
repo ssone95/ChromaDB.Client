@@ -3,65 +3,55 @@ using NUnit.Framework;
 namespace ChromaDB.Client.Tests;
 
 [TestFixture]
-public class CollectionClientCUDTests : ChromaDBTestsBase
+public class CollectionClientCUDTests : ChromaTestsBase
 {
 	[Test]
 	public async Task AddJustIds()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Add([$"{Guid.NewGuid()}"]);
-		Assert.That(result.Success, Is.True);
+		var client = await Init();
+		await client.Add([$"{Guid.NewGuid()}"]);
 	}
 
 	[Test]
 	public async Task AddWithEmbeddings()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Add([$"{Guid.NewGuid()}"],
-			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]]);
-		Assert.That(result.Success, Is.True);
+		var client = await Init();
+		await client.Add([$"{Guid.NewGuid()}"],
+			embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])]);
 	}
 
 	[Test]
 	public async Task AddWithMetadatas()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Add([$"{Guid.NewGuid()}"],
+		var client = await Init();
+		await client.Add([$"{Guid.NewGuid()}"],
 			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
 	public async Task AddWithDocuments()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Add([$"{Guid.NewGuid()}"],
+		var client = await Init();
+		await client.Add([$"{Guid.NewGuid()}"],
 			documents: ["test"]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
 	public async Task AddWithAll()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Add([$"{Guid.NewGuid()}"],
-			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]],
+		var client = await Init();
+		await client.Add([$"{Guid.NewGuid()}"],
+			embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])],
 			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}],
 			documents: ["test"]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
@@ -69,11 +59,9 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id]);
-		var result = await client.Update([id]);
-		Assert.That(result.Success, Is.True);
+		await client.Update([id]);
 	}
 
 	[Test]
@@ -81,12 +69,10 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id]);
-		var result = await client.Update([id],
-			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]]);
-		Assert.That(result.Success, Is.True);
+		await client.Update([id],
+			embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])]);
 	}
 
 	[Test]
@@ -94,16 +80,14 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id]);
-		var result = await client.Update([id],
+		await client.Update([id],
 			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
@@ -111,12 +95,10 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id]);
-		var result = await client.Update([id],
+		await client.Update([id],
 			documents: ["test"]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
@@ -124,77 +106,65 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id]);
-		var result = await client.Update([id],
-			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]],
+		await client.Update([id],
+			embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])],
 			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}],
 			documents: ["test"]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
 	public async Task UpsertJustIds()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Upsert([$"{Guid.NewGuid()}"]);
-		Assert.That(result.Success, Is.True);
+		var client = await Init();
+		await client.Upsert([$"{Guid.NewGuid()}"]);
 	}
 
 	[Test]
 	public async Task UpsertWithEmbeddings()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Upsert([$"{Guid.NewGuid()}"],
-			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]]);
-		Assert.That(result.Success, Is.True);
+		var client = await Init();
+		await client.Upsert([$"{Guid.NewGuid()}"],
+			embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])]);
 	}
 
 	[Test]
 	public async Task UpsertWithMetadatas()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Upsert([$"{Guid.NewGuid()}"],
+		var client = await Init();
+		await client.Upsert([$"{Guid.NewGuid()}"],
 			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
 	public async Task UpsertWithDocuments()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Upsert([$"{Guid.NewGuid()}"],
+		var client = await Init();
+		await client.Upsert([$"{Guid.NewGuid()}"],
 			documents: ["test"]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
 	public async Task UpsertWithAll()
 	{
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Upsert([$"{Guid.NewGuid()}"],
-			embeddings: [[1f, 0.5f, 0f, -0.5f, -1f]],
+		var client = await Init();
+		await client.Upsert([$"{Guid.NewGuid()}"],
+			embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])],
 			metadatas: [new Dictionary<string, object>
 			{
 				{ "key", "value" },
 				{ "key2", 10 },
 			}],
 			documents: ["test"]);
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
@@ -202,11 +172,9 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id]);
-		var result = await client.Delete([id]);
-		Assert.That(result.Success, Is.True);
+		await client.Delete([id]);
 	}
 
 	[Test]
@@ -214,10 +182,8 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 	{
 		var id = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
-		var result = await client.Delete([id]);
-		Assert.That(result.Success, Is.True);
+		var client = await Init();
+		await client.Delete([id]);
 	}
 
 	[Test]
@@ -226,11 +192,9 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		var id1 = $"{Guid.NewGuid()}";
 		var id2 = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id1, id2]);
-		var result = await client.Delete([id1, id2]);
-		Assert.That(result.Success, Is.True);
+		await client.Delete([id1, id2]);
 	}
 
 	[Test]
@@ -239,11 +203,9 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		var id1 = $"{Guid.NewGuid()}";
 		var id2 = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id1]);
-		var result = await client.Delete([id1, id2]);
-		Assert.That(result.Success, Is.True);
+		await client.Delete([id1, id2]);
 	}
 
 	[Test]
@@ -252,8 +214,7 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		var id1 = $"{Guid.NewGuid()}";
 		var id2 = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id1, id2],
 			metadatas: [new Dictionary<string, object>
 			{
@@ -261,12 +222,11 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 			{
 				{ "key", "value" },
 			}]);
-		var result = await client.Delete([id1, id2],
+		await client.Delete([id1, id2],
 			where: new Dictionary<string, object>
 			{
 				{ "key", "value" },
 			});
-		Assert.That(result.Success, Is.True);
 	}
 
 	[Test]
@@ -275,25 +235,21 @@ public class CollectionClientCUDTests : ChromaDBTestsBase
 		var id1 = $"{Guid.NewGuid()}";
 		var id2 = $"{Guid.NewGuid()}";
 
-		using var httpClient = new ChromaDBHttpClient(ConfigurationOptions);
-		var client = await Init(httpClient);
+		var client = await Init();
 		await client.Add([id1, id2],
 			documents: ["Doc1", "Doc2"]);
-		var result = await client.Delete([id1, id2],
+		await client.Delete([id1, id2],
 			whereDocument: new Dictionary<string, object>
 			{
 				{ "$contains", "2" },
 			});
-		Assert.That(result.Success, Is.True);
 	}
 
-	async Task<ChromaDBCollectionClient> Init(ChromaDBHttpClient httpClient)
+	async Task<ChromaCollectionClient> Init()
 	{
 		var name = $"collection{Random.Shared.Next()}";
-		var client = new ChromaDBClient(ConfigurationOptions, httpClient);
-		var collectionResponse = await client.GetOrCreateCollection(name);
-		Assert.That(collectionResponse.Success, Is.True);
-		var collection = collectionResponse.Data!;
-		return new ChromaDBCollectionClient(collection, httpClient);
+		var client = new ChromaClient(ConfigurationOptions, HttpClient);
+		var collection = await client.GetOrCreateCollection(name);
+		return new ChromaCollectionClient(collection, ConfigurationOptions, HttpClient);
 	}
 }

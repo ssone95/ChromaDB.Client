@@ -1,15 +1,16 @@
 ﻿namespace ChromaDB.Client.Models;
 
-public class CollectionEntry
+public class ChromaCollectionQueryEntry
 {
 	public string Id { get; }
-	public List<float>? Embeddings { get; init; }
+	public float Distance { get; init; }
 	public Dictionary<string, object>? Metadata { get; init; }
+	public ReadOnlyMemory<float>? Embeddings { get; init; }
 	public string? Document { get; init; }
 	public List<string?>? Uris { get; init; }
 	public dynamic? Data { get; init; }
 
-	public CollectionEntry(string id)
+	public ChromaCollectionQueryEntry(string id)
 	{
 		Id = id;
 	}

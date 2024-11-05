@@ -8,7 +8,7 @@ internal class CollectionUpsertRequest
 	public required List<string> Ids { get; init; }
 
 	[JsonPropertyName("embeddings")]
-	public List<List<float>>? Embeddings { get; init; }
+	public List<ReadOnlyMemory<float>>? Embeddings { get; init; }
 
 	[JsonPropertyName("metadatas")]
 	public List<Dictionary<string, object>>? Metadatas { get; init; }

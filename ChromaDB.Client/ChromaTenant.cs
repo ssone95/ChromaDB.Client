@@ -2,12 +2,12 @@
 
 namespace ChromaDB.Client.Models;
 
-public class Tenant
+public class ChromaTenant
 {
 	[JsonPropertyName("name")]
 	public string Name { get; }
 
-	public Tenant(string name)
+	public ChromaTenant(string name)
 	{
 		Name = name;
 	}

@@ -3,17 +3,19 @@ using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
 
-public abstract class ChromaDBTestsBase
+public abstract class ChromaTestsBase
 {
+	protected static readonly HttpClient HttpClient = new();
+
 	private ChromaDBContainer _container;
-	private ConfigurationOptions? _configurationOptions;
+	private ChromaConfigurationOptions? _configurationOptions;
 
 	[OneTimeSetUp]
 	public async Task OneTimeSetUp()
 	{
 		_container = ConfigureContainer(new ChromaDBBuilder()).Build();
 		await _container.StartAsync();
-		_configurationOptions = new ConfigurationOptions(uri: $"http://{_container.IpAddress}:{_container.GetMappedPublicPort(ChromaDBBuilder.ChromaDBPort)}/api/v1/");
+		_configurationOptions = new ChromaConfigurationOptions(uri: $"http://{_container.IpAddress}:{_container.GetMappedPublicPort(ChromaDBBuilder.ChromaDBPort)}/api/v1/");
 	}
 
 	[OneTimeTearDown]
@@ -23,7 +25,7 @@ public abstract class ChromaDBTestsBase
 		await _container.DisposeAsync();
 	}
 
-	protected ConfigurationOptions ConfigurationOptions => _configurationOptions ?? throw new InvalidOperationException();
+	protected ChromaConfigurationOptions ConfigurationOptions => _configurationOptions ?? throw new InvalidOperationException();
 
 	protected virtual ChromaDBBuilder ConfigureContainer(ChromaDBBuilder builder) => builder;
 }

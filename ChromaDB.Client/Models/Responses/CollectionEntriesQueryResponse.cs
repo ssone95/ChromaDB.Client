@@ -8,13 +8,13 @@ internal class CollectionEntriesQueryResponse
 	public required List<List<string>> Ids { get; init; }
 
 	[JsonPropertyName("distances")]
-	public required List<List<float>> Distances { get; init; }
+	public required List<ReadOnlyMemory<float>> Distances { get; init; }
 
 	[JsonPropertyName("metadatas")]
 	public required List<List<Dictionary<string, object>>>? Metadatas { get; init; }
 
 	[JsonPropertyName("embeddings")]
-	public required List<List<List<float>>>? Embeddings { get; init; }
+	public required List<List<ReadOnlyMemory<float>>>? Embeddings { get; init; }
 
 	[JsonPropertyName("documents")]
 	public required List<List<string?>>? Documents { get; init; }

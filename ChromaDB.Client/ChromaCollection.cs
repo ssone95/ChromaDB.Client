@@ -2,7 +2,7 @@
 
 namespace ChromaDB.Client.Models;
 
-public class Collection
+public class ChromaCollection
 {
 	[JsonPropertyName("id")]
 	public Guid Id { get; init; }
@@ -19,7 +19,7 @@ public class Collection
 	[JsonPropertyName("database")]
 	public string? Database { get; init; }
 
-	public Collection(string name)
+	public ChromaCollection(string name)
 	{
 		Name = name;
 	}
