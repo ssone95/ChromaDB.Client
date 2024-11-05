@@ -112,7 +112,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.Equal(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.Equal(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -134,7 +134,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.NotEqual(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.NotEqual(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -156,7 +156,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.In(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.In(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -178,7 +178,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.NotIn(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.NotIn(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -200,7 +200,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.GreaterThan(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.GreaterThan(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -222,7 +222,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.LessThan(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.LessThan(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -244,7 +244,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.GreaterThanOrEqual(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.GreaterThanOrEqual(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -266,7 +266,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.LessThanOrEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.LessThanOrEqual(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -288,7 +288,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			where: ChromaWhere.Equal(MetadataKey2, Metadata1[MetadataKey2]) && ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]) || ChromaWhere.NotEqual(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.Equal(MetadataKey2, Metadata1[MetadataKey2]) && ChromaWhereOperator.NotEqual(MetadataKey2, Metadata1[MetadataKey2]) || ChromaWhereOperator.NotEqual(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -310,7 +310,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]),
+			whereDocument: ChromaWhereDocumentOperator.Contains(Doc1[^1]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -332,7 +332,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
+			whereDocument: ChromaWhereDocumentOperator.NotContains(Doc2[^1]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -354,7 +354,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			whereDocument: ChromaWhereDocument.Contains(Doc1) && ChromaWhereDocument.NotContains(Doc1) || ChromaWhereDocument.NotContains(Doc2),
+			whereDocument: ChromaWhereDocumentOperator.Contains(Doc1) && ChromaWhereDocumentOperator.NotContains(Doc1) || ChromaWhereDocumentOperator.NotContains(Doc2),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));

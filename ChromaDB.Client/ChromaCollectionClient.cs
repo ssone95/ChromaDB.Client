@@ -23,10 +23,10 @@ public class ChromaCollectionClient
 
 	public ChromaCollection Collection => _collection;
 
-	public async Task<ChromaCollectionEntry?> Get(string id, ChromaWhere? where = null, ChromaWhereDocument? whereDocument = null, ChromaGetInclude? include = null)
+	public async Task<ChromaCollectionEntry?> Get(string id, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, ChromaGetInclude? include = null)
 		=> (await Get([id], where: where, whereDocument: whereDocument, include: include)).FirstOrDefault();
 
-	public async Task<List<ChromaCollectionEntry>> Get(List<string>? ids = null, ChromaWhere? where = null, ChromaWhereDocument? whereDocument = null, int? limit = null, int? offset = null, ChromaGetInclude? include = null)
+	public async Task<List<ChromaCollectionEntry>> Get(List<string>? ids = null, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, int? limit = null, int? offset = null, ChromaGetInclude? include = null)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -43,10 +43,10 @@ public class ChromaCollectionClient
 		return response.Map() ?? [];
 	}
 
-	public async Task<List<ChromaCollectionQueryEntry>> Query(ReadOnlyMemory<float> queryEmbeddings, int nResults = 10, ChromaWhere? where = null, ChromaWhereDocument? whereDocument = null, ChromaQueryInclude? include = null)
+	public async Task<List<ChromaCollectionQueryEntry>> Query(ReadOnlyMemory<float> queryEmbeddings, int nResults = 10, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, ChromaQueryInclude? include = null)
 		=> (await Query([queryEmbeddings], nResults: nResults, where: where, whereDocument: whereDocument, include: include)).FirstOrDefault() ?? [];
 
-	public async Task<List<List<ChromaCollectionQueryEntry>>> Query(List<ReadOnlyMemory<float>> queryEmbeddings, int nResults = 10, ChromaWhere? where = null, ChromaWhereDocument? whereDocument = null, ChromaQueryInclude? include = null)
+	public async Task<List<List<ChromaCollectionQueryEntry>>> Query(List<ReadOnlyMemory<float>> queryEmbeddings, int nResults = 10, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, ChromaQueryInclude? include = null)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -104,7 +104,7 @@ public class ChromaCollectionClient
 		await _httpClient.Post("collections/{collection_id}/upsert", request, requestParams);
 	}
 
-	public async Task Delete(List<string> ids, ChromaWhere? where = null, ChromaWhereDocument? whereDocument = null)
+	public async Task Delete(List<string> ids, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);

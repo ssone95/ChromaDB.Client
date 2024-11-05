@@ -223,7 +223,7 @@ public class CollectionClientCUDTests : ChromaTestsBase
 				{ "key", "value" },
 			}]);
 		await client.Delete([id1, id2],
-			where: ChromaWhere.Equal("key", "value"));
+			where: ChromaWhereOperator.Equal("key", "value"));
 	}
 
 	[Test]
@@ -236,7 +236,7 @@ public class CollectionClientCUDTests : ChromaTestsBase
 		await client.Add([id1, id2],
 			documents: ["Doc1", "Doc2"]);
 		await client.Delete([id1, id2],
-			whereDocument: ChromaWhereDocument.Contains("2"));
+			whereDocument: ChromaWhereDocumentOperator.Contains("2"));
 	}
 
 	async Task<ChromaCollectionClient> Init()
