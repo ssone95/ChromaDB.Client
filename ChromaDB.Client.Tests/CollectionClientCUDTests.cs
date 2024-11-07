@@ -223,10 +223,7 @@ public class CollectionClientCUDTests : ChromaTestsBase
 				{ "key", "value" },
 			}]);
 		await client.Delete([id1, id2],
-			where: new Dictionary<string, object>
-			{
-				{ "key", "value" },
-			});
+			where: ChromaWhere.Equal("key", "value"));
 	}
 
 	[Test]
