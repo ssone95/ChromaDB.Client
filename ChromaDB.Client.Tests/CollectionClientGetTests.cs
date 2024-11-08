@@ -197,7 +197,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.Equal(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.Equal(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -211,7 +211,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -225,7 +225,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.In(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.In(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -239,7 +239,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.NotIn(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.NotIn(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -253,7 +253,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.GreaterThan(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.GreaterThan(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -267,7 +267,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.LessThan(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.LessThan(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
@@ -281,7 +281,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.GreaterThanOrEqual(MetadataKey2, Metadata2[MetadataKey2]),
+			where: ChromaWhereOperator.GreaterThanOrEqual(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -295,7 +295,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.LessThanOrEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.LessThanOrEqual(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
@@ -309,7 +309,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.Equal(MetadataKey2, Metadata2[MetadataKey2]) && ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.Equal(MetadataKey2, Metadata2[MetadataKey2]) && ChromaWhereOperator.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -323,7 +323,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: ChromaWhere.Equal(MetadataKey2, Metadata2[MetadataKey2]) || ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			where: ChromaWhereOperator.Equal(MetadataKey2, Metadata2[MetadataKey2]) || ChromaWhereOperator.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -337,7 +337,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]),
+			whereDocument: ChromaWhereDocumentOperator.Contains(Doc1[^1]),
 			include: ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
@@ -351,7 +351,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
+			whereDocument: ChromaWhereDocumentOperator.NotContains(Doc2[^1]),
 			include: ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
@@ -365,7 +365,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.Get(
-			whereDocument: ChromaWhereDocument.Contains(Doc1) && ChromaWhereDocument.NotContains(Doc1) || ChromaWhereDocument.NotContains(Doc2),
+			whereDocument: ChromaWhereDocumentOperator.Contains(Doc1) && ChromaWhereDocumentOperator.NotContains(Doc1) || ChromaWhereDocumentOperator.NotContains(Doc2),
 			include: ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));

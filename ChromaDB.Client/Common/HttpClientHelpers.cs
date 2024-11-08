@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -38,7 +39,7 @@ internal static partial class HttpClientHelpers
 
 	public static async Task<TResponse> Post<TInput, TResponse>(this HttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
-		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, Encoding.UTF8, "application/json");
 		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
 		{
 			Content = content,
@@ -48,7 +49,7 @@ internal static partial class HttpClientHelpers
 	}
 	public static async Task Post<TInput>(this HttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
-		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, Encoding.UTF8, "application/json");
 		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
 		{
 			Content = content,
@@ -59,7 +60,7 @@ internal static partial class HttpClientHelpers
 
 	public static async Task<TResponse> Put<TInput, TResponse>(this HttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
-		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, Encoding.UTF8, "application/json");
 		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Put, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
 		{
 			Content = content,
@@ -69,7 +70,7 @@ internal static partial class HttpClientHelpers
 	}
 	public static async Task Put<TInput>(this HttpClient httpClient, string endpoint, TInput? input, RequestQueryParams queryParams)
 	{
-		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, new MediaTypeHeaderValue("application/json"));
+		using var content = new StringContent(JsonSerializer.Serialize(input, PostJsonSerializerOptions) ?? string.Empty, Encoding.UTF8, "application/json");
 		using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Put, requestUri: ValidateAndPrepareEndpoint(endpoint, queryParams))
 		{
 			Content = content,
@@ -129,7 +130,11 @@ internal static partial class HttpClientHelpers
 		return httpResponseMessage.StatusCode switch
 		{
 			HttpStatusCode.BadRequest
+#if NETSTANDARD2_0
+				or (HttpStatusCode)422
+#else
 				or HttpStatusCode.UnprocessableContent
+#endif
 				or HttpStatusCode.InternalServerError
 				=> new ChromaException(ParseErrorMessageBody(await httpResponseMessage.Content.ReadAsStringAsync())),
 			_ => new ChromaException($"Unexpected status code: {httpResponseMessage.StatusCode}."),
@@ -146,7 +151,11 @@ internal static partial class HttpClientHelpers
 		try
 		{
 			var deserialized = JsonSerializer.Deserialize<GeneralError>(errorMessageBody, DeserializerJsonSerializerOptions)!;
+#if NETSTANDARD2_0
+			var match = ParseErrorMessageBodyRegex.Match(deserialized?.Error ?? string.Empty);
+#else
 			var match = ParseErrorMessageBodyRegex().Match(deserialized?.Error ?? string.Empty);
+#endif
 
 			return match.Success
 				? match.Groups["errorMessage"]?.Value
@@ -160,16 +169,31 @@ internal static partial class HttpClientHelpers
 
 	private static List<string> PrepareQueryParams(string input)
 	{
+#if NETSTANDARD2_0
+		return ParseErrorMessageBodyRegex.Matches(input)
+			.Cast<Match>()
+			.Select(x => x.Value)
+			.ToList();
+#else
 		return PrepareQueryParamsRegex().Matches(input)
 			.Select(x => x.Value)
 			.ToList();
+#endif
 	}
 
+#if NETSTANDARD2_0
+	private static readonly Regex ParseErrorMessageBodyRegex = new(@"\('(?<errorMessage>.*)'\)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+#else
 	[GeneratedRegex(@"\('(?<errorMessage>.*)'\)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
 	private static partial Regex ParseErrorMessageBodyRegex();
+#endif
 
+#if NETSTANDARD2_0
+		private static readonly Regex PrepareQueryParamsRegex = new(@"{[a-zA-Z0-9\-_]+}", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+#else
 	[GeneratedRegex(@"{[a-zA-Z0-9\-_]+}", RegexOptions.CultureInvariant)]
 	private static partial Regex PrepareQueryParamsRegex();
+#endif
 
 	private static string ValidateAndPrepareEndpoint(string endpoint, RequestQueryParams queryParams)
 	{
