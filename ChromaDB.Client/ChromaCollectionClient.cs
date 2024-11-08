@@ -23,10 +23,10 @@ public class ChromaCollectionClient
 
 	public ChromaCollection Collection => _collection;
 
-	public async Task<ChromaCollectionEntry?> Get(string id, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, ChromaGetInclude? include = null)
+	public async Task<ChromaCollectionEntry?> Get(string id, Dictionary<string, object>? where = null, ChromaWhereDocument? whereDocument = null, ChromaGetInclude? include = null)
 		=> (await Get([id], where: where, whereDocument: whereDocument, include: include)).FirstOrDefault();
 
-	public async Task<List<ChromaCollectionEntry>> Get(List<string>? ids = null, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, int? limit = null, int? offset = null, ChromaGetInclude? include = null)
+	public async Task<List<ChromaCollectionEntry>> Get(List<string>? ids = null, Dictionary<string, object>? where = null, ChromaWhereDocument? whereDocument = null, int? limit = null, int? offset = null, ChromaGetInclude? include = null)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -34,7 +34,7 @@ public class ChromaCollectionClient
 		{
 			Ids = ids,
 			Where = where,
-			WhereDocument = whereDocument,
+			WhereDocument = whereDocument?.ToWhereDocument(),
 			Limit = limit,
 			Offset = offset,
 			Include = (include ?? ChromaGetInclude.Metadatas | ChromaGetInclude.Documents).ToInclude(),
@@ -43,10 +43,10 @@ public class ChromaCollectionClient
 		return response.Map() ?? [];
 	}
 
-	public async Task<List<ChromaCollectionQueryEntry>> Query(ReadOnlyMemory<float> queryEmbeddings, int nResults = 10, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, ChromaQueryInclude? include = null)
+	public async Task<List<ChromaCollectionQueryEntry>> Query(ReadOnlyMemory<float> queryEmbeddings, int nResults = 10, Dictionary<string, object>? where = null, ChromaWhereDocument? whereDocument = null, ChromaQueryInclude? include = null)
 		=> (await Query([queryEmbeddings], nResults: nResults, where: where, whereDocument: whereDocument, include: include)).FirstOrDefault() ?? [];
 
-	public async Task<List<List<ChromaCollectionQueryEntry>>> Query(List<ReadOnlyMemory<float>> queryEmbeddings, int nResults = 10, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null, ChromaQueryInclude? include = null)
+	public async Task<List<List<ChromaCollectionQueryEntry>>> Query(List<ReadOnlyMemory<float>> queryEmbeddings, int nResults = 10, Dictionary<string, object>? where = null, ChromaWhereDocument? whereDocument = null, ChromaQueryInclude? include = null)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -55,7 +55,7 @@ public class ChromaCollectionClient
 			QueryEmbeddings = queryEmbeddings,
 			NResults = nResults,
 			Where = where,
-			WhereDocument = whereDocument,
+			WhereDocument = whereDocument?.ToWhereDocument(),
 			Include = (include ?? ChromaQueryInclude.Metadatas | ChromaQueryInclude.Documents | ChromaQueryInclude.Distances).ToInclude(),
 		};
 		var response = await _httpClient.Post<CollectionQueryRequest, CollectionEntriesQueryResponse>("collections/{collection_id}/query", request, requestParams);
@@ -104,7 +104,7 @@ public class ChromaCollectionClient
 		await _httpClient.Post("collections/{collection_id}/upsert", request, requestParams);
 	}
 
-	public async Task Delete(List<string> ids, Dictionary<string, object>? where = null, Dictionary<string, object>? whereDocument = null)
+	public async Task Delete(List<string> ids, Dictionary<string, object>? where = null, ChromaWhereDocument? whereDocument = null)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{collection_id}", _collection.Id);
@@ -112,7 +112,7 @@ public class ChromaCollectionClient
 		{
 			Ids = ids,
 			Where = where,
-			WhereDocument = whereDocument,
+			WhereDocument = whereDocument?.ToWhereDocument(),
 		};
 		await _httpClient.Post("collections/{collection_id}/delete", request, requestParams);
 	}

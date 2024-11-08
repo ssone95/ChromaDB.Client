@@ -128,11 +128,99 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	}
 
 	[Test]
-	public async Task QueryWithWhereDocument()
+	public async Task QueryWithWhereDocumentContains()
 	{
 		var client = await Init();
 		var result = await client.Query([Embeddings1, Embeddings2],
-			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
+			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]),
+			include: ChromaQueryInclude.Distances);
+		Assert.That(result, Has.Count.EqualTo(2));
+		Assert.That(result[0], Has.Count.EqualTo(1));
+		Assert.That(result[0][0].Distance, Is.EqualTo(0));
+		Assert.That(result[0][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0][0].Embeddings, Is.Null);
+		Assert.That(result[0][0].Metadata, Is.Null);
+		Assert.That(result[0][0].Document, Is.Null);
+		Assert.That(result[1], Has.Count.EqualTo(1));
+		Assert.That(result[1][0].Distance, Is.GreaterThan(0));
+		Assert.That(result[1][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[1][0].Embeddings, Is.Null);
+		Assert.That(result[1][0].Metadata, Is.Null);
+		Assert.That(result[1][0].Document, Is.Null);
+	}
+
+	[Test]
+	public async Task QueryWithWhereDocumentNotContains()
+	{
+		var client = await Init();
+		var result = await client.Query([Embeddings1, Embeddings2],
+			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
+			include: ChromaQueryInclude.Distances);
+		Assert.That(result, Has.Count.EqualTo(2));
+		Assert.That(result[0], Has.Count.EqualTo(1));
+		Assert.That(result[0][0].Distance, Is.EqualTo(0));
+		Assert.That(result[0][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0][0].Embeddings, Is.Null);
+		Assert.That(result[0][0].Metadata, Is.Null);
+		Assert.That(result[0][0].Document, Is.Null);
+		Assert.That(result[1], Has.Count.EqualTo(1));
+		Assert.That(result[1][0].Distance, Is.GreaterThan(0));
+		Assert.That(result[1][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[1][0].Embeddings, Is.Null);
+		Assert.That(result[1][0].Metadata, Is.Null);
+		Assert.That(result[1][0].Document, Is.Null);
+	}
+
+	[Test]
+	public async Task QueryWithWhereDocumentAnd()
+	{
+		var client = await Init();
+		var result = await client.Query([Embeddings1, Embeddings2],
+			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]) && ChromaWhereDocument.NotContains(Doc2[^1]),
+			include: ChromaQueryInclude.Distances);
+		Assert.That(result, Has.Count.EqualTo(2));
+		Assert.That(result[0], Has.Count.EqualTo(1));
+		Assert.That(result[0][0].Distance, Is.EqualTo(0));
+		Assert.That(result[0][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0][0].Embeddings, Is.Null);
+		Assert.That(result[0][0].Metadata, Is.Null);
+		Assert.That(result[0][0].Document, Is.Null);
+		Assert.That(result[1], Has.Count.EqualTo(1));
+		Assert.That(result[1][0].Distance, Is.GreaterThan(0));
+		Assert.That(result[1][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[1][0].Embeddings, Is.Null);
+		Assert.That(result[1][0].Metadata, Is.Null);
+		Assert.That(result[1][0].Document, Is.Null);
+	}
+
+	[Test]
+	public async Task QueryWithWhereDocumentOr()
+	{
+		var client = await Init();
+		var result = await client.Query([Embeddings1, Embeddings2],
+			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]) || ChromaWhereDocument.NotContains(Doc2[^1]),
+			include: ChromaQueryInclude.Distances);
+		Assert.That(result, Has.Count.EqualTo(2));
+		Assert.That(result[0], Has.Count.EqualTo(1));
+		Assert.That(result[0][0].Distance, Is.EqualTo(0));
+		Assert.That(result[0][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0][0].Embeddings, Is.Null);
+		Assert.That(result[0][0].Metadata, Is.Null);
+		Assert.That(result[0][0].Document, Is.Null);
+		Assert.That(result[1], Has.Count.EqualTo(1));
+		Assert.That(result[1][0].Distance, Is.GreaterThan(0));
+		Assert.That(result[1][0].Id, Is.EqualTo(Id1));
+		Assert.That(result[1][0].Embeddings, Is.Null);
+		Assert.That(result[1][0].Metadata, Is.Null);
+		Assert.That(result[1][0].Document, Is.Null);
+	}
+
+	[Test]
+	public async Task QueryWithWhereDocumentAndOr()
+	{
+		var client = await Init();
+		var result = await client.Query([Embeddings1, Embeddings2],
+			whereDocument: ChromaWhereDocument.Contains(Doc1) && ChromaWhereDocument.NotContains(Doc1) || ChromaWhereDocument.NotContains(Doc2),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));

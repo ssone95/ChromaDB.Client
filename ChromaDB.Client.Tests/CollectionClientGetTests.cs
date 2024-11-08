@@ -221,11 +221,67 @@ public class CollectionClientGetTests : ChromaTestsBase
 	}
 
 	[Test]
-	public async Task GetWhereDocumentIncludeDocuments()
+	public async Task GetWhereDocumentContainsIncludeDocuments()
 	{
 		var client = await Init();
 		var result = await client.Get(
-			whereDocument: new Dictionary<string, object> { { "$not_contains", Doc2[^1] } },
+			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]),
+			include: ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0].Embeddings, Is.Null);
+		Assert.That(result[0].Metadata, Is.Null);
+		Assert.That(result[0].Document, Is.EqualTo(Doc1));
+	}
+
+	[Test]
+	public async Task GetWhereDocumentNotContainsIncludeDocuments()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
+			include: ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0].Embeddings, Is.Null);
+		Assert.That(result[0].Metadata, Is.Null);
+		Assert.That(result[0].Document, Is.EqualTo(Doc1));
+	}
+
+	[Test]
+	public async Task GetWhereDocumentAndIncludeDocuments()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]) && ChromaWhereDocument.NotContains(Doc2[^1]),
+			include: ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0].Embeddings, Is.Null);
+		Assert.That(result[0].Metadata, Is.Null);
+		Assert.That(result[0].Document, Is.EqualTo(Doc1));
+	}
+
+	[Test]
+	public async Task GetWhereDocumentOrIncludeDocuments()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]) || ChromaWhereDocument.NotContains(Doc2[^1]),
+			include: ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0].Embeddings, Is.Null);
+		Assert.That(result[0].Metadata, Is.Null);
+		Assert.That(result[0].Document, Is.EqualTo(Doc1));
+	}
+
+	[Test]
+	public async Task GetWhereDocumentAndOrIncludeDocuments()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			whereDocument: ChromaWhereDocument.Contains(Doc1) && ChromaWhereDocument.NotContains(Doc1) || ChromaWhereDocument.NotContains(Doc2),
 			include: ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
