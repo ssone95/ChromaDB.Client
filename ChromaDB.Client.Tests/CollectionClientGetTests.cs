@@ -193,11 +193,11 @@ public class CollectionClientGetTests : ChromaTestsBase
 	}
 
 	[Test]
-	public async Task GetWhereIncludeAll()
+	public async Task GetWhereEqualIncludeAll()
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: new Dictionary<string, object> { { MetadataKey2, Metadata2[MetadataKey2] } },
+			where: ChromaWhere.Equal(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id2));
@@ -207,17 +207,129 @@ public class CollectionClientGetTests : ChromaTestsBase
 	}
 
 	[Test]
-	public async Task GetWhereOperatorIncludeAll()
+	public async Task GetWhereNotEqualIncludeAll()
 	{
 		var client = await Init();
 		var result = await client.Get(
-			where: new Dictionary<string, object> { { MetadataKey2, new Dictionary<string, object> { { "$lt", Metadata2[MetadataKey2] } } } },
+			where: ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
+	}
+
+	[Test]
+	public async Task GetWhereInIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.In(MetadataKey2, Metadata2[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
+	}
+
+	[Test]
+	public async Task GetWhereNotInIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.NotIn(MetadataKey2, Metadata1[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
+	}
+
+	[Test]
+	public async Task GetWhereGreaterThanIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.GreaterThan(MetadataKey2, Metadata1[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
+	}
+
+	[Test]
+	public async Task GetWhereLessThanIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.LessThan(MetadataKey2, Metadata2[MetadataKey2]),
 			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));
 		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings1).Using(EmbeddingsComparer.Instance));
 		Assert.That(result[0].Metadata, Is.EqualTo(Metadata1));
 		Assert.That(result[0].Document, Is.EqualTo(Doc1));
+	}
+
+	[Test]
+	public async Task GetWhereGreaterThanOrEqualIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.GreaterThanOrEqual(MetadataKey2, Metadata2[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
+	}
+
+	[Test]
+	public async Task GetWhereLessThanOrEqualIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.LessThanOrEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id1));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings1).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata1));
+		Assert.That(result[0].Document, Is.EqualTo(Doc1));
+	}
+
+	[Test]
+	public async Task GetWhereAndIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.Equal(MetadataKey2, Metadata2[MetadataKey2]) && ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
+	}
+
+	[Test]
+	public async Task GetWhereOrIncludeAll()
+	{
+		var client = await Init();
+		var result = await client.Get(
+			where: ChromaWhere.Equal(MetadataKey2, Metadata2[MetadataKey2]) || ChromaWhere.NotEqual(MetadataKey2, Metadata1[MetadataKey2]),
+			include: ChromaGetInclude.Embeddings | ChromaGetInclude.Metadatas | ChromaGetInclude.Documents);
+		Assert.That(result, Has.Count.EqualTo(1));
+		Assert.That(result[0].Id, Is.EqualTo(Id2));
+		Assert.That(result[0].Embeddings, Is.EqualTo(Embeddings2).Using(EmbeddingsComparer.Instance));
+		Assert.That(result[0].Metadata, Is.EqualTo(Metadata2));
+		Assert.That(result[0].Document, Is.EqualTo(Doc2));
 	}
 
 	[Test]
@@ -240,34 +352,6 @@ public class CollectionClientGetTests : ChromaTestsBase
 		var client = await Init();
 		var result = await client.Get(
 			whereDocument: ChromaWhereDocument.NotContains(Doc2[^1]),
-			include: ChromaGetInclude.Documents);
-		Assert.That(result, Has.Count.EqualTo(1));
-		Assert.That(result[0].Id, Is.EqualTo(Id1));
-		Assert.That(result[0].Embeddings, Is.Null);
-		Assert.That(result[0].Metadata, Is.Null);
-		Assert.That(result[0].Document, Is.EqualTo(Doc1));
-	}
-
-	[Test]
-	public async Task GetWhereDocumentAndIncludeDocuments()
-	{
-		var client = await Init();
-		var result = await client.Get(
-			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]) && ChromaWhereDocument.NotContains(Doc2[^1]),
-			include: ChromaGetInclude.Documents);
-		Assert.That(result, Has.Count.EqualTo(1));
-		Assert.That(result[0].Id, Is.EqualTo(Id1));
-		Assert.That(result[0].Embeddings, Is.Null);
-		Assert.That(result[0].Metadata, Is.Null);
-		Assert.That(result[0].Document, Is.EqualTo(Doc1));
-	}
-
-	[Test]
-	public async Task GetWhereDocumentOrIncludeDocuments()
-	{
-		var client = await Init();
-		var result = await client.Get(
-			whereDocument: ChromaWhereDocument.Contains(Doc1[^1]) || ChromaWhereDocument.NotContains(Doc2[^1]),
 			include: ChromaGetInclude.Documents);
 		Assert.That(result, Has.Count.EqualTo(1));
 		Assert.That(result[0].Id, Is.EqualTo(Id1));

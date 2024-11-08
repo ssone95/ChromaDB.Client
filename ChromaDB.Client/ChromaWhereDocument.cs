@@ -11,30 +11,26 @@ public abstract class ChromaWhereDocument
 
 	internal abstract Dictionary<string, object> ToWhereDocument();
 
-	public static ChromaWhereDocument Contains(char ch) => Contains(ch.ToString());
+	public static ChromaWhereDocument Contains(char ch)
+		=> Contains(ch.ToString());
 	public static ChromaWhereDocument Contains(string str)
-	{
-		return new ChromaWhereDocumentStr("$contains", str);
-	}
+		=> new ChromaWhereDocumentStr("$contains", str);
 
-	public static ChromaWhereDocument NotContains(char ch) => NotContains(ch.ToString());
+	public static ChromaWhereDocument NotContains(char ch)
+		=> NotContains(ch.ToString());
 	public static ChromaWhereDocument NotContains(string str)
-	{
-		return new ChromaWhereDocumentStr("$not_contains", str);
-	}
+		=> new ChromaWhereDocumentStr("$not_contains", str);
 
-	public static bool operator true(ChromaWhereDocument _) => false;
-	public static bool operator false(ChromaWhereDocument _) => false;
+	public static bool operator true(ChromaWhereDocument _)
+		=> false;
+	public static bool operator false(ChromaWhereDocument _)
+		=> false;
 
 	public static ChromaWhereDocument operator &(ChromaWhereDocument lhs, ChromaWhereDocument rhs)
-	{
-		return new ChromaWhereDocumentLogical("$and", lhs, rhs);
-	}
+		=> new ChromaWhereDocumentLogical("$and", lhs, rhs);
 
 	public static ChromaWhereDocument operator |(ChromaWhereDocument lhs, ChromaWhereDocument rhs)
-	{
-		return new ChromaWhereDocumentLogical("$or", lhs, rhs);
-	}
+		=> new ChromaWhereDocumentLogical("$or", lhs, rhs);
 }
 
 internal class ChromaWhereDocumentLogical : ChromaWhereDocument
@@ -50,12 +46,10 @@ internal class ChromaWhereDocumentLogical : ChromaWhereDocument
 	}
 
 	internal override Dictionary<string, object> ToWhereDocument()
-	{
-		return new Dictionary<string, object>
+		=> new()
 		{
 			{ Operator, new object[] { Lhs.ToWhereDocument(), Rhs.ToWhereDocument() } }
 		};
-	}
 }
 
 internal class ChromaWhereDocumentStr : ChromaWhereDocument
@@ -69,10 +63,8 @@ internal class ChromaWhereDocumentStr : ChromaWhereDocument
 	}
 
 	internal override Dictionary<string, object> ToWhereDocument()
-	{
-		return new Dictionary<string, object>
+		=> new()
 		{
 			{ Operator, Str }
 		};
-	}
 }
