@@ -7,6 +7,8 @@ on:
     tags:
       - v*
   pull_request:
+  schedule:
+    - cron: '4 13 * * 2'
 
 env:
   CONFIGURATION: Release
@@ -15,6 +17,7 @@ env:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    name: ${{ github.event_name != 'schedule' && 'CI' || 'CI (schedule)' }}
 
     steps:
     - uses: actions/checkout@v4
@@ -42,6 +45,7 @@ jobs:
       run: dotnet pack -c ${{ env.CONFIGURATION }} --no-build --version-suffix '${{ env.VERSION_SUFFIX }}'
 
     - name: Upload
+      if: ${{ github.event_name != 'schedule' }}
       uses: actions/upload-artifact@v4
       with:
         name: packages
@@ -51,8 +55,9 @@ jobs:
 
   publish:
     needs: ci
-    if: ${{ github.repository == 'ssone95/ChromaDB.Client' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
+    if: ${{ github.repository == 'ssone95/ChromaDB.Client' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
+    name: Publish
 
     steps:
     - name: Setup .NET
