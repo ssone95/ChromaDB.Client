@@ -24,4 +24,19 @@ public class ChromaConfigurationOptions
 	public ChromaConfigurationOptions()
 		: this(ClientConstants.DefaultUri)
 	{ }
+
+	public ChromaConfigurationOptions WithUri(Uri uri)
+		=> new(uri, Tenant, Database, ChromaToken);
+
+	public ChromaConfigurationOptions WithUri(string uri)
+		=> new(uri, Tenant, Database, ChromaToken);
+
+	public ChromaConfigurationOptions WithTenant(string tenant)
+		=> new(Uri, tenant, Database, ChromaToken);
+
+	public ChromaConfigurationOptions WithDatabase(string database)
+		=> new(Uri, Tenant, database, ChromaToken);
+
+	public ChromaConfigurationOptions WithChromaToken(string chromaToken)
+		=> new(Uri, Tenant, Database, chromaToken);
 }
