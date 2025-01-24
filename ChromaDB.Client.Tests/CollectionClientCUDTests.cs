@@ -242,8 +242,8 @@ public class CollectionClientCUDTests : ChromaTestsBase
 	async Task<ChromaCollectionClient> Init()
 	{
 		var name = $"collection{Random.Shared.Next()}";
-		var client = new ChromaClient(ConfigurationOptions, HttpClient);
+		var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
 		var collection = await client.GetOrCreateCollection(name);
-		return new ChromaCollectionClient(collection, ConfigurationOptions, HttpClient);
+		return new ChromaCollectionClient(collection, BaseConfigurationOptions, HttpClient);
 	}
 }
