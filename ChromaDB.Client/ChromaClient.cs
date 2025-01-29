@@ -24,6 +24,11 @@ public class ChromaClient
 		{
 			_httpClient.BaseAddress = options.Uri;
 		}
+		if (options.ChromaToken is not null and not [])
+		{
+			_httpClient.DefaultRequestHeaders.Remove(ClientConstants.ChromaTokenHeader);
+			_httpClient.DefaultRequestHeaders.Add(ClientConstants.ChromaTokenHeader, options.ChromaToken);
+		}
 	}
 
 	public async Task<List<ChromaCollection>> ListCollections(string? tenant = null, string? database = null)

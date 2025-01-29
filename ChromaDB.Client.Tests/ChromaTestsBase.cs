@@ -8,24 +8,24 @@ public abstract class ChromaTestsBase
 	protected static readonly HttpClient HttpClient = new();
 
 	private ChromaDBContainer _container;
-	private ChromaConfigurationOptions? _configurationOptions;
+	private ChromaConfigurationOptions? _baseConfigurationOptions;
 
 	[OneTimeSetUp]
 	public async Task OneTimeSetUp()
 	{
 		_container = ConfigureContainer(new ChromaDBBuilder()).Build();
 		await _container.StartAsync();
-		_configurationOptions = new ChromaConfigurationOptions(uri: $"http://{_container.IpAddress}:{_container.GetMappedPublicPort(ChromaDBBuilder.ChromaDBPort)}/api/v1/");
+		_baseConfigurationOptions = new ChromaConfigurationOptions(uri: $"http://{_container.IpAddress}:{_container.GetMappedPublicPort(ChromaDBBuilder.ChromaDBPort)}/api/v1/");
 	}
 
 	[OneTimeTearDown]
 	public async Task OneTimeTearDown()
 	{
-		_configurationOptions = null;
+		_baseConfigurationOptions = null;
 		await _container.DisposeAsync();
 	}
 
-	protected ChromaConfigurationOptions ConfigurationOptions => _configurationOptions ?? throw new InvalidOperationException();
+	protected ChromaConfigurationOptions BaseConfigurationOptions => _baseConfigurationOptions ?? throw new InvalidOperationException();
 
 	protected virtual ChromaDBBuilder ConfigureContainer(ChromaDBBuilder builder) => builder;
 }

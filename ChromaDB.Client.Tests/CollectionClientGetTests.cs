@@ -396,9 +396,9 @@ public class CollectionClientGetTests : ChromaTestsBase
 	async Task<ChromaCollectionClient> Init()
 	{
 		var name = $"collection{Random.Shared.Next()}";
-		var client = new ChromaClient(ConfigurationOptions, HttpClient);
+		var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
 		var collection = await client.CreateCollection(name);
-		var collectionClient = new ChromaCollectionClient(collection, ConfigurationOptions, HttpClient);
+		var collectionClient = new ChromaCollectionClient(collection, BaseConfigurationOptions, HttpClient);
 		await collectionClient.Add([Id1, Id2],
 			embeddings: [Embeddings1, Embeddings2],
 			metadatas: [Metadata1, Metadata2],

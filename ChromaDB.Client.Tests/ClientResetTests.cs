@@ -11,7 +11,7 @@ public class ClientResetTests
 		[Test]
 		public async Task ResetSimple()
 		{
-			var client = new ChromaClient(ConfigurationOptions, HttpClient);
+			var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
 			await Assert.ThatAsync(client.Reset, Throws.InstanceOf<ChromaException>().With.Message.Contains("ALLOW_RESET"));
 		}
 	}
@@ -22,7 +22,7 @@ public class ClientResetTests
 		[Test]
 		public async Task ResetSimple()
 		{
-			var client = new ChromaClient(ConfigurationOptions, HttpClient);
+			var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
 			var result = await client.Reset();
 			Assert.That(result, Is.True);
 		}
