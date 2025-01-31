@@ -5,7 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<IsPackable>true</IsPackable>
-		<VersionPrefix>1.0.0</VersionPrefix>
+		<VersionPrefix>1.0.1</VersionPrefix>
 		<PackageId>ChromaDB.Client</PackageId>
 		<PackageDescription>.NET SDK for Chroma database</PackageDescription>
 		<PackageTags>chroma chromadb vector database</PackageTags>
