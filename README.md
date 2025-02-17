@@ -1,8 +1,6 @@
 # ChromaDB.Client
 
-_ChromaDB.Client_ is a C# cross-platform library for communication with Chroma vector database. Chroma is the AI-native open-source vector database. Chroma makes it easy to build LLM apps by making knowledge, facts, and skills pluggable for LLMs.
-
-With _ChromaDB.Client_, you can easily connect to a Chroma instance, create and manage collections, perform CRUD operations on the data in the collections, and execute other available operations such as nearest neighbor search and filtering.
+_ChromaDB.Client_ is a .NET SDK that offers a seamless connection to the Chroma database. It allows creating and managing collections, performing CRUD operations, and executing nearest neighbor search and filtering.
 
 ## Example
 
