@@ -14,7 +14,6 @@ internal static class CollectionEntryMapper
 				Metadata = response.Metadatas?[i],
 				Document = response.Documents?[i],
 				Uris = response.Uris?[i],
-				Data = response.Data,
 			})
 			.ToList();
 	}

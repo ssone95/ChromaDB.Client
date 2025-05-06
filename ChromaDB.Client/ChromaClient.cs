@@ -38,7 +38,7 @@ public class ChromaClient
 		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
-		return await _httpClient.Get<List<ChromaCollection>>("collections?tenant={tenant}&database={database}", requestParams);
+		return await _httpClient.Get<List<ChromaCollection>>("tenants/{tenant}/databases/{database}/collections", requestParams);
 	}
 
 	public async Task<ChromaCollection> GetCollection(string name, string? tenant = null, string? database = null)
@@ -46,15 +46,15 @@ public class ChromaClient
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
 		var requestParams = new RequestQueryParams()
-			.Insert("{collectionName}", name)
+			.Insert("{collection_id}", name) // it seems to be a chroma bug: https://github.com/chroma-core/chroma/issues/4456
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
-		return await _httpClient.Get<ChromaCollection>("collections/{collectionName}?tenant={tenant}&database={database}", requestParams);
+		return await _httpClient.Get<ChromaCollection>("tenants/{tenant}/databases/{database}/collections/{collection_id}", requestParams);
 	}
 
 	public async Task<ChromaHeartbeat> Heartbeat()
 	{
-		return await _httpClient.Get<ChromaHeartbeat>("", new RequestQueryParams());
+		return await _httpClient.Get<ChromaHeartbeat>("heartbeat", new RequestQueryParams());
 	}
 
 	public async Task<ChromaCollection> CreateCollection(string name, Dictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
@@ -69,7 +69,7 @@ public class ChromaClient
 			Name = name,
 			Metadata = metadata
 		};
-		return await _httpClient.Post<CreateCollectionRequest, ChromaCollection>("collections?tenant={tenant}&database={database}", request, requestParams);
+		return await _httpClient.Post<CreateCollectionRequest, ChromaCollection>("tenants/{tenant}/databases/{database}/collections", request, requestParams);
 	}
 
 	public async Task<ChromaCollection> GetOrCreateCollection(string name, Dictionary<string, object>? metadata = null, string? tenant = null, string? database = null)
@@ -84,7 +84,7 @@ public class ChromaClient
 			Name = name,
 			Metadata = metadata
 		};
-		return await _httpClient.Post<GetOrCreateCollectionRequest, ChromaCollection>("collections?tenant={tenant}&database={database}", request, requestParams);
+		return await _httpClient.Post<GetOrCreateCollectionRequest, ChromaCollection>("tenants/{tenant}/databases/{database}/collections", request, requestParams);
 	}
 
 	public async Task DeleteCollection(string name, string? tenant = null, string? database = null)
@@ -92,10 +92,10 @@ public class ChromaClient
 		tenant = tenant is not null and not [] ? tenant : _currentTenant.Name;
 		database = database is not null and not [] ? database : _currentDatabase.Name;
 		var requestParams = new RequestQueryParams()
-			.Insert("{collectionName}", name)
+			.Insert("{collection_id}", name)
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
-		await _httpClient.Delete("collections/{collectionName}?tenant={tenant}&database={database}", requestParams);
+		await _httpClient.Delete("tenants/{tenant}/databases/{database}/collections/{collection_id}", requestParams);
 	}
 
 	public async Task<string> GetVersion()
@@ -115,6 +115,6 @@ public class ChromaClient
 		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", tenant)
 			.Insert("{database}", database);
-		return await _httpClient.Get<int>("count_collections?tenant={tenant}&database={database}", requestParams);
+		return await _httpClient.Get<int>("tenants/{tenant}/databases/{database}/collections_count", requestParams);
 	}
 }

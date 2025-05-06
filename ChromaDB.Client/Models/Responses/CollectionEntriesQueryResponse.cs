@@ -21,7 +21,4 @@ internal class CollectionEntriesQueryResponse
 
 	[JsonPropertyName("uris")]
 	public required List<List<List<string?>>>? Uris { get; init; }
-
-	[JsonPropertyName("data")]
-	public required dynamic? Data { get; init; }
 }

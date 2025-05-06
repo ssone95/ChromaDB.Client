@@ -1,6 +1,6 @@
 ﻿using ChromaDB.Client;
 
-var configOptions = new ChromaConfigurationOptions(uri: "http://localhost:8000/api/v1/");
+var configOptions = new ChromaConfigurationOptions(uri: "http://localhost:8000/api/v2/");
 using var httpClient = new HttpClient();
 var client = new ChromaClient(configOptions, httpClient);
 

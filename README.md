@@ -7,7 +7,7 @@ _ChromaDB.Client_ is a .NET SDK that offers a seamless connection to the Chroma 
 ```csharp
 using ChromaDB.Client;
 
-var configOptions = new ChromaConfigurationOptions(uri: "http://localhost:8000/api/v1/");
+var configOptions = new ChromaConfigurationOptions(uri: "http://localhost:8000/api/v2/");
 using var httpClient = new HttpClient();
 var client = new ChromaClient(configOptions, httpClient);
 

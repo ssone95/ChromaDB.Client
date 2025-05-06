@@ -8,7 +8,6 @@ public class ChromaCollectionQueryEntry
 	public ReadOnlyMemory<float>? Embeddings { get; init; }
 	public string? Document { get; init; }
 	public List<string?>? Uris { get; init; }
-	public dynamic? Data { get; init; }
 
 	public ChromaCollectionQueryEntry(string id)
 	{
