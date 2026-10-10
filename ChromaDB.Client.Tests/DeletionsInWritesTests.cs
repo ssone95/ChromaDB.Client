@@ -6,8 +6,9 @@ using NUnit.Framework;
 namespace ChromaDB.Client.Tests;
 
 // In an update or an upsert, a null value or an empty list deletes a key, a null document deletes the document with
-// NullDocumentsDelete, and a text that goes takes its sparse vectors along. The client sends a deletion only to a record that has
-// what it deletes, reading those records first; the keys the metadata does not have stay.
+// NullDocumentsDelete, and a text that goes takes its sparse vectors along. A null goes to every record, whether it has the key or not,
+// without a read; the client reads the records first only to delete documents, and on Chroma Cloud beyond its quota of keys. The keys
+// the metadata does not have stay.
 [TestFixture]
 public class DeletionsInWritesTests
 {
@@ -15,8 +16,10 @@ public class DeletionsInWritesTests
 	const string Bm25 = """{"type":"known","name":"chroma_bm25","config":{}}""";
 	const string Schema = """{"defaults":{},"keys":{"doc_bm25":{"sparse_vector":{"sparse_vector_index":{"enabled":true,"config":{"embedding_function":""" + Bm25 + ""","source_key":"#document"}}}},"title_bm25":{"sparse_vector":{"sparse_vector_index":{"enabled":true,"config":{"embedding_function":""" + Bm25 + ""","source_key":"title"}}}}}}""";
 
+	// Every tested Chroma takes a null for a key the record does not have, also in an upsert that creates the record, and leaves the record
+	// without it: the write does not depend on a read that another writer could change before it goes.
 	[Test]
-	public async Task NullsGoOnlyToTheKeysTheRecordHas()
+	public async Task NullsGoWithoutARead()
 	{
 		var server = new FakeServer("""{"ids":["a","b"],"metadatas":[{"k":1,"gone":2},{"other":1}]}""");
 		await Client(server).UpsertAsync(new ChromaRecords(["a", "b", "new"])
@@ -29,14 +32,11 @@ public class DeletionsInWritesTests
 				new Dictionary<string, object> { ["k"] = null! },
 			],
 		});
-		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "get", "upsert" }));
-		var get = server.Bodies[1];
-		Assert.That(get.GetProperty("ids").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "a", "b", "new" }));
-		Assert.That(get.GetProperty("include").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "metadatas" }));
-		var metadatas = server.Bodies[2].GetProperty("metadatas");
-		Assert.That(metadatas[0].GetRawText(), Is.EqualTo("""{"x":1,"k":null,"gone":null}"""));
-		Assert.That(metadatas[1].GetRawText(), Is.EqualTo("""{"y":2}"""));
-		Assert.That(metadatas[2].ValueKind, Is.EqualTo(JsonValueKind.Null));
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "upsert" }));
+		var metadatas = server.Bodies[1].GetProperty("metadatas");
+		Assert.That(metadatas[0].GetRawText(), Is.EqualTo("""{"x":1,"k":null,"gone":null,"missing":null}"""));
+		Assert.That(metadatas[1].GetRawText(), Is.EqualTo("""{"y":2,"k":null}"""));
+		Assert.That(metadatas[2].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}
 
 	[Test]
@@ -44,8 +44,8 @@ public class DeletionsInWritesTests
 	{
 		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k":1}]}""");
 		await Client(server).UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [new Dictionary<string, object> { ["k"] = null!, ["j"] = null! }] });
-		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "get", "update" }));
-		Assert.That(server.Bodies[2].GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"k":null}"""));
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "update" }));
+		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"k":null,"j":null}"""));
 	}
 
 	// When no record has anything to delete, the client sends the nulls of none and keeps the metadata of the caller.
@@ -58,14 +58,27 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("documents")[0].ValueKind, Is.EqualTo(JsonValueKind.Null));
 	}
 
-	// A record without the keys of its nulls has no metadata to send.
+	// Chroma Cloud counts a null against its quota of 32 keys: when the nulls would take the metadata of a record beyond it, the client
+	// reads that record and sends the nulls only to the keys it has. A record within the quota needs no read.
 	[Test]
-	public async Task OnlyNullsOfKeysNoRecordHas()
+	public async Task BeyondTheQuotaOfKeysOfChromaCloud()
 	{
-		var server = new FakeServer("""{"ids":[]}""");
-		await Client(server).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [new Dictionary<string, object> { ["k"] = null! }] });
+		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k0":0,"gone":1}]}""");
+		var many = Enumerable.Range(0, 31).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		many["gone"] = null!;
+		many["missing"] = null!;
+		await Client(server, uri: "https://api.trychroma.com").UpsertAsync(new ChromaRecords(["a", "b"])
+		{
+			Embeddings = [Embedding, Embedding],
+			Metadatas = [many, new Dictionary<string, object> { ["k"] = null! }],
+		});
 		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "get", "upsert" }));
-		Assert.That(server.Bodies[2].GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
+		Assert.That(server.Bodies[1].GetProperty("ids").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "a" }));
+		var metadatas = server.Bodies[2].GetProperty("metadatas");
+		Assert.That(metadatas[0].EnumerateObject().Count(), Is.EqualTo(32));
+		Assert.That(metadatas[0].GetProperty("gone").ValueKind, Is.EqualTo(JsonValueKind.Null));
+		Assert.That(metadatas[0].TryGetProperty("missing", out _), Is.False);
+		Assert.That(metadatas[1].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}
 
 	// Chroma has no deletion of a document: the client writes an empty one, for a record that has a document.
@@ -101,7 +114,7 @@ public class DeletionsInWritesTests
 		Assert.That(upsert.GetProperty("documents")[0].GetString(), Is.EqualTo(""));
 	}
 
-	// Without metadata, a document that goes takes its sparse vector along; a stored record without metadata has no key to delete.
+	// Without metadata, a document that goes takes its sparse vector along; a null goes to a stored record without metadata too.
 	[Test]
 	public async Task DocumentThatGoesWithoutMetadata()
 	{
@@ -109,7 +122,7 @@ public class DeletionsInWritesTests
 		await Client(server, Schema).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Documents = [null!], NullDocumentsDelete = true });
 		Assert.That(server.Bodies[server.Paths.IndexOf("upsert")].GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"doc_bm25":null}"""));
 		await Client(server).UpsertAsync(new ChromaRecords(["b"]) { Embeddings = [Embedding], Metadatas = [new Dictionary<string, object> { ["k"] = null! }] });
-		Assert.That(server.Bodies.Last().GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
+		Assert.That(server.Bodies.Last().GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}
 
 	// The copy of each document under the document copy key replaces what the metadata has there; a document too long for Chroma Cloud
