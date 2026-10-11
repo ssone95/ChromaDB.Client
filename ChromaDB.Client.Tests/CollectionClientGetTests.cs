@@ -489,7 +489,7 @@ public class CollectionClientGetTests : ChromaTestsBase
 	// A client made by name reads the collection before its first request: a get with a limit of 0, which sends no get, says that the
 	// collection does not exist as the other reads do.
 	[Test]
-	public async Task GetWithALimitOf0ByNameOnACollectionThatDoesNotExist()
+	public void GetWithALimitOf0ByNameOnACollectionThatDoesNotExist()
 	{
 		var collection = new ChromaClient(BaseConfigurationOptions, HttpClient).GetCollectionClient($"missing{Random.Shared.Next()}");
 		var error = Assert.ThrowsAsync<ChromaException>(() => collection.GetAsync(limit: 0));
