@@ -7,8 +7,8 @@ namespace ChromaDB.Client.Tests;
 
 // In an update or an upsert, a null value or an empty list deletes a key, a null document deletes the document with
 // NullDocumentsDelete, and a text that goes takes its sparse vectors along. A null goes to every record, whether it has the key or not,
-// without a read; the client reads the records first only to delete documents, and on Chroma Cloud beyond its quota of keys. The keys
-// the metadata does not have stay.
+// without a read, and so does the empty document of a deletion; the client reads the records first only on Chroma Cloud beyond its quota
+// of keys. The keys the metadata does not have stay.
 [TestFixture]
 public class DeletionsInWritesTests
 {
@@ -81,16 +81,33 @@ public class DeletionsInWritesTests
 		Assert.That(metadatas[1].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}
 
-	// Chroma has no deletion of a document: the client writes an empty one, for a record that has a document.
-	[Test]
-	public async Task NullDocumentsDelete()
+	// Chroma has no deletion of a document: the client writes an empty one, which only the copy under a document copy key tells from an
+	// empty text. Without one, a null document with NullDocumentsDelete throws before any request, also from a client made by name, which
+	// has not read its collection yet; without NullDocumentsDelete, or without a null document, the write goes.
+	[TestCase(true)]
+	[TestCase(false)]
+	public async Task NullDocumentsDeleteWithoutADocumentCopyKey(bool upsert)
 	{
-		var server = new FakeServer("""{"ids":["a","b"],"metadatas":[null,null],"documents":["doc a",""]}""");
-		await Client(server).UpsertAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding, Embedding, Embedding], Documents = [null!, null!, "new"], NullDocumentsDelete = true });
-		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "get", "upsert" }));
-		Assert.That(server.Bodies[1].GetProperty("include").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "metadatas", "documents" }));
-		Assert.That(server.Bodies[1].GetProperty("ids").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "a", "b" }));
-		Assert.That(server.Bodies[2].GetProperty("documents").EnumerateArray().Select(x => x.ValueKind == JsonValueKind.Null ? null : x.GetString()), Is.EqualTo(new[] { "", null, "new" }));
+		var server = new FakeServer("""{"ids":[]}""");
+		var byName = new ChromaClient(new ChromaConfigurationOptions("http://localhost:8000"), new HttpClient(server)).GetCollectionClient("c");
+		ChromaRecords Records(string?[] documents, bool nullDocumentsDelete) => new(["a", "b"])
+		{
+			Embeddings = upsert ? [Embedding, Embedding] : null,
+			Documents = documents,
+			NullDocumentsDelete = nullDocumentsDelete,
+		};
+		Task Write(ChromaCollectionClient client, ChromaRecords records) => upsert ? client.UpsertAsync(records) : client.UpdateAsync(records);
+		foreach (var client in new[] { Client(server), byName })
+		{
+			var ex = Assert.ThrowsAsync<ArgumentException>(() => Write(client, Records([null, "doc b"], true)));
+			Assert.That(ex!.Message, Does.StartWith("NullDocumentsDelete deletes a null document only with a document copy key"));
+			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey"));
+			Assert.That(ex.ParamName, Is.EqualTo("records"));
+		}
+		Assert.That(server.Paths, Is.Empty);
+		await Write(Client(server), Records([null, "doc b"], false));
+		await Write(Client(server), Records(["doc a", "doc b"], true));
+		Assert.That(server.Paths.Count(path => path is "upsert" or "update"), Is.EqualTo(2));
 	}
 
 	// With a document copy key the copy tells a deleted document from an empty one: the client writes an empty document and the null of
@@ -119,7 +136,7 @@ public class DeletionsInWritesTests
 	public async Task SparseVectorsOfATextThatGoes()
 	{
 		var server = new FakeServer("""{"ids":["a","b"],"metadatas":[{"title":"T","title_bm25":1,"doc_bm25":1},{"title":"U","title_bm25":1}],"documents":["doc a","doc b"]}""");
-		await Client(server, Schema).UpsertAsync(new ChromaRecords(["a", "b"])
+		await Client(server, Schema).WithDocumentCopyKey("text").UpsertAsync(new ChromaRecords(["a", "b"])
 		{
 			Embeddings = [Embedding, Embedding],
 			Metadatas = [new Dictionary<string, object> { ["title"] = null! }, new Dictionary<string, object> { ["title"] = null!, ["title_bm25"] = new ChromaSparseVector([1], [0.5f]) }],
@@ -128,7 +145,7 @@ public class DeletionsInWritesTests
 		});
 		var upsert = server.Bodies[server.Paths.IndexOf("upsert")];
 		var metadatas = upsert.GetProperty("metadatas");
-		Assert.That(metadatas[0].GetRawText(), Is.EqualTo("""{"title":null,"doc_bm25":null,"title_bm25":null}"""));
+		Assert.That(metadatas[0].GetRawText(), Is.EqualTo("""{"title":null,"text":null,"doc_bm25":null,"title_bm25":null}"""));
 		Assert.That(metadatas[1].GetProperty("title").ValueKind, Is.EqualTo(JsonValueKind.Null));
 		Assert.That(metadatas[1].GetProperty("title_bm25").GetProperty("indices")[0].GetInt32(), Is.EqualTo(1));
 		Assert.That(metadatas[1].TryGetProperty("doc_bm25", out _), Is.False);
@@ -140,8 +157,8 @@ public class DeletionsInWritesTests
 	public async Task DocumentThatGoesWithoutMetadata()
 	{
 		var server = new FakeServer("""{"ids":["a","b"],"metadatas":[{"doc_bm25":1},null],"documents":["doc a","doc b"]}""");
-		await Client(server, Schema).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Documents = [null!], NullDocumentsDelete = true });
-		Assert.That(server.Bodies[server.Paths.IndexOf("upsert")].GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"doc_bm25":null}"""));
+		await Client(server, Schema).WithDocumentCopyKey("text").UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Documents = [null!], NullDocumentsDelete = true });
+		Assert.That(server.Bodies[server.Paths.IndexOf("upsert")].GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"text":null,"doc_bm25":null}"""));
 		await Client(server).UpsertAsync(new ChromaRecords(["b"]) { Embeddings = [Embedding], Metadatas = [new Dictionary<string, object> { ["k"] = null! }] });
 		Assert.That(server.Bodies.Last().GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}

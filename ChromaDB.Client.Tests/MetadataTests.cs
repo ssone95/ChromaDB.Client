@@ -151,12 +151,12 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That(ex!.Message, Does.Contain("$contains"));
 	}
 
-	// A null deletes a key and a null document with NullDocumentsDelete the document, which comes back empty; a key the metadata
-	// does not have stays, and a new record gets none of the nulls.
+	// A null deletes a key and a null document with NullDocumentsDelete, from a client with a document copy key, the document, which
+	// comes back null; a key the metadata does not have stays, and a new record gets none of the nulls.
 	[Test]
 	public async Task DeletionsInAnUpsert()
 	{
-		var client = await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact));
+		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithDocumentCopyKey("text");
 		var metadata = new Dictionary<string, object> { ["k"] = 1L, ["keep"] = 2L };
 		if (MetadataListsSupported)
 		{
@@ -177,7 +177,7 @@ public class MetadataTests : ChromaTestsBase
 		});
 		var records = (await client.GetAsync(["a", "b"], include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
 		Assert.That(records["a"].Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["keep"] = 2L, ["x"] = 3L }));
-		Assert.That(records["a"].Document, Is.EqualTo(""));
+		Assert.That(records["a"].Document, Is.Null);
 		Assert.That(records["b"].Metadata, Is.Not.Null.And.Empty);
 		Assert.That(records["b"].Document, Is.Null);
 	}

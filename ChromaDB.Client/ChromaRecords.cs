@@ -30,7 +30,8 @@ public class ChromaRecords
 	/// <summary>
 	/// Whether a null document deletes the stored document in <c>UpdateAsync</c> and <c>UpsertAsync</c>, and the sparse vectors the
 	/// client computes from it, instead of keeping it as Chroma 1.x does. Chroma 1.x has no deletion of a document: the client writes an empty
-	/// one, which a read returns as an empty string, or as null from a client with <c>WithDocumentCopyKey</c>.
+	/// one, which only the copy of a client with <c>WithDocumentCopyKey</c> tells from an empty text, and reads back as null. A client
+	/// without it throws an <c>ArgumentException</c> for a null document, before any request.
 	/// </summary>
 	public bool NullDocumentsDelete { get; init; }
 	/// <summary>
