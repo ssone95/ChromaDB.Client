@@ -240,13 +240,14 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentOutOfRangeException(limit < 0 ? nameof(limit) : nameof(offset), "The limit and the offset of a get cannot be negative.");
 		}
-		// Works around KD-13 (docs/COMPATIBILITY.md)
-		if (limit == 0)
-		{
-			return Task.FromResult<IReadOnlyList<ChromaCollectionEntry>>([]);
-		}
 		return Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
 		{
+			// Works around KD-13 (docs/COMPATIBILITY.md)
+			// No get for a limit of 0, after a client made by name has read its collection, as with None: one that does not exist throws.
+			if (limit == 0)
+			{
+				return [];
+			}
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
 			return await GetEntries(split.Ids, split.Where, split.WhereDocument, limit, offset, include, cancellationToken);
 		});

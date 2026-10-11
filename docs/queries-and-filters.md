@@ -11,7 +11,7 @@ var same = await collectionClient.QueryAsync(new ChromaQuery([new([1f, 0.5f, 0f]
 
 ## Reading records with GetAsync
 
-`GetAsync` throws an `ArgumentOutOfRangeException` for a negative limit or offset, and returns no record for a limit of 0, without a request: Chroma 0.6.3 would take 0 as no limit. It reads more records than the batch size in pages: pages of the batch size from the offset, until the limit or the last record. Ids beyond the batch size go in batches, each id once, with the limit and the offset applied to all of them together. The pages are separate requests, so records written in between can be read twice or missed.
+`GetAsync` throws an `ArgumentOutOfRangeException` for a negative limit or offset, and returns no record for a limit of 0, without a get: Chroma 0.6.3 would take 0 as no limit. A client made by name still reads its collection first, so a collection that does not exist throws, as in the other reads. It reads more records than the batch size in pages: pages of the batch size from the offset, until the limit or the last record. Ids beyond the batch size go in batches, each id once, with the limit and the offset applied to all of them together. The pages are separate requests, so records written in between can be read twice or missed.
 
 ## Filters
 
