@@ -46,4 +46,4 @@ From a connection string, as the settings of an application keep it:
 var options = ChromaConfigurationOptions.FromConnectionString("Endpoint=https://api.trychroma.com;Token=ck-...;Tenant=...;Database=...");
 ```
 
-`Endpoint` is the URI of the server, and a connection string that is just a URI is the endpoint alone. `Token` goes in the `X-Chroma-Token` header. `Tenant` and `Database` are the ones of the requests.
+`Endpoint` is the http or https URI of the server, and a connection string that is just a URI is the endpoint alone; another key, no endpoint, or an endpoint without http or https throws an `ArgumentException` that says which. `Token` goes in the `X-Chroma-Token` header. `Tenant` and `Database` are the ones of the requests.

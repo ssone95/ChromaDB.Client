@@ -47,4 +47,16 @@ public class ConnectionStringTests
 	{
 		Assert.That(() => ChromaConfigurationOptions.FromConnectionString(connectionString), Throws.ArgumentException);
 	}
+
+	// No endpoint, and an endpoint that is not an http or https URI, have each their message; the second does not repeat the value,
+	// which may hold a password.
+	[TestCase("Token=ck-123", "The connection string needs Endpoint, the URI of the server.")]
+	[TestCase("Endpoint=;Token=ck-123", "The connection string needs Endpoint, the URI of the server.")]
+	[TestCase("Endpoint=localhost:8000;Token=x", "The Endpoint of the connection string is not an http or https URI: it takes the URI of the server, like http://localhost:8000.")]
+	[TestCase("Endpoint=localhost", "The Endpoint of the connection string is not an http or https URI: it takes the URI of the server, like http://localhost:8000.")]
+	[TestCase("Endpoint=ftp://user:secret@host", "The Endpoint of the connection string is not an http or https URI: it takes the URI of the server, like http://localhost:8000.")]
+	public void EndpointMessages(string connectionString, string message)
+	{
+		Assert.That(() => ChromaConfigurationOptions.FromConnectionString(connectionString), Throws.ArgumentException.With.Message.StartsWith(message));
+	}
 }
