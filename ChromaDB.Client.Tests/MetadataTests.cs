@@ -196,17 +196,17 @@ public class MetadataTests : ChromaTestsBase
 	}
 
 	// The copy of the document under the document copy key lets a where filter find the whole text. A document comes back as it was
-	// written: empty, or null when it was deleted, which takes its copy along.
+	// written: empty, or null when it was deleted, which takes its copy along; so does a record that had no document, and a new one.
 	[Test]
 	public async Task DocumentCopy()
 	{
 		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithDocumentCopyKey("text");
-		await client.AddAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding1, Embedding2], Documents = ["apple pie", "banana split"] });
+		await client.AddAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding1, Embedding2, Embedding1], Documents = ["apple pie", "banana split", null!] });
 		var found = await client.GetAsync(where: ChromaWhereOperator.Equal("text", "apple pie"), include: ChromaGetInclude.None);
 		Assert.That(found.Select(x => x.Id), Is.EqualTo(new[] { "a" }));
-		await client.UpsertAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding1, Embedding2], Documents = [null!, ""], NullDocumentsDelete = true });
+		await client.UpsertAsync(new ChromaRecords(["a", "b", "c", "d"]) { Embeddings = [Embedding1, Embedding2, Embedding1, Embedding2], Documents = [null!, "", null!, null!], NullDocumentsDelete = true });
 		var records = (await client.GetAsync(include: ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
-		Assert.That((records["a"].Document, records["b"].Document), Is.EqualTo(((string?)null, "")));
+		Assert.That((records["a"].Document, records["b"].Document, records["c"].Document, records["d"].Document), Is.EqualTo(((string?)null, "", (string?)null, (string?)null)));
 		var record = (await client.GetAsync("a", include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents))!;
 		Assert.That(record.Metadata, Is.Not.Null.And.Empty);
 		Assert.That(record.Document, Is.Null);

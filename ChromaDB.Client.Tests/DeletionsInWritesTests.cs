@@ -93,6 +93,27 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[2].GetProperty("documents").EnumerateArray().Select(x => x.ValueKind == JsonValueKind.Null ? null : x.GetString()), Is.EqualTo(new[] { "", null, "new" }));
 	}
 
+	// With a document copy key the copy tells a deleted document from an empty one: the client writes an empty document and the null of
+	// its copy to every record whose document goes, without a read.
+	[TestCase(true)]
+	[TestCase(false)]
+	public async Task NullDocumentsDeleteWithADocumentCopyKey(bool upsert)
+	{
+		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"text":"doc a"}],"documents":["doc a"]}""");
+		var client = Client(server).WithDocumentCopyKey("text");
+		var records = new ChromaRecords(["a", "b", "c"])
+		{
+			Embeddings = upsert ? [Embedding, Embedding, Embedding] : null,
+			Documents = [null!, null!, "new"],
+			NullDocumentsDelete = true,
+		};
+		await (upsert ? client.UpsertAsync(records) : client.UpdateAsync(records));
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", upsert ? "upsert" : "update" }));
+		var write = server.Bodies[1];
+		Assert.That(write.GetProperty("documents").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "", "", "new" }));
+		Assert.That(write.GetProperty("metadatas").EnumerateArray().Select(x => x.GetRawText()), Is.EqualTo(new[] { """{"text":null}""", """{"text":null}""", """{"text":"new"}""" }));
+	}
+
 	// The sparse vectors of a text that goes are deleted too, unless the caller gives them; an empty text has no vector.
 	[Test]
 	public async Task SparseVectorsOfATextThatGoes()
