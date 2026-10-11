@@ -114,8 +114,8 @@ public class ChromaConfigurationOptions
 	/// <c>Endpoint=https://api.trychroma.com;Token=...;Tenant=...;Database=...</c>. <c>Endpoint</c> is the URI of the server, and a
 	/// connection string that is just an http or https URI is the endpoint alone. <c>Token</c> goes in the <c>X-Chroma-Token</c>
 	/// header, as Chroma Cloud takes its API keys; <c>Tenant</c> and <c>Database</c> are the ones of the requests. The keys are
-	/// case-insensitive, a value with <c>;</c> goes in quotes, and an empty value is no value. Another key, or no endpoint, throws an
-	/// <c>ArgumentException</c>.
+	/// case-insensitive, a value with <c>;</c> goes in quotes, and an empty value is no value. Another key, no endpoint, or an endpoint
+	/// that is not an http or https URI throws an <c>ArgumentException</c>, each with its message.
 	/// </summary>
 	/// <param name="connectionString">The connection string.</param>
 	/// <returns>The options.</returns>
@@ -148,9 +148,14 @@ public class ChromaConfigurationOptions
 					throw new ArgumentException($"The connection string has the key \"{key}\": it takes Endpoint, Token, Tenant and Database.", nameof(connectionString));
 			}
 		}
-		if (endpoint is null || !Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme is not ("http" or "https"))
+		if (endpoint is null)
 		{
 			throw new ArgumentException("The connection string needs Endpoint, the URI of the server.", nameof(connectionString));
+		}
+		// Without the value, which may hold a password.
+		if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri) || endpointUri.Scheme is not ("http" or "https"))
+		{
+			throw new ArgumentException("The Endpoint of the connection string is not an http or https URI: it takes the URI of the server, like http://localhost:8000.", nameof(connectionString));
 		}
 		var options = new ChromaConfigurationOptions(endpointUri, tenant, database);
 		return token is null ? options : options.WithChromaToken(token);
