@@ -900,8 +900,8 @@ public class ChromaCollectionClient
 				var metadata = metadatas[i];
 				if (metadata is not null && metadata.TryGetValue(index.Key, out var given))
 				{
-					// The key holds the vectors of the index: a record gives one, or deletes it with null, and nothing else.
-					if (given is not null && !IsSparseVector(given))
+					// The key holds the vectors of the index: a record gives one, or deletes it with null or an empty list, and nothing else.
+					if (given is not null && !IsSparseVector(given) && !(ChromaRequestChecks.IsList(given) && ChromaRequestChecks.IsEmpty(given)))
 					{
 						throw new ArgumentException($"The metadata key \"{index.Key}\" holds the vectors of the sparse vector index on \"{index.SourceKey}\": a record cannot give it another value.", nameof(records));
 					}

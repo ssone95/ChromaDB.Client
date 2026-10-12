@@ -133,6 +133,24 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(33));
 	}
 
+	// An empty list deletes a key as a null does, also the key of a sparse vector: the write sends its null. A list with values is not a
+	// sparse vector, and throws.
+	[TestCase(true)]
+	[TestCase(false)]
+	public async Task AnEmptyListDeletesASparseVector(bool upsert)
+	{
+		var server = new FakeServer("""{"ids":[]}""");
+		ChromaRecords Records(List<string> list) => new(["a"])
+		{
+			Embeddings = upsert ? [Embedding] : null,
+			Metadatas = [new Dictionary<string, object> { ["title_bm25"] = list }],
+		};
+		var client = Client(server, Schema);
+		await (upsert ? client.UpsertAsync(Records([])) : client.UpdateAsync(Records([])));
+		Assert.That(server.Bodies[server.Paths.IndexOf(upsert ? "upsert" : "update")].GetProperty("metadatas")[0].GetRawText(), Is.EqualTo("""{"title_bm25":null}"""));
+		Assert.That(() => upsert ? client.UpsertAsync(Records(["x"])) : client.UpdateAsync(Records(["x"])), Throws.ArgumentException.With.Message.Contains("holds the vectors"));
+	}
+
 	// The null of a sparse vector that the caller gives, with the null of its text, counts once against the quota of Chroma Cloud: 30
 	// values, title and title_bm25 are 32 keys, which go without a read.
 	[Test]
