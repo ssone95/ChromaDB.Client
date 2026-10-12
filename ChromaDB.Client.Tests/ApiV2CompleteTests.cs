@@ -247,8 +247,9 @@ public class ApiV2CompleteTests : ChromaTestsBase
 		Assert.That(hybrid.Single().Id, Is.EqualTo("b"));
 	}
 
-	// Chroma Cloud takes a metadata value of at most 8,182 bytes, and a document of 16,384: a longer document goes without its copy.
-	// A key of the schema beyond 36 bytes, which Chroma Cloud takes and then rejects on every write, stops before the request.
+	// Chroma Cloud takes a metadata value of at most 8,182 bytes, and a document of 16,384: a longer document goes without its copy, and
+	// its record, without metadata keys, comes back with an empty Metadata. A key of the schema beyond 36 bytes, which Chroma Cloud takes
+	// and then rejects on every write, stops before the request.
 	[Test]
 	public async Task QuotasOfChromaCloud()
 	{
@@ -263,7 +264,8 @@ public class ApiV2CompleteTests : ChromaTestsBase
 		await collection.AddAsync(new ChromaRecords(["short", "long"]) { Embeddings = [new([1f, 0f]), new([0f, 1f])], Documents = ["apple pie", longText] });
 		var records = (await collection.GetAsync(include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
 		Assert.That(records["short"].Metadata!["text"], Is.EqualTo("apple pie"));
-		Assert.That((records["long"].Metadata, records["long"].Document), Is.EqualTo(((IReadOnlyDictionary<string, object>?)null, longText)));
+		Assert.That(records["long"].Metadata, Is.Not.Null.And.Empty);
+		Assert.That(records["long"].Document, Is.EqualTo(longText));
 	}
 
 	// With HybridRrf the records without the terms of the text get no points from it: they keep the order of the dense search.
