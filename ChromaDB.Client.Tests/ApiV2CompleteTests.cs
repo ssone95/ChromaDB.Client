@@ -47,6 +47,7 @@ public class ApiV2CompleteTests : ChromaTestsBase
 		if (ChromaCloud)
 		{
 			Assert.That(() => collection.GetAsync(whereDocument: empty), Throws.ArgumentException.With.Message.Contains("takes an empty text"));
+			Assert.That(() => collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex("^[[:alpha:]]*$")), Throws.ArgumentException);
 			Assert.That(() => collection.DeleteAsync(new ChromaDelete { WhereDocument = empty }), Throws.ArgumentException);
 			Assert.That(await collection.CountAsync(), Is.EqualTo(3));
 		}

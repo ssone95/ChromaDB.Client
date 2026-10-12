@@ -81,7 +81,8 @@ public abstract class ChromaWhereDocumentOperator
 	/// <summary>
 	/// The documents that match the regular expression, with <c>$regex</c>, from Chroma 1.0.12; the earlier versions reject it. On Chroma
 	/// Cloud a pattern that takes an empty text, like <c>^$</c>, finds every record (KD-56 in docs/COMPATIBILITY.md), so the client throws
-	/// an <c>ArgumentException</c> before the request: <c>NotRegex(".") &amp; Contains("")</c> finds the empty documents.
+	/// an <c>ArgumentException</c> before the request, also for a pattern it cannot check with .NET: <c>NotRegex(".") &amp; Contains("")</c>
+	/// finds the empty documents.
 	/// </summary>
 	/// <param name="pattern">The regular expression.</param>
 	/// <returns>The filter.</returns>
@@ -90,7 +91,7 @@ public abstract class ChromaWhereDocumentOperator
 	/// <summary>
 	/// The documents that do not match the regular expression, with <c>$not_regex</c>, from Chroma 1.0.12; the earlier versions reject it.
 	/// On Chroma Cloud a pattern that takes an empty text finds no record (KD-56 in docs/COMPATIBILITY.md), so the client throws an
-	/// <c>ArgumentException</c> before the request.
+	/// <c>ArgumentException</c> before the request, also for a pattern it cannot check with .NET.
 	/// </summary>
 	/// <param name="pattern">The regular expression.</param>
 	/// <returns>The filter.</returns>

@@ -318,7 +318,7 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentOutOfRangeException(limit < 0 ? nameof(limit) : nameof(offset), "The limit and the offset of a get cannot be negative.");
 		}
-		CheckDocumentRegexes(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
+		CheckDocumentRegexes(() => ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
 		return Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
 		{
 			// Works around KD-13 (docs/COMPATIBILITY.md)
@@ -462,7 +462,7 @@ public class ChromaCollectionClient
 	/// <returns>For each query embedding, its nearest records, nearest first.</returns>
 	public virtual Task<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>> QueryAsync(ChromaQuery query, CancellationToken cancellationToken = default)
 	{
-		CheckDocumentRegexes(ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(query));
+		CheckDocumentRegexes(() => ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(query));
 		return Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
 		{
 			var requestParams = new RequestQueryParams()
@@ -1175,7 +1175,7 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentException("The ids of a delete without filters cannot be empty: there is nothing to delete.", nameof(ids));
 		}
-		CheckDocumentRegexes(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
+		CheckDocumentRegexes(() => ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
 		return Operation("delete", cancellationToken, async () =>
 		{
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
@@ -1210,7 +1210,7 @@ public class ChromaCollectionClient
 	/// <returns>The count the server answers, from Chroma 1.5.3, which for a delete by ids is the number of ids given; null from the earlier servers.</returns>
 	public virtual Task<int?> DeleteAsync(ChromaDelete delete, CancellationToken cancellationToken = default)
 	{
-		CheckDocumentRegexes(ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(delete));
+		CheckDocumentRegexes(() => ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(delete));
 		return Operation("delete", cancellationToken, async () =>
 		{
 			// The rules of Chroma and of its Python client, checked before any request. All is no filter.
@@ -1339,11 +1339,8 @@ public class ChromaCollectionClient
 	{
 		foreach (var search in searches ?? [])
 		{
-			if (search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All)
-			{
-				CheckDocumentRegexes(ChromaWhereOperator.ToRequestWhere(where), document: false, nameof(searches));
-			}
-			CheckDocumentRegexes(search.WhereDocument?.ToRequestWhereDocument(), document: true, nameof(searches));
+			CheckDocumentRegexes(() => search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All ? ChromaWhereOperator.ToRequestWhere(where) : null, document: false, nameof(searches));
+			CheckDocumentRegexes(() => search.WhereDocument?.ToRequestWhereDocument(), document: true, nameof(searches));
 		}
 		return Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
 		{
@@ -1429,19 +1426,29 @@ public class ChromaCollectionClient
 
 	// Works around KD-56 (docs/COMPATIBILITY.md)
 	// On Chroma Cloud a $regex on the documents whose pattern takes an empty text finds every record, also in a delete, and its $not_regex
-	// none: rather than give or delete the wrong records, such a filter throws there, before any request. The filter is the one of the
-	// request: where_document, or the where of a search, whose filters on the documents are under #document.
-	private void CheckDocumentRegexes(Dictionary<string, object>? filter, bool document, string paramName)
+	// none: rather than give or delete the wrong records, a filter whose pattern the client cannot tell needs a character throws there,
+	// before any request. The filter is the one of the request, built only on Chroma Cloud: where_document, or the where of a search,
+	// whose filters on the documents are under #document. A filter that the operation rejects is left to it.
+	private void CheckDocumentRegexes(Func<Dictionary<string, object>?> filter, bool document, string paramName)
 	{
-		if (!_httpClient.IsChromaCloud || filter is null)
+		if (!_httpClient.IsChromaCloud)
 		{
 			return;
 		}
-		foreach (var (@operator, pattern) in DocumentRegexes(filter, document))
+		Dictionary<string, object>? request;
+		try
 		{
-			if (TakesAnEmptyText(pattern))
+			request = filter();
+		}
+		catch (Exception ex) when (ex is NotSupportedException or InvalidOperationException or ArgumentException)
+		{
+			return;
+		}
+		foreach (var (@operator, pattern) in DocumentRegexes(request, document))
+		{
+			if (!NeedsACharacter(pattern))
 			{
-				throw new ArgumentException($"The pattern \"{pattern}\" of {@operator} takes an empty text, and on Chroma Cloud such a filter on the documents gives the wrong records: $regex finds every record, also in a delete, and $not_regex none. For the empty documents use NotRegex(\".\") with Contains(\"\"), and for the records with a document Contains(\"\"); a pattern that needs a character, like \"^.+$\", is right.", paramName);
+				throw new ArgumentException($"The client cannot tell that the pattern \"{pattern}\" of {@operator} needs a character: as .NET reads it, it takes an empty text, or it is written in a way that .NET reads otherwise than Chroma. On Chroma Cloud a filter on the documents whose pattern takes an empty text gives the wrong records: $regex finds every record, also in a delete, and $not_regex none. For the empty documents use NotRegex(\".\") with Contains(\"\"), and for the records with a document Contains(\"\"); a pattern that needs a character, like \"^.+$\", is right.", paramName);
 			}
 		}
 	}
@@ -1478,12 +1485,43 @@ public class ChromaCollectionClient
 		}
 	}
 
-	// Whether the pattern matches an empty text, as .NET reads it; a pattern that .NET cannot read is left to the server.
-	private static bool TakesAnEmptyText(string pattern)
+	// Whether the client can tell that the pattern needs a character as Chroma reads it, with the Rust crate regex: .NET reads it, does not
+	// match an empty text with it, and reads it the same way. .NET reads otherwise a '[' inside a class, as in a nested class or a POSIX
+	// class like [[:alpha:]], and a word boundary like \b{start-half}: a pattern with them, or one that .NET cannot read, does not count as
+	// one that needs a character.
+	private static bool NeedsACharacter(string pattern)
 	{
+		var inClass = false;
+		for (var i = 0; i < pattern.Length; i++)
+		{
+			var c = pattern[i];
+			if (c == '\\')
+			{
+				if (!inClass && i + 2 < pattern.Length && pattern[i + 1] == 'b' && pattern[i + 2] == '{')
+				{
+					return false;
+				}
+				i++;
+			}
+			else if (inClass)
+			{
+				if (c == '[')
+				{
+					return false;
+				}
+				inClass = c != ']';
+			}
+			else if (c == '[')
+			{
+				inClass = true;
+				// A ']' right after '[' or '[^' is a character of the class.
+				i += i + 1 < pattern.Length && pattern[i + 1] == '^' ? 1 : 0;
+				i += i + 1 < pattern.Length && pattern[i + 1] == ']' ? 1 : 0;
+			}
+		}
 		try
 		{
-			return System.Text.RegularExpressions.Regex.IsMatch(string.Empty, pattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+			return !System.Text.RegularExpressions.Regex.IsMatch(string.Empty, pattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
 		}
 		catch (ArgumentException)
 		{
