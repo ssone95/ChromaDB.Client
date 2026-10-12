@@ -125,26 +125,50 @@ public class DeletionsInWritesTests
 		Assert.That(server.Paths.Count(path => path is "upsert" or "update"), Is.EqualTo(2));
 	}
 
-	// A collection client chooses once how it deletes documents: a second call of any of the three methods throws, also on a client of
-	// WithMetadataValues, which keeps the choice. The message says which way the client has.
-	[Test]
-	public void OneWayToDeleteDocumentsPerClient([Values("copy", "mark", "empty")] string first, [Values("copy", "mark", "empty")] string second)
+	// A collection client chooses once how it deletes documents, and the same call again changes nothing: a client that got it twice, and
+	// once more through WithMetadataValues, sends the same requests as a client that got it once.
+	[TestCase("copy")]
+	[TestCase("mark")]
+	[TestCase("empty")]
+	public async Task TheSameWayAgainChangesNothing(string way)
+	{
+		var once = new FakeServer("""{"ids":[]}""");
+		var again = new FakeServer("""{"ids":[]}""");
+		await Delete(Way(Client(once), way));
+		await Delete(Way(Way(Way(Client(again), way), way).WithMetadataValues(ChromaMetadataValues.Exact), way));
+		Assert.That(again.Paths, Is.EqualTo(once.Paths));
+		Assert.That(again.Bodies.Select(Text), Is.EqualTo(once.Bodies.Select(Text)));
+
+		static Task Delete(ChromaCollectionClient client)
+			=> client.UpsertAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding, Embedding], Documents = [null!, "x"], NullDocumentsDelete = true });
+		static string Text(JsonElement body) => body.ValueKind == JsonValueKind.Undefined ? "" : body.GetRawText();
+	}
+
+	// A call that would change the way throws: another method, or the same method with another key, also through WithMetadataValues. The
+	// message says the way the client has and the call it got.
+	[TestCase("copy", "mark")]
+	[TestCase("copy", "empty")]
+	[TestCase("copy", "copy other")]
+	[TestCase("mark", "copy")]
+	[TestCase("mark", "empty")]
+	[TestCase("mark", "mark other")]
+	[TestCase("empty", "copy")]
+	[TestCase("empty", "mark")]
+	public void AChangeOfWayThrows(string first, string second)
 	{
 		var client = Way(Client(new FakeServer("""{"ids":[]}""")), first);
-		var chosen = first switch { "copy" => "WithDocumentCopyKey(\"text\")", "mark" => "WithDocumentDeletionKey(\"deleted\")", _ => "WithEmptyDocumentDeletions()" };
 		var ex = Assert.Throws<InvalidOperationException>(() => Way(client, second));
-		Assert.That(ex!.Message, Does.StartWith($"This collection client already deletes documents with {chosen}"));
+		Assert.That(ex!.Message, Is.EqualTo($"This collection client already deletes documents with {Call(first)}, and a collection client does not change that: call {Call(second)} on a new collection client of the collection."));
 		Assert.That(() => Way(client.WithMetadataValues(ChromaMetadataValues.Exact), second), Throws.InvalidOperationException);
 	}
 
-	// The same method with another key throws too; a null key throws the ArgumentNullException of the key first.
+	// A null key throws the ArgumentNullException of the key, before the way of the client counts.
 	[Test]
-	public void AnotherKeyThrowsToo()
+	public void ANullKeyThrowsFirst()
 	{
-		var client = Client(new FakeServer("""{"ids":[]}"""));
-		Assert.That(() => client.WithDocumentCopyKey("text").WithDocumentCopyKey("other"), Throws.InvalidOperationException);
-		Assert.That(() => client.WithDocumentDeletionKey("deleted").WithDocumentDeletionKey("gone"), Throws.InvalidOperationException);
-		Assert.That(() => client.WithDocumentCopyKey("text").WithDocumentDeletionKey(null!), Throws.ArgumentNullException);
+		var client = Client(new FakeServer("""{"ids":[]}""")).WithDocumentCopyKey("text");
+		Assert.That(() => client.WithDocumentCopyKey(null!), Throws.ArgumentNullException);
+		Assert.That(() => client.WithDocumentDeletionKey(null!), Throws.ArgumentNullException);
 	}
 
 	// A client of WithMetadataValues deletes documents in the way of the client it comes from.
@@ -164,8 +188,20 @@ public class DeletionsInWritesTests
 		=> way switch
 		{
 			"copy" => client.WithDocumentCopyKey("text"),
+			"copy other" => client.WithDocumentCopyKey("other"),
 			"mark" => client.WithDocumentDeletionKey("deleted"),
+			"mark other" => client.WithDocumentDeletionKey("gone"),
 			_ => client.WithEmptyDocumentDeletions(),
+		};
+
+	static string Call(string way)
+		=> way switch
+		{
+			"copy" => "WithDocumentCopyKey(\"text\")",
+			"copy other" => "WithDocumentCopyKey(\"other\")",
+			"mark" => "WithDocumentDeletionKey(\"deleted\")",
+			"mark other" => "WithDocumentDeletionKey(\"gone\")",
+			_ => "WithEmptyDocumentDeletions()",
 		};
 
 	// With a document copy key the copy tells a deleted document from an empty one: the client writes an empty document and the null of

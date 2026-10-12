@@ -179,8 +179,8 @@ public class ChromaCollectionClient
 	/// without reading the record first, also of a record without a document, which a <c>where_document</c> filter that matches an empty
 	/// text then sees as one with an empty document. Chroma Cloud takes a metadata value of at most 8,182 bytes: there a longer document
 	/// goes without its copy, and an update or an upsert deletes the copy it had.
-	/// A collection client chooses once how it deletes documents: on a client that already has a document copy key, a document deletion
-	/// key or empty document deletions, this method throws an <c>InvalidOperationException</c>.
+	/// A collection client chooses once how it deletes documents: the same call again on a client that made it changes nothing, and a call
+	/// that would change the choice throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <param name="documentCopyKey">The metadata key of the copies.</param>
 	/// <returns>The client of the same collection, with the copies.</returns>
@@ -190,7 +190,7 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentNullException(nameof(documentCopyKey));
 		}
-		CheckNoWayToDeleteDocuments(nameof(WithDocumentCopyKey));
+		CheckWayToDeleteDocuments(documentCopyKey, null, false);
 		return new(this, _httpClient, documentCopyKey, null, false);
 	}
 
@@ -203,8 +203,8 @@ public class ChromaCollectionClient
 	/// documents, and leaves it out of the results that do not ask for it. It deletes a document also of a record without a document,
 	/// which a <c>where_document</c> filter that matches an empty text then sees as one with an empty document. On Chroma Cloud the mark
 	/// and its null count against the quota of 32 keys.
-	/// A collection client chooses once how it deletes documents: on a client that already has a document copy key, a document deletion
-	/// key or empty document deletions, this method throws an <c>InvalidOperationException</c>.
+	/// A collection client chooses once how it deletes documents: the same call again on a client that made it changes nothing, and a call
+	/// that would change the choice throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <param name="documentDeletionKey">The metadata key of the mark.</param>
 	/// <returns>The client of the same collection, with the marks.</returns>
@@ -214,7 +214,7 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentNullException(nameof(documentDeletionKey));
 		}
-		CheckNoWayToDeleteDocuments(nameof(WithDocumentDeletionKey));
+		CheckWayToDeleteDocuments(null, documentDeletionKey, false);
 		return new(this, _httpClient, null, documentDeletionKey, false);
 	}
 
@@ -223,29 +223,33 @@ public class ChromaCollectionClient
 	/// without a copy or a mark: Chroma has no deletion of a document, and the empty document reads back as an empty string, as the
 	/// Python client of Chroma reads it. No write reads the records first. It deletes a document also of a record without a document,
 	/// which a <c>where_document</c> filter that matches an empty text then sees as one with an empty document.
-	/// A collection client chooses once how it deletes documents: on a client that already has a document copy key, a document deletion
-	/// key or empty document deletions, this method throws an <c>InvalidOperationException</c>.
+	/// A collection client chooses once how it deletes documents: the same call again on a client that made it changes nothing, and a call
+	/// that would change the choice throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <returns>The client of the same collection, with the empty documents.</returns>
 	public virtual ChromaCollectionClient WithEmptyDocumentDeletions()
 	{
-		CheckNoWayToDeleteDocuments(nameof(WithEmptyDocumentDeletions));
+		CheckWayToDeleteDocuments(null, null, true);
 		return new(this, _httpClient, null, null, true);
 	}
 
-	// A collection client chooses once how it deletes documents: a second call of WithDocumentCopyKey, WithDocumentDeletionKey or
-	// WithEmptyDocumentDeletions throws, also of the same method with another key.
-	private void CheckNoWayToDeleteDocuments(string method)
+	// A collection client chooses once how it deletes documents: the same call again changes nothing, while a call of another of
+	// WithDocumentCopyKey, WithDocumentDeletionKey and WithEmptyDocumentDeletions, or of the same one with another key, throws.
+	private void CheckWayToDeleteDocuments(string? copyKey, string? deletionKey, bool empty)
 	{
-		var way = _documentCopyKey is { } copyKey ? $"WithDocumentCopyKey(\"{copyKey}\")"
-			: _documentDeletionKey is { } deletionKey ? $"WithDocumentDeletionKey(\"{deletionKey}\")"
-			: _emptyDocumentDeletions ? "WithEmptyDocumentDeletions()"
-			: null;
-		if (way is not null)
+		if (Way(_documentCopyKey, _documentDeletionKey, _emptyDocumentDeletions) is { } way
+			&& (copyKey != _documentCopyKey || deletionKey != _documentDeletionKey || empty != _emptyDocumentDeletions))
 		{
-			throw new InvalidOperationException($"This collection client already deletes documents with {way}, and a collection client chooses that once: call {method} on a new collection client of the collection.");
+			throw new InvalidOperationException($"This collection client already deletes documents with {way}, and a collection client does not change that: call {Way(copyKey, deletionKey, empty)} on a new collection client of the collection.");
 		}
 	}
+
+	// The way a client deletes documents, as the call that chose it; null for none.
+	private static string? Way(string? copyKey, string? deletionKey, bool empty)
+		=> copyKey is not null ? $"WithDocumentCopyKey(\"{copyKey}\")"
+			: deletionKey is not null ? $"WithDocumentDeletionKey(\"{deletionKey}\")"
+			: empty ? "WithEmptyDocumentDeletions()"
+			: null;
 
 	/// <summary>
 	/// The BM25 index on the text of the source key, as <c>ChromaCollection.FindBm25Index</c> finds it in the schema of the collection;
