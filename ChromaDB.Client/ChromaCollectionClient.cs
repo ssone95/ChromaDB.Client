@@ -179,11 +179,20 @@ public class ChromaCollectionClient
 	/// without reading the record first, also of a record without a document, which a <c>where_document</c> filter that matches an empty
 	/// text then sees as one with an empty document. Chroma Cloud takes a metadata value of at most 8,182 bytes: there a longer document
 	/// goes without its copy, and an update or an upsert deletes the copy it had.
+	/// A collection client chooses once how it deletes documents: on a client that already has a document copy key, a document deletion
+	/// key or empty document deletions, this method throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <param name="documentCopyKey">The metadata key of the copies.</param>
 	/// <returns>The client of the same collection, with the copies.</returns>
 	public virtual ChromaCollectionClient WithDocumentCopyKey(string documentCopyKey)
-		=> new(this, _httpClient, documentCopyKey ?? throw new ArgumentNullException(nameof(documentCopyKey)), _documentDeletionKey, _emptyDocumentDeletions);
+	{
+		if (documentCopyKey is null)
+		{
+			throw new ArgumentNullException(nameof(documentCopyKey));
+		}
+		CheckNoWayToDeleteDocuments(nameof(WithDocumentCopyKey));
+		return new(this, _httpClient, documentCopyKey, null, false);
+	}
 
 	/// <summary>
 	/// A client of the same collection that marks a document deleted with <c>ChromaRecords.NullDocumentsDelete</c> under the metadata
@@ -194,21 +203,49 @@ public class ChromaCollectionClient
 	/// documents, and leaves it out of the results that do not ask for it. It deletes a document also of a record without a document,
 	/// which a <c>where_document</c> filter that matches an empty text then sees as one with an empty document. On Chroma Cloud the mark
 	/// and its null count against the quota of 32 keys.
+	/// A collection client chooses once how it deletes documents: on a client that already has a document copy key, a document deletion
+	/// key or empty document deletions, this method throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <param name="documentDeletionKey">The metadata key of the mark.</param>
 	/// <returns>The client of the same collection, with the marks.</returns>
 	public virtual ChromaCollectionClient WithDocumentDeletionKey(string documentDeletionKey)
-		=> new(this, _httpClient, _documentCopyKey, documentDeletionKey ?? throw new ArgumentNullException(nameof(documentDeletionKey)), _emptyDocumentDeletions);
+	{
+		if (documentDeletionKey is null)
+		{
+			throw new ArgumentNullException(nameof(documentDeletionKey));
+		}
+		CheckNoWayToDeleteDocuments(nameof(WithDocumentDeletionKey));
+		return new(this, _httpClient, null, documentDeletionKey, false);
+	}
 
 	/// <summary>
 	/// A client of the same collection that deletes a document with <c>ChromaRecords.NullDocumentsDelete</c> by writing an empty one,
 	/// without a copy or a mark: Chroma has no deletion of a document, and the empty document reads back as an empty string, as the
 	/// Python client of Chroma reads it. No write reads the records first. It deletes a document also of a record without a document,
 	/// which a <c>where_document</c> filter that matches an empty text then sees as one with an empty document.
+	/// A collection client chooses once how it deletes documents: on a client that already has a document copy key, a document deletion
+	/// key or empty document deletions, this method throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <returns>The client of the same collection, with the empty documents.</returns>
 	public virtual ChromaCollectionClient WithEmptyDocumentDeletions()
-		=> new(this, _httpClient, _documentCopyKey, _documentDeletionKey, emptyDocumentDeletions: true);
+	{
+		CheckNoWayToDeleteDocuments(nameof(WithEmptyDocumentDeletions));
+		return new(this, _httpClient, null, null, true);
+	}
+
+	// A collection client chooses once how it deletes documents: a second call of WithDocumentCopyKey, WithDocumentDeletionKey or
+	// WithEmptyDocumentDeletions throws, also of the same method with another key.
+	private void CheckNoWayToDeleteDocuments(string method)
+	{
+		var way = _documentCopyKey is { } copyKey ? $"WithDocumentCopyKey(\"{copyKey}\")"
+			: _documentDeletionKey is { } deletionKey ? $"WithDocumentDeletionKey(\"{deletionKey}\")"
+			: _emptyDocumentDeletions ? "WithEmptyDocumentDeletions()"
+			: null;
+		if (way is not null)
+		{
+			throw new InvalidOperationException($"This collection client already deletes documents with {way}, and a collection client chooses that once: call {method} on a new collection client of the collection.");
+		}
+	}
 
 	/// <summary>
 	/// The BM25 index on the text of the source key, as <c>ChromaCollection.FindBm25Index</c> finds it in the schema of the collection;
@@ -731,13 +768,13 @@ public class ChromaCollectionClient
 	}
 
 	// Chroma has no deletion of a document: the client writes an empty one, which only the copy under a document copy key or the mark
-	// under a document deletion key tells from an empty text, and which empty document deletions read back as empty. Without one of them,
-	// a null document with NullDocumentsDelete throws, before any request.
+	// under a document deletion key tells from an empty text, and which empty document deletions read back as empty. Without one of the
+	// three ways, a null document with NullDocumentsDelete throws, before any request, with the three.
 	private void CheckDocumentDeletions(ChromaRecords records)
 	{
 		if (DocumentReadKey is null && !_emptyDocumentDeletions && records.NullDocumentsDelete && records.Documents?.Any(document => document is null) == true)
 		{
-			throw new ArgumentException("NullDocumentsDelete deletes a null document only with a document copy key, a document deletion key or empty document deletions: Chroma cannot delete a document, so the client writes an empty one. Call WithDocumentCopyKey or WithDocumentDeletionKey, which read it back as null, or WithEmptyDocumentDeletions, which reads it back as an empty string, on the collection client first.", nameof(records));
+			throw new ArgumentException("NullDocumentsDelete needs a way to tell a deleted document from an empty one: Chroma cannot delete a document, so the client writes an empty one. Choose one on the collection client: WithDocumentCopyKey(key) copies each document into a metadata key and reads an empty document without its copy as null; WithDocumentDeletionKey(key) writes only a mark under a metadata key and reads an empty document with the mark as null; WithEmptyDocumentDeletions() writes an empty document that reads back as an empty string.", nameof(records));
 		}
 	}
 

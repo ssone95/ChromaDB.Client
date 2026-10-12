@@ -96,12 +96,12 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(values + 2));
 	}
 
-	// Chroma has no deletion of a document: the client writes an empty one, which only the copy under a document copy key tells from an
-	// empty text. Without one, a null document with NullDocumentsDelete throws before any request, also from a client made by name, which
-	// has not read its collection yet; without NullDocumentsDelete, or without a null document, the write goes.
+	// Chroma has no deletion of a document: the client writes an empty one, which a collection client deletes in one of three ways it
+	// chooses. Without one, a null document with NullDocumentsDelete throws before any request, with the three ways, also from a client
+	// made by name, which has not read its collection yet; without NullDocumentsDelete, or without a null document, the write goes.
 	[TestCase(true)]
 	[TestCase(false)]
-	public async Task NullDocumentsDeleteWithoutADocumentCopyKey(bool upsert)
+	public async Task NullDocumentsDeleteWithoutAWayToDeleteDocuments(bool upsert)
 	{
 		var server = new FakeServer("""{"ids":[]}""");
 		var byName = new ChromaClient(new ChromaConfigurationOptions("http://localhost:8000"), new HttpClient(server)).GetCollectionClient("c");
@@ -115,8 +115,8 @@ public class DeletionsInWritesTests
 		foreach (var client in new[] { Client(server), byName })
 		{
 			var ex = Assert.ThrowsAsync<ArgumentException>(() => Write(client, Records([null, "doc b"], true)));
-			Assert.That(ex!.Message, Does.StartWith("NullDocumentsDelete deletes a null document only with a document copy key"));
-			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey").And.Contain("WithDocumentDeletionKey").And.Contain("WithEmptyDocumentDeletions"));
+			Assert.That(ex!.Message, Does.StartWith("NullDocumentsDelete needs a way to tell a deleted document from an empty one: Chroma cannot delete a document, so the client writes an empty one. Choose one on the collection client: "));
+			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey(key)").And.Contain("WithDocumentDeletionKey(key)").And.Contain("WithEmptyDocumentDeletions()"));
 			Assert.That(ex.ParamName, Is.EqualTo("records"));
 		}
 		Assert.That(server.Paths, Is.Empty);
@@ -124,6 +124,49 @@ public class DeletionsInWritesTests
 		await Write(Client(server), Records(["doc a", "doc b"], true));
 		Assert.That(server.Paths.Count(path => path is "upsert" or "update"), Is.EqualTo(2));
 	}
+
+	// A collection client chooses once how it deletes documents: a second call of any of the three methods throws, also on a client of
+	// WithMetadataValues, which keeps the choice. The message says which way the client has.
+	[Test]
+	public void OneWayToDeleteDocumentsPerClient([Values("copy", "mark", "empty")] string first, [Values("copy", "mark", "empty")] string second)
+	{
+		var client = Way(Client(new FakeServer("""{"ids":[]}""")), first);
+		var chosen = first switch { "copy" => "WithDocumentCopyKey(\"text\")", "mark" => "WithDocumentDeletionKey(\"deleted\")", _ => "WithEmptyDocumentDeletions()" };
+		var ex = Assert.Throws<InvalidOperationException>(() => Way(client, second));
+		Assert.That(ex!.Message, Does.StartWith($"This collection client already deletes documents with {chosen}"));
+		Assert.That(() => Way(client.WithMetadataValues(ChromaMetadataValues.Exact), second), Throws.InvalidOperationException);
+	}
+
+	// The same method with another key throws too; a null key throws the ArgumentNullException of the key first.
+	[Test]
+	public void AnotherKeyThrowsToo()
+	{
+		var client = Client(new FakeServer("""{"ids":[]}"""));
+		Assert.That(() => client.WithDocumentCopyKey("text").WithDocumentCopyKey("other"), Throws.InvalidOperationException);
+		Assert.That(() => client.WithDocumentDeletionKey("deleted").WithDocumentDeletionKey("gone"), Throws.InvalidOperationException);
+		Assert.That(() => client.WithDocumentCopyKey("text").WithDocumentDeletionKey(null!), Throws.ArgumentNullException);
+	}
+
+	// A client of WithMetadataValues deletes documents in the way of the client it comes from.
+	[TestCase("mark", """{"deleted":true}""")]
+	[TestCase("empty", "null")]
+	public async Task MetadataValuesKeepTheWay(string way, string metadata)
+	{
+		var server = new FakeServer("""{"ids":[]}""");
+		var client = Way(Client(server), way).WithMetadataValues(ChromaMetadataValues.Exact);
+		await client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Documents = [null!], NullDocumentsDelete = true });
+		var upsert = server.Bodies[server.Paths.IndexOf("upsert")];
+		Assert.That(upsert.GetProperty("documents")[0].GetString(), Is.EqualTo(""));
+		Assert.That(upsert.GetProperty("metadatas").ValueKind == JsonValueKind.Null ? "null" : upsert.GetProperty("metadatas")[0].GetRawText(), Is.EqualTo(metadata));
+	}
+
+	static ChromaCollectionClient Way(ChromaCollectionClient client, string way)
+		=> way switch
+		{
+			"copy" => client.WithDocumentCopyKey("text"),
+			"mark" => client.WithDocumentDeletionKey("deleted"),
+			_ => client.WithEmptyDocumentDeletions(),
+		};
 
 	// With a document copy key the copy tells a deleted document from an empty one: the client writes an empty document and the null of
 	// its copy to every record whose document goes, without a read.
