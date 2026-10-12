@@ -96,6 +96,20 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(values + 2));
 	}
 
+	// The null of a sparse vector that the caller gives, with the null of its text, counts once against the quota of Chroma Cloud: 30
+	// values, title and title_bm25 are 32 keys, which go without a read.
+	[Test]
+	public async Task ANullSparseVectorCountsOnce()
+	{
+		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"title":"T","title_bm25":1}]}""");
+		var metadata = Enumerable.Range(0, 30).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		metadata["title"] = null!;
+		metadata["title_bm25"] = null!;
+		await Client(server, Schema, "https://api.trychroma.com").UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [metadata] });
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "upsert" }));
+		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(32));
+	}
+
 	// Chroma has no deletion of a document: the client writes an empty one, which a collection client deletes in one of three ways it
 	// chooses. Without one, a null document with NullDocumentsDelete throws before any request, with the three ways, also from a client
 	// made by name, which has not read its collection yet; without NullDocumentsDelete, or without a null document, the write goes.

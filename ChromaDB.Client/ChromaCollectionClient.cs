@@ -813,7 +813,8 @@ public class ChromaCollectionClient
 			foreach (var index in indexes)
 			{
 				var textDeleted = index.SourceKey == ChromaSearchKeys.Document ? documentDeleted[i] : keys?.Contains(index.SourceKey!) == true;
-				if (textDeleted && !(metadata?.TryGetValue(index.Key, out var vector) == true && vector is not null))
+				// A vector the caller gives stays, and the null of one is in the keys already: each key counts once against the quota.
+				if (textDeleted && metadata?.ContainsKey(index.Key) != true)
 				{
 					(keys ??= []).Add(index.Key);
 				}
