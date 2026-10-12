@@ -615,7 +615,8 @@ public class ChromaCollectionClient
 		return Operation("update", cancellationToken, async () =>
 		{
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
-			var prepared = WithSparseVectors(await WithDeletions(WithDocumentMarks(WithDocumentCopies(records, update: true)), cancellationToken));
+			// The sparse vectors before the deletions, which count every key that goes against the quota of Chroma Cloud.
+			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(records, update: true))), cancellationToken);
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -681,7 +682,8 @@ public class ChromaCollectionClient
 		return Operation("upsert", cancellationToken, async () =>
 		{
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
-			var prepared = WithSparseVectors(await WithDeletions(WithDocumentMarks(WithDocumentCopies(records, update: true)), cancellationToken));
+			// The sparse vectors before the deletions, which count every key that goes against the quota of Chroma Cloud.
+			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(records, update: true))), cancellationToken);
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -791,9 +793,9 @@ public class ChromaCollectionClient
 	// the write does not depend on a read that another writer can change before it goes. Chroma has no deletion of a document: the client
 	// writes an empty one to every record whose document goes, without a read, as only a client with a document copy key, a document
 	// deletion key or empty document deletions gets here (CheckDocumentDeletions); with a copy or a mark it reads that empty document as
-	// none. Chroma Cloud counts a null against its quota of keys: when the values and the nulls would take the metadata of a record beyond
-	// it, the write throws before it goes, or with ReadsBeyondKeyQuota the client reads that record first and sends the nulls only to the
-	// keys it has.
+	// none. Chroma Cloud counts a null against its quota of keys, and a sparse vector too: when the values, the sparse vectors that
+	// WithSparseVectors computed and the nulls would take the metadata of a record beyond it, the write throws before it goes, or with
+	// ReadsBeyondKeyQuota the client reads that record first and sends the nulls only to the keys it has.
 	private async Task<ChromaRecords> WithDeletions(ChromaRecords records, CancellationToken cancellationToken)
 	{
 		var count = records.Ids.Count;

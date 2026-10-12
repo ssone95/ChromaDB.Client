@@ -225,6 +225,27 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
 	}
 
+	// Chroma Cloud counts the sparse vector that the client computes from a text against its 32 keys: 30 values, title, its title_bm25 and
+	// the null of gone are 33, and the write throws before it goes; the record stays as it was.
+	[Test]
+	public async Task ComputedSparseVectorsCountOnChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact);
+		var collection = await new ChromaClient(options, HttpClient).CreateCollectionAsync(new ChromaCollectionDefinition($"collection{Random.Shared.Next()}")
+		{
+			Schema = new ChromaCollectionSchema().WithSparseVectorIndex("title_bm25", "title", bm25: true, ChromaEmbeddingFunctionReference.ChromaBm25()),
+		});
+		var client = new ChromaCollectionClient(collection, options, HttpClient);
+		var values = Enumerable.Range(0, 30).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["title"] = "red apple" }] });
+		var stored = (await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata!;
+		Assert.That(stored, Has.Count.EqualTo(32));
+		var write = new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["title"] = "green apple", ["gone"] = null! }] };
+		Assert.That(() => client.UpsertAsync(write), Throws.ArgumentException.With.Message.StartsWith("Record \"a\" would take 33 metadata keys to Chroma Cloud"));
+		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata!["title"], Is.EqualTo("red apple"));
+	}
+
 	// The copy of the document under the document copy key lets a where filter find the whole text. A document comes back as it was
 	// written: empty, or null when it was deleted, which takes its copy along; so does a record that had no document, and a new one.
 	[Test]

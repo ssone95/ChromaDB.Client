@@ -136,6 +136,38 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(32));
 	}
 
+	// The sparse vector that the client computes from a text counts against the quota of Chroma Cloud too, which counts it: values, title,
+	// a null and title_bm25. With 29 values they are 32 and go without a read; with 30 they are 33, and the write throws, or reads the
+	// record first with ReadsBeyondKeyQuota.
+	[TestCase(29, false)]
+	[TestCase(30, false)]
+	[TestCase(30, true)]
+	public async Task ComputedSparseVectorsCount(int values, bool readsBeyondKeyQuota)
+	{
+		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k0":0,"gone":1}]}""");
+		var metadata = Enumerable.Range(0, values).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		metadata["title"] = "red apple";
+		metadata["gone"] = null!;
+		var write = () => Client(server, Schema, "https://api.trychroma.com", readsBeyondKeyQuota).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [metadata] });
+		if (values == 29)
+		{
+			await write();
+			Assert.That(server.Paths, Does.Not.Contain("get").And.Contain("upsert"));
+			Assert.That(server.Bodies[server.Paths.IndexOf("upsert")].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(32));
+		}
+		else if (!readsBeyondKeyQuota)
+		{
+			Assert.That(() => write(), Throws.ArgumentException.With.Message.StartsWith("Record \"a\" would take 33 metadata keys to Chroma Cloud"));
+			Assert.That(server.Paths, Is.Empty);
+		}
+		else
+		{
+			await write();
+			Assert.That(server.Paths, Does.Contain("get").And.Contain("upsert"));
+			Assert.That(server.Bodies[server.Paths.IndexOf("upsert")].GetProperty("metadatas")[0].TryGetProperty("title_bm25", out _), Is.True);
+		}
+	}
+
 	// Chroma has no deletion of a document: the client writes an empty one, which a collection client deletes in one of three ways it
 	// chooses. Without one, a null document with NullDocumentsDelete throws before any request, with the three ways, also from a client
 	// made by name, which has not read its collection yet; without NullDocumentsDelete, or without a null document, the write goes.
