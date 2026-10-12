@@ -318,6 +318,7 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentOutOfRangeException(limit < 0 ? nameof(limit) : nameof(offset), "The limit and the offset of a get cannot be negative.");
 		}
+		CheckDocumentRegexes(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
 		return Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
 		{
 			// Works around KD-13 (docs/COMPATIBILITY.md)
@@ -460,7 +461,9 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	/// <returns>For each query embedding, its nearest records, nearest first.</returns>
 	public virtual Task<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>> QueryAsync(ChromaQuery query, CancellationToken cancellationToken = default)
-		=> Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
+	{
+		CheckDocumentRegexes(ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(query));
+		return Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
 		{
 			var requestParams = new RequestQueryParams()
 				.Insert("{tenant}", _tenant)
@@ -527,6 +530,7 @@ public class ChromaCollectionClient
 			}
 			return query.Offset == 0 ? result : result.Select(entries => (IReadOnlyList<ChromaCollectionQueryEntry>)entries.Skip(query.Offset).ToList()).ToList();
 		});
+	}
 
 	/// <summary>
 	/// Adds the records with the ids, embeddings, metadatas and documents. Since Chroma 1.0.16 the server requires the
@@ -1171,6 +1175,7 @@ public class ChromaCollectionClient
 		{
 			throw new ArgumentException("The ids of a delete without filters cannot be empty: there is nothing to delete.", nameof(ids));
 		}
+		CheckDocumentRegexes(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
 		return Operation("delete", cancellationToken, async () =>
 		{
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
@@ -1204,7 +1209,9 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	/// <returns>The count the server answers, from Chroma 1.5.3, which for a delete by ids is the number of ids given; null from the earlier servers.</returns>
 	public virtual Task<int?> DeleteAsync(ChromaDelete delete, CancellationToken cancellationToken = default)
-		=> Operation("delete", cancellationToken, async () =>
+	{
+		CheckDocumentRegexes(ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(delete));
+		return Operation("delete", cancellationToken, async () =>
 		{
 			// The rules of Chroma and of its Python client, checked before any request. All is no filter.
 			if (delete.Ids is [])
@@ -1274,6 +1281,7 @@ public class ChromaCollectionClient
 			}
 			return deleted;
 		});
+	}
 
 	/// <summary>
 	/// Counts the records of the collection.
@@ -1328,7 +1336,16 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	/// <returns>For each search, the records it ranks, in order.</returns>
 	public virtual Task<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>> SearchAsync(IReadOnlyList<ChromaSearch> searches, ChromaReadLevel? readLevel = null, CancellationToken cancellationToken = default)
-		=> Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
+	{
+		foreach (var search in searches ?? [])
+		{
+			if (search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All)
+			{
+				CheckDocumentRegexes(ChromaWhereOperator.ToRequestWhere(where), document: false, nameof(searches));
+			}
+			CheckDocumentRegexes(search.WhereDocument?.ToRequestWhereDocument(), document: true, nameof(searches));
+		}
+		return Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
 		{
 			if (searches is not { Count: > 0 })
 			{
@@ -1391,6 +1408,7 @@ public class ChromaCollectionClient
 			var next = 0;
 			return searches.Select(search => search.Where == ChromaWhereOperator.None ? [] : results[next++]).ToList();
 		});
+	}
 
 	// The keys a search selects, and with the documents the copy key or the deletion key, which tells a deleted document from an empty one.
 	private List<string> SearchSelect(ChromaSearch search)
@@ -1408,6 +1426,70 @@ public class ChromaCollectionClient
 		=> search.Select is { } select
 			? ReadsDocuments(select.Contains(ChromaSearchKeys.Document), select.Contains(ChromaSearchKeys.Metadata) || DocumentReadKey is { } key && select.Contains(key))
 			: default;
+
+	// Works around KD-56 (docs/COMPATIBILITY.md)
+	// On Chroma Cloud a $regex on the documents whose pattern takes an empty text finds every record, also in a delete, and its $not_regex
+	// none: rather than give or delete the wrong records, such a filter throws there, before any request. The filter is the one of the
+	// request: where_document, or the where of a search, whose filters on the documents are under #document.
+	private void CheckDocumentRegexes(Dictionary<string, object>? filter, bool document, string paramName)
+	{
+		if (!_httpClient.IsChromaCloud || filter is null)
+		{
+			return;
+		}
+		foreach (var (@operator, pattern) in DocumentRegexes(filter, document))
+		{
+			if (TakesAnEmptyText(pattern))
+			{
+				throw new ArgumentException($"The pattern \"{pattern}\" of {@operator} takes an empty text, and on Chroma Cloud such a filter on the documents gives the wrong records: $regex finds every record, also in a delete, and $not_regex none. For the empty documents use NotRegex(\".\") with Contains(\"\"), and for the records with a document Contains(\"\"); a pattern that needs a character, like \"^.+$\", is right.", paramName);
+			}
+		}
+	}
+
+	// The $regex and $not_regex on the documents in a filter, also inside $and and $or.
+	private static IEnumerable<(string Operator, string Pattern)> DocumentRegexes(object? node, bool document)
+	{
+		if (node is IDictionary<string, object> map)
+		{
+			foreach (var pair in map)
+			{
+				if (document && pair.Key is "$regex" or "$not_regex" && pair.Value is string pattern)
+				{
+					yield return (pair.Key, pattern);
+				}
+				else
+				{
+					foreach (var found in DocumentRegexes(pair.Value, document || pair.Key == ChromaSearchKeys.Document))
+					{
+						yield return found;
+					}
+				}
+			}
+		}
+		else if (node is System.Collections.IEnumerable list and not string)
+		{
+			foreach (var item in list)
+			{
+				foreach (var found in DocumentRegexes(item, document))
+				{
+					yield return found;
+				}
+			}
+		}
+	}
+
+	// Whether the pattern matches an empty text, as .NET reads it; a pattern that .NET cannot read is left to the server.
+	private static bool TakesAnEmptyText(string pattern)
+	{
+		try
+		{
+			return System.Text.RegularExpressions.Regex.IsMatch(string.Empty, pattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+		}
+		catch (ArgumentException)
+		{
+			return false;
+		}
+	}
 
 	// The where clause of the Search API holds the metadata, the documents (#document) and the ids (#id); several filters go in $and.
 	private static Dictionary<string, object>? SearchFilter(ChromaSearch search)

@@ -34,6 +34,31 @@ public class ApiV2CompleteTests : ChromaTestsBase
 		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.NotRegex("^apple"))).Select(x => x.Id), Is.EquivalentTo(new[] { "b", "c" }));
 	}
 
+	// KD-56: on Chroma Cloud a pattern that takes an empty text throws before the request, also in a delete, which would delete every
+	// record. On every server NotRegex(".") with Contains("") finds the empty documents, and Contains("") the records with a document.
+	[Test]
+	public async Task RegexesThatTakeAnEmptyText()
+	{
+		Assume.That(RegexSupported, Is.True, "Chroma 1.0.11 and earlier have no $regex.");
+		var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
+		var collection = client.GetCollectionClient(await client.CreateCollectionAsync($"collection{Random.Shared.Next()}"));
+		await collection.AddAsync(new ChromaRecords(["none", "empty", "text"]) { Embeddings = [new([1f, 0f]), new([0f, 1f]), new([1f, 1f])], Documents = [null, "", "x"] });
+		var empty = ChromaWhereDocumentOperator.Regex("^$");
+		if (ChromaCloud)
+		{
+			Assert.That(() => collection.GetAsync(whereDocument: empty), Throws.ArgumentException.With.Message.Contains("takes an empty text"));
+			Assert.That(() => collection.DeleteAsync(new ChromaDelete { WhereDocument = empty }), Throws.ArgumentException);
+			Assert.That(await collection.CountAsync(), Is.EqualTo(3));
+		}
+		else
+		{
+			Assert.That((await collection.GetAsync(whereDocument: empty, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(new[] { "empty" }));
+		}
+		var emptyDocuments = ChromaWhereDocumentOperator.NotRegex(".") & ChromaWhereDocumentOperator.Contains("");
+		Assert.That((await collection.GetAsync(whereDocument: emptyDocuments, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(new[] { "empty" }));
+		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.Contains(""), include: ChromaGetInclude.None)).Select(x => x.Id), Is.EquivalentTo(new[] { "empty", "text" }));
+	}
+
 	// On the servers that ignore the limit, nothing is deleted: without the check they would delete both apples.
 	[Test]
 	public async Task DeleteWithLimit()

@@ -35,7 +35,7 @@ A single Chroma server limits how deep a list of filters can go: [Other behavior
 
 So the client counts that depth, the length of the lists along the deepest path of the filter. Beyond 900, it splits each list of n filters into ⌈√n⌉ lists with the same meaning.
 
-`ChromaWhereDocumentOperator.Regex` and `NotRegex` filter the documents with a regular expression; [docs/COMPATIBILITY.md](COMPATIBILITY.md) lists the versions.
+`ChromaWhereDocumentOperator.Regex` and `NotRegex` filter the documents with a regular expression; [docs/COMPATIBILITY.md](COMPATIBILITY.md) lists the versions. On Chroma Cloud a pattern that takes an empty text, like `^$`, `^` or `^.*$`, finds every record with `Regex`, also in a delete, and none with `NotRegex` (KD-56), so there the client throws an `ArgumentException` before the request, in every read and delete. `NotRegex(".") & Contains("")` finds the empty documents, `Contains("")` the records with a document, and a pattern that needs a character, like `^.+$`, is right.
 
 ```csharp
 var apples = await collectionClient.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex("^apple"));
