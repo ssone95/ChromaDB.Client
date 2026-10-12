@@ -81,6 +81,21 @@ public class DeletionsInWritesTests
 		Assert.That(metadatas[1].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}
 
+	// The read is only for Chroma Cloud, and only beyond its quota: 33 keys with the nulls on a single server, and exactly 32 on Chroma
+	// Cloud, go without a read.
+	[TestCase("http://localhost:8000", 31)]
+	[TestCase("https://api.trychroma.com", 30)]
+	public async Task NoReadWithinTheQuotaOrOnASingleServer(string uri, int values)
+	{
+		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k0":0,"gone":1}]}""");
+		var metadata = Enumerable.Range(0, values).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		metadata["gone"] = null!;
+		metadata["missing"] = null!;
+		await Client(server, uri: uri).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [metadata] });
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "upsert" }));
+		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(values + 2));
+	}
+
 	// Chroma has no deletion of a document: the client writes an empty one, which only the copy under a document copy key tells from an
 	// empty text. Without one, a null document with NullDocumentsDelete throws before any request, also from a client made by name, which
 	// has not read its collection yet; without NullDocumentsDelete, or without a null document, the write goes.

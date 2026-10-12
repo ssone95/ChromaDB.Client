@@ -195,6 +195,18 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
 	}
 
+	// Exactly 32 keys with the nulls, which the client sends without a read: Chroma Cloud takes them.
+	[Test]
+	public async Task NullsWithinTheQuotaOfKeysOfChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var client = await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact));
+		var values = Enumerable.Range(0, 30).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = 1L }] });
+		await client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = null!, ["missing"] = null! }] });
+		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
+	}
+
 	// The copy of the document under the document copy key lets a where filter find the whole text. A document comes back as it was
 	// written: empty, or null when it was deleted, which takes its copy along; so does a record that had no document, and a new one.
 	[Test]
