@@ -831,7 +831,7 @@ public class ChromaCollectionClient
 			{
 				if (!_httpClient.ReadsBeyondKeyQuota)
 				{
-					throw new ArgumentException($"Record \"{records.Ids[i]}\" would take {keyCount} metadata keys to Chroma Cloud, values and nulls together, beyond its quota of {ChromaCloudQuotas.MaxMetadataKeys}. Send fewer keys or fewer nulls, or use WithReadsBeyondKeyQuota() in the options of the client: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix.", nameof(records));
+					throw new ArgumentException($"Record \"{records.Ids[i]}\" would take {keyCount} metadata keys to Chroma Cloud, beyond its quota of {ChromaCloudQuotas.MaxMetadataKeys}: its values and nulls, with the keys that the client adds, like the copy of the document, the mark of a deleted document and the BM25 sparse vectors. Send fewer keys or fewer nulls, or use ChromaConfigurationOptions.WithReadsBeyondKeyQuota() in the options of the ChromaClient: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix.", nameof(records));
 				}
 				keysRead[i] = true;
 			}

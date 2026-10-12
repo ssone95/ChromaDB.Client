@@ -75,7 +75,7 @@ public class DeletionsInWritesTests
 		};
 		var client = Client(server, uri: "https://api.trychroma.com");
 		var ex = Assert.ThrowsAsync<ArgumentException>(() => upsert ? client.UpsertAsync(records) : client.UpdateAsync(records));
-		Assert.That(ex!.Message, Does.StartWith("Record \"a\" would take 33 metadata keys to Chroma Cloud, values and nulls together, beyond its quota of 32. Send fewer keys or fewer nulls, or use WithReadsBeyondKeyQuota() in the options of the client: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix."));
+		Assert.That(ex!.Message, Does.StartWith("Record \"a\" would take 33 metadata keys to Chroma Cloud, beyond its quota of 32: its values and nulls, with the keys that the client adds, like the copy of the document, the mark of a deleted document and the BM25 sparse vectors. Send fewer keys or fewer nulls, or use ChromaConfigurationOptions.WithReadsBeyondKeyQuota() in the options of the ChromaClient: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix."));
 		Assert.That(ex.ParamName, Is.EqualTo("records"));
 		Assert.That(server.Paths, Is.Empty);
 	}
