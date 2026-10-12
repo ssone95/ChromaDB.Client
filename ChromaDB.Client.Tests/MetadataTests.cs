@@ -152,7 +152,7 @@ public class MetadataTests : ChromaTestsBase
 	}
 
 	// A null deletes a key and a null document with NullDocumentsDelete, from a client with a document copy key, the document, which
-	// comes back null; a key the metadata does not have stays, and a new record gets none of the nulls.
+	// comes back null; a key the metadata does not have stays, and a new record gets the nulls too, which Chroma stores without the keys.
 	[Test]
 	public async Task DeletionsInAnUpsert()
 	{
