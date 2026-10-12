@@ -383,7 +383,7 @@ public class DeletionsInWritesTests
 		Assert.That(write.GetProperty("metadatas").EnumerateArray().Select(x => x.GetRawText()), Is.EqualTo(new[] { """{"doc_bm25":null}""", """{"k":1,"doc_bm25":null}""" }));
 	}
 
-	// The sparse vectors of a text that goes are deleted too, unless the caller gives them; an empty text has no vector.
+	// The sparse vectors of a text that goes are deleted too, unless the caller gives them; an empty text gets its empty vector.
 	[Test]
 	public async Task SparseVectorsOfATextThatGoes()
 	{
@@ -400,8 +400,28 @@ public class DeletionsInWritesTests
 		Assert.That(metadatas[0].GetRawText(), Is.EqualTo("""{"title":null,"text":null,"doc_bm25":null,"title_bm25":null}"""));
 		Assert.That(metadatas[1].GetProperty("title").ValueKind, Is.EqualTo(JsonValueKind.Null));
 		Assert.That(metadatas[1].GetProperty("title_bm25").GetProperty("indices")[0].GetInt32(), Is.EqualTo(1));
-		Assert.That(metadatas[1].TryGetProperty("doc_bm25", out _), Is.False);
+		Assert.That(metadatas[1].GetProperty("doc_bm25").GetProperty("indices").GetArrayLength(), Is.EqualTo(0));
 		Assert.That(upsert.GetProperty("documents")[0].GetString(), Is.EqualTo(""));
+	}
+
+	// An empty text, in the metadata or as the document, gets its empty vector, as in the Python client: it replaces the vector of the old
+	// text, which would otherwise stay and be found by a search of the old text.
+	[TestCase(true)]
+	[TestCase(false)]
+	public async Task AnEmptyTextGetsAnEmptyVector(bool upsert)
+	{
+		var server = new FakeServer("""{"ids":[]}""");
+		var records = new ChromaRecords(["a"])
+		{
+			Embeddings = upsert ? [Embedding] : null,
+			Metadatas = [new Dictionary<string, object> { ["title"] = "" }],
+			Documents = [""],
+		};
+		var client = Client(server, Schema);
+		await (upsert ? client.UpsertAsync(records) : client.UpdateAsync(records));
+		var metadata = server.Bodies[server.Paths.IndexOf(upsert ? "upsert" : "update")].GetProperty("metadatas")[0];
+		Assert.That(metadata.GetProperty("title_bm25").GetProperty("indices").GetArrayLength(), Is.EqualTo(0));
+		Assert.That(metadata.GetProperty("doc_bm25").GetProperty("indices").GetArrayLength(), Is.EqualTo(0));
 	}
 
 	// Without metadata, a document that goes takes its sparse vector along; a null goes to a stored record without metadata too.

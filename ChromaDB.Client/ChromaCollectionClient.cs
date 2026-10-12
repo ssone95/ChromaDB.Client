@@ -878,8 +878,9 @@ public class ChromaCollectionClient
 	}
 
 	// As the Python client of Chroma: for each sparse vector index of the schema with a source key and an embedding function, the vector
-	// of each record whose metadata does not have the key, from its document (#document) or from the text in its metadata. The records
-	// and the metadata of the caller stay as they are: the ones that change are copies.
+	// of each record whose metadata does not have the key, from its document (#document) or from the text in its metadata. An empty text
+	// gets its empty vector, which replaces the vector of the old text. The records and the metadata of the caller stay as they are: the
+	// ones that change are copies.
 	private ChromaRecords WithSparseVectors(ChromaRecords records)
 	{
 		if (records.Metadatas is null && records.Documents is null)
@@ -910,7 +911,7 @@ public class ChromaCollectionClient
 				var text = index.SourceKey == ChromaSearchKeys.Document
 					? records.Documents is { } documents && i < documents.Count ? documents[i] : null
 					: metadata is not null && metadata.TryGetValue(index.SourceKey!, out var value) ? value as string : null;
-				if (text is null or [])
+				if (text is null)
 				{
 					continue;
 				}

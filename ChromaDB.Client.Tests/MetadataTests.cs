@@ -225,6 +225,24 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
 	}
 
+	// A text that becomes empty takes the vector of the old text away on Chroma Cloud: its empty vector replaces it.
+	[Test]
+	public async Task AnEmptyTextReplacesItsVectorOnChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has sparse vector indexes.");
+		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact);
+		var collection = await new ChromaClient(options, HttpClient).CreateCollectionAsync(new ChromaCollectionDefinition($"collection{Random.Shared.Next()}")
+		{
+			Schema = new ChromaCollectionSchema().WithBm25Index("title"),
+		});
+		var client = new ChromaCollectionClient(collection, options, HttpClient);
+		var key = collection.FindBm25Index("title")!.Key;
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object> { ["title"] = "red apple" }] });
+		Assert.That(((ChromaSparseVector)(await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata![key]).Indices, Is.Not.Empty);
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [new Dictionary<string, object> { ["title"] = "" }] });
+		Assert.That(((ChromaSparseVector)(await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata![key]).Indices, Is.Empty);
+	}
+
 	// A record with 33 values and no null goes, and Chroma Cloud rejects it with its own error, which counts the keys of the request.
 	[Test]
 	public async Task ValuesBeyondTheQuotaOfKeysOfChromaCloud()
