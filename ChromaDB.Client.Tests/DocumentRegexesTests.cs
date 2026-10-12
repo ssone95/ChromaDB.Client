@@ -28,6 +28,9 @@ public class DocumentRegexesTests
 		// Chroma 1.5.9 finds an empty document with these, while .NET reads them otherwise or not at all.
 		yield return ChromaWhereDocumentOperator.Regex("^[[:alpha:]]*$");
 		yield return ChromaWhereDocumentOperator.Regex("^[a[b]]*$");
+		// A ']' right after '[' or '[^' is a character of the class: the POSIX class after it is inside the class.
+		yield return ChromaWhereDocumentOperator.Regex("^[]a[:alpha:]]*$");
+		yield return ChromaWhereDocumentOperator.Regex("^[^]a[:alpha:]]*$");
 		yield return ChromaWhereDocumentOperator.Regex("^(?U)a*$");
 		yield return ChromaWhereDocumentOperator.Regex("(?P<a>x*)");
 		yield return ChromaWhereDocumentOperator.Regex("^\\b{start-half}$");
