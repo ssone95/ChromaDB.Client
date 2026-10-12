@@ -1487,8 +1487,8 @@ public class ChromaCollectionClient
 
 	// Whether the client can tell that the pattern needs a character as Chroma reads it, with the Rust crate regex: .NET reads it, does not
 	// match an empty text with it, and reads it the same way. .NET reads otherwise a '[' inside a class, as in a nested class or a POSIX
-	// class like [[:alpha:]], and a word boundary like \b{start-half}: a pattern with them, or one that .NET cannot read, does not count as
-	// one that needs a character.
+	// class like [[:alpha:]], and a word boundary like \b{start-half}: a pattern with them, or one that .NET cannot read or match in time,
+	// does not count as one that needs a character.
 	private static bool NeedsACharacter(string pattern)
 	{
 		var inClass = false;
@@ -1523,7 +1523,7 @@ public class ChromaCollectionClient
 		{
 			return !System.Text.RegularExpressions.Regex.IsMatch(string.Empty, pattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
 		}
-		catch (ArgumentException)
+		catch (Exception ex) when (ex is ArgumentException or System.Text.RegularExpressions.RegexMatchTimeoutException)
 		{
 			return false;
 		}
