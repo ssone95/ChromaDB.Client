@@ -30,6 +30,8 @@ ChromaDB.Client.Models.ChromaRecords.NullDocumentsDelete.init -> void
 virtual ChromaDB.Client.ChromaClient.GetCollectionClient(string! name) -> ChromaDB.Client.ChromaCollectionClient!
 virtual ChromaDB.Client.ChromaCollectionClient.GetCollectionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChromaDB.Client.Models.ChromaCollection!>!
 virtual ChromaDB.Client.ChromaCollectionClient.WithDocumentCopyKey(string! documentCopyKey) -> ChromaDB.Client.ChromaCollectionClient!
+virtual ChromaDB.Client.ChromaCollectionClient.WithDocumentDeletionKey(string! documentDeletionKey) -> ChromaDB.Client.ChromaCollectionClient!
+virtual ChromaDB.Client.ChromaCollectionClient.WithEmptyDocumentDeletions() -> ChromaDB.Client.ChromaCollectionClient!
 ChromaDB.Client.Models.ChromaQuery.ExpectedSpace.get -> ChromaDB.Client.ChromaSpace?
 ChromaDB.Client.Models.ChromaQuery.ExpectedSpace.init -> void
 static ChromaDB.Client.ChromaWhereOperator.Document(ChromaDB.Client.ChromaWhereDocumentOperator! filter) -> ChromaDB.Client.ChromaWhereOperator!
@@ -47,4 +49,7 @@ ChromaDB.Client.ChromaUpsertStrategy.Server = 0 -> ChromaDB.Client.ChromaUpsertS
 ChromaDB.Client.ChromaConfigurationOptions.UpsertStrategy.get -> ChromaDB.Client.ChromaUpsertStrategy
 ChromaDB.Client.ChromaConfigurationOptions.UpsertStrategy.init -> void
 ChromaDB.Client.ChromaConfigurationOptions.WithUpsertStrategy(ChromaDB.Client.ChromaUpsertStrategy strategy) -> ChromaDB.Client.ChromaConfigurationOptions!
+ChromaDB.Client.ChromaConfigurationOptions.ReadsBeyondKeyQuota.get -> bool
+ChromaDB.Client.ChromaConfigurationOptions.ReadsBeyondKeyQuota.init -> void
+ChromaDB.Client.ChromaConfigurationOptions.WithReadsBeyondKeyQuota(bool readsBeyondKeyQuota = true) -> ChromaDB.Client.ChromaConfigurationOptions!
 ChromaDB.Client.ChromaUpsertStrategy.SkipUnchangedEmbeddings = 1 -> ChromaDB.Client.ChromaUpsertStrategy

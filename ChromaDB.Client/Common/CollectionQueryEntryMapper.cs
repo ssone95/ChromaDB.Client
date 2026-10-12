@@ -5,14 +5,14 @@ namespace ChromaDB.Client.Common;
 
 internal static class CollectionQueryEntryMapper
 {
-	public static List<List<ChromaCollectionQueryEntry>> Map(this CollectionEntriesQueryResponse response, DocumentCopyReader copy = default)
+	public static List<List<ChromaCollectionQueryEntry>> Map(this CollectionEntriesQueryResponse response, DocumentReader copy = default)
 	{
 		return response.Ids
 			.Select((_, i) => response.Ids[i]
 				.Select((id, j) => new ChromaCollectionQueryEntry(id)
 				{
 					Distance = response.Distances?[i][j],
-					Metadata = copy.Metadata(response.Metadatas is { } metadatas ? metadatas[i][j] ?? DocumentCopyReader.NoKeys : null),
+					Metadata = copy.Metadata(response.Metadatas is { } metadatas ? metadatas[i][j] ?? DocumentReader.NoKeys : null),
 					Embedding = response.Embeddings?[i][j],
 					Document = copy.Document(response.Documents?[i][j], response.Metadatas?[i][j]),
 					Uri = response.Uris?[i][j],

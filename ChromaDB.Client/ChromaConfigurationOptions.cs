@@ -64,6 +64,15 @@ public class ChromaConfigurationOptions
 	/// Chroma 1.0.21 to 1.5.9 for the records whose embedding does not change.
 	/// </summary>
 	public ChromaUpsertStrategy UpsertStrategy { get; init; }
+	/// <summary>
+	/// Whether <c>UpdateAsync</c> and <c>UpsertAsync</c> on Chroma Cloud read a record first when a write with nulls would take it beyond
+	/// the quota of 32 metadata keys, and send only the nulls of the keys it has; false by default, when such a write throws an
+	/// <c>ArgumentException</c> before it goes, without a read. A record with more than 32 values and no null goes either way, and Chroma
+	/// Cloud rejects it. The read and the write are two requests, with two risks: a write
+	/// of another client of the same record between them can mix with this one, and when an id comes more than once in the same write, a
+	/// key that a later occurrence deletes can stay if an earlier one wrote it.
+	/// </summary>
+	public bool ReadsBeyondKeyQuota { get; init; }
 	private readonly int? _maxBatchSize;
 
 	/// <summary>
@@ -172,6 +181,7 @@ public class ChromaConfigurationOptions
 		BatchSplitting = options.BatchSplitting;
 		MaxBatchSize = options.MaxBatchSize;
 		UpsertStrategy = options.UpsertStrategy;
+		ReadsBeyondKeyQuota = options.ReadsBeyondKeyQuota;
 		_chromaCloud = options._chromaCloud;
 	}
 
@@ -252,6 +262,15 @@ public class ChromaConfigurationOptions
 	/// <returns>The new options; these do not change.</returns>
 	public ChromaConfigurationOptions WithUpsertStrategy(ChromaUpsertStrategy strategy)
 		=> new(this) { UpsertStrategy = strategy };
+
+	/// <summary>
+	/// A copy of these options that, on Chroma Cloud, reads a record first when the values and the nulls of an update or an upsert would
+	/// take it beyond the quota of 32 metadata keys, instead of throwing: see <c>ReadsBeyondKeyQuota</c>, and its two risks.
+	/// </summary>
+	/// <param name="readsBeyondKeyQuota">Whether the client reads such a record first; false throws.</param>
+	/// <returns>The new options; these do not change.</returns>
+	public ChromaConfigurationOptions WithReadsBeyondKeyQuota(bool readsBeyondKeyQuota = true)
+		=> new(this) { ReadsBeyondKeyQuota = readsBeyondKeyQuota };
 
 	/// <summary>
 	/// A copy of these options with the given version of the Chroma API.

@@ -20,6 +20,8 @@ public class ChromaCollectionClient
 	private readonly string _database;
 	private readonly Uri _server;
 	private readonly string? _documentCopyKey;
+	private readonly string? _documentDeletionKey;
+	private readonly bool _emptyDocumentDeletions;
 
 	/// <summary>
 	/// Creates a client for the records of the collection, which sends its requests with the options and the
@@ -55,9 +57,9 @@ public class ChromaCollectionClient
 		_byName = true;
 	}
 
-	// The same client with another way of reading metadata values or a document copy key; a client made by name starts from the
-	// collection read last, and reads it again by itself.
-	private ChromaCollectionClient(ChromaCollectionClient client, ChromaHttpClient httpClient, string? documentCopyKey)
+	// The same client with another way of reading metadata values, a document copy key, a document deletion key or empty document
+	// deletions; a client made by name starts from the collection read last, and reads it again by itself.
+	private ChromaCollectionClient(ChromaCollectionClient client, ChromaHttpClient httpClient, string? documentCopyKey, string? documentDeletionKey, bool emptyDocumentDeletions)
 	{
 		_collection = client._collection;
 		_httpClient = httpClient;
@@ -67,6 +69,8 @@ public class ChromaCollectionClient
 		_database = client._database;
 		_server = client._server;
 		_documentCopyKey = documentCopyKey;
+		_documentDeletionKey = documentDeletionKey;
+		_emptyDocumentDeletions = emptyDocumentDeletions;
 	}
 
 	/// <summary>
@@ -171,14 +175,81 @@ public class ChromaCollectionClient
 	/// the whole text, which <c>where_document</c> cannot; the copy replaces what the metadata has under the key. Chroma has no deletion
 	/// of a document: for a null document with <c>ChromaRecords.NullDocumentsDelete</c> the client writes an empty one and deletes its
 	/// copy, and it reads an empty document without its copy as null, so that a document comes back as it was written, empty or null.
-	/// For that it reads the metadata with the documents, and leaves it out of the results that do not ask for it. Chroma Cloud takes a
-	/// metadata value of at most 8,182 bytes: there a longer document goes without its copy, and an update or an upsert deletes the
-	/// copy it had.
+	/// For that it reads the metadata with the documents, and leaves it out of the results that do not ask for it. It deletes a document
+	/// without reading the record first, also of a record without a document, which a <c>where_document</c> filter that matches an empty
+	/// text then sees as one with an empty document. Chroma Cloud takes a metadata value of at most 8,182 bytes: there a longer document
+	/// goes without its copy, and an update or an upsert deletes the copy it had.
+	/// A collection client chooses once how it deletes documents: the same call again on a client that made it changes nothing, and a call
+	/// that would change the choice throws an <c>InvalidOperationException</c>.
 	/// </summary>
 	/// <param name="documentCopyKey">The metadata key of the copies.</param>
 	/// <returns>The client of the same collection, with the copies.</returns>
 	public virtual ChromaCollectionClient WithDocumentCopyKey(string documentCopyKey)
-		=> new(this, _httpClient, documentCopyKey ?? throw new ArgumentNullException(nameof(documentCopyKey)));
+	{
+		if (documentCopyKey is null)
+		{
+			throw new ArgumentNullException(nameof(documentCopyKey));
+		}
+		CheckWayToDeleteDocuments(documentCopyKey, null, false);
+		return new(this, _httpClient, documentCopyKey, null, false);
+	}
+
+	/// <summary>
+	/// A client of the same collection that marks a document deleted with <c>ChromaRecords.NullDocumentsDelete</c> under the metadata
+	/// key, instead of copying every document. Chroma has no deletion of a document: for a null document with
+	/// <c>NullDocumentsDelete</c> the client writes an empty one and <c>true</c> under the key, and any other document that an update or an
+	/// upsert writes deletes the mark with a null, so no write reads the records first. It reads an empty document with the mark as null,
+	/// and an empty one without it as empty; the mark stays in the metadata like any key. For that it reads the metadata with the
+	/// documents, and leaves it out of the results that do not ask for it. It deletes a document also of a record without a document,
+	/// which a <c>where_document</c> filter that matches an empty text then sees as one with an empty document. On Chroma Cloud the mark
+	/// and its null count against the quota of 32 keys.
+	/// A collection client chooses once how it deletes documents: the same call again on a client that made it changes nothing, and a call
+	/// that would change the choice throws an <c>InvalidOperationException</c>.
+	/// </summary>
+	/// <param name="documentDeletionKey">The metadata key of the mark.</param>
+	/// <returns>The client of the same collection, with the marks.</returns>
+	public virtual ChromaCollectionClient WithDocumentDeletionKey(string documentDeletionKey)
+	{
+		if (documentDeletionKey is null)
+		{
+			throw new ArgumentNullException(nameof(documentDeletionKey));
+		}
+		CheckWayToDeleteDocuments(null, documentDeletionKey, false);
+		return new(this, _httpClient, null, documentDeletionKey, false);
+	}
+
+	/// <summary>
+	/// A client of the same collection that deletes a document with <c>ChromaRecords.NullDocumentsDelete</c> by writing an empty one,
+	/// without a copy or a mark: Chroma has no deletion of a document, and the empty document reads back as an empty string, as the
+	/// Python client of Chroma reads it. No write reads the records first. It deletes a document also of a record without a document,
+	/// which a <c>where_document</c> filter that matches an empty text then sees as one with an empty document.
+	/// A collection client chooses once how it deletes documents: the same call again on a client that made it changes nothing, and a call
+	/// that would change the choice throws an <c>InvalidOperationException</c>.
+	/// </summary>
+	/// <returns>The client of the same collection, with the empty documents.</returns>
+	public virtual ChromaCollectionClient WithEmptyDocumentDeletions()
+	{
+		CheckWayToDeleteDocuments(null, null, true);
+		return new(this, _httpClient, null, null, true);
+	}
+
+	// A collection client chooses once how it deletes documents: the same call again changes nothing, while a call of another of
+	// WithDocumentCopyKey, WithDocumentDeletionKey and WithEmptyDocumentDeletions, or of the same one with another key, throws.
+	private void CheckWayToDeleteDocuments(string? copyKey, string? deletionKey, bool empty)
+	{
+		if (Way(_documentCopyKey, _documentDeletionKey, _emptyDocumentDeletions) is { } way
+			&& (copyKey != _documentCopyKey || deletionKey != _documentDeletionKey || empty != _emptyDocumentDeletions))
+		{
+			throw new InvalidOperationException($"This collection client already deletes documents with {way}, and a collection client does not change that: call {Way(copyKey, deletionKey, empty)} on a new collection client of the collection.");
+		}
+	}
+
+	// The way a client deletes documents, as the call that chose it; null for none.
+	private static string? Way(string? copyKey, string? deletionKey, bool empty)
+		=> copyKey is not null ? $"WithDocumentCopyKey(\"{copyKey}\")"
+			: deletionKey is not null ? $"WithDocumentDeletionKey(\"{deletionKey}\")"
+			: empty ? "WithEmptyDocumentDeletions()"
+			: null;
 
 	/// <summary>
 	/// The BM25 index on the text of the source key, as <c>ChromaCollection.FindBm25Index</c> finds it in the schema of the collection;
@@ -200,11 +271,18 @@ public class ChromaCollectionClient
 	/// <param name="metadataValues">How the client reads metadata values.</param>
 	/// <returns>The client of the same collection, reading metadata values that way.</returns>
 	public virtual ChromaCollectionClient WithMetadataValues(ChromaMetadataValues metadataValues)
-		=> new(this, _httpClient.WithMetadataValues(metadataValues), _documentCopyKey);
+		=> new(this, _httpClient.WithMetadataValues(metadataValues), _documentCopyKey, _documentDeletionKey, _emptyDocumentDeletions);
 
-	// With a document copy key, the documents are read with the metadata, which tells a deleted document from an empty one.
-	private DocumentCopyReader ReadsDocuments(bool documents, bool metadata)
-		=> _documentCopyKey is { } key && documents ? new DocumentCopyReader(key, metadata) : default;
+	// The metadata key that tells a deleted document from an empty one: the document copy key, or the document deletion key.
+	private string? DocumentReadKey => _documentCopyKey ?? _documentDeletionKey;
+
+	// With a document copy key or a document deletion key, the documents are read with the metadata, which tells a deleted document
+	// from an empty one.
+	private DocumentReader ReadsDocuments(bool documents, bool metadata)
+		=> !documents ? default
+			: _documentCopyKey is { } copyKey ? new DocumentReader(copyKey, mark: false, metadata)
+			: _documentDeletionKey is { } deletionKey ? new DocumentReader(deletionKey, mark: true, metadata)
+			: default;
 
 	/// <summary>
 	/// Gets the record with the id, or null when the server returns none. Without <c>include</c>, the metadata and the
@@ -518,8 +596,14 @@ public class ChromaCollectionClient
 	/// <c>max_batch_size</c> of the server. The client computes the sparse vectors of the <c>chroma_bm25</c> indexes of the schema
 	/// that have a source key, as the Python client of Chroma does. A null value in the metadata, written <c>null!</c> as the type does
 	/// not allow it, or an empty list deletes the key and the sparse vectors computed from its text; with
-	/// <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document. The client sends a deletion only to a record that
-	/// has what it deletes, so it reads those records first; the keys the metadata does not have stay.
+	/// <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document, which needs <c>WithDocumentCopyKey</c>,
+	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
+	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key or not, so
+	/// two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have stay. On Chroma
+	/// Cloud, a write with nulls that would take the metadata of a record beyond the quota of 32 keys throws an <c>ArgumentException</c>
+	/// before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads the record first and
+	/// sends only the nulls of its keys, and a write that lands between that read and the write can keep what it wrote there. A record
+	/// with more than 32 values and no null goes, and Chroma Cloud rejects it.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -528,10 +612,12 @@ public class ChromaCollectionClient
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
+		CheckDocumentDeletions(records);
 		return Operation("update", cancellationToken, async () =>
 		{
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
-			var prepared = WithSparseVectors(await WithDeletions(WithDocumentCopies(records, update: true), cancellationToken));
+			// The sparse vectors before the deletions, which count every key that goes against the quota of Chroma Cloud.
+			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(records, update: true))), cancellationToken);
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -577,8 +663,14 @@ public class ChromaCollectionClient
 	/// not compute them. It computes the sparse vectors of the <c>chroma_bm25</c> indexes of the schema that have a source key, as
 	/// the Python client of Chroma does. A null value in the metadata, written <c>null!</c> as the type does not allow it, or an empty
 	/// list deletes the key of a record that exists and the sparse vectors computed from its text, and a new record is added without
-	/// it; with <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document. The client sends a deletion only to a
-	/// record that has what it deletes, so it reads those records first; the keys the metadata does not have stay.
+	/// it; with <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document, which needs <c>WithDocumentCopyKey</c>,
+	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
+	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key
+	/// or not, so two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have
+	/// stay. On Chroma Cloud, a write with nulls that would take the metadata of a record beyond the quota of 32 keys throws an
+	/// <c>ArgumentException</c> before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads
+	/// the record first and sends only the nulls of its keys, and a write that lands between that read and the write can keep what it
+	/// wrote there. A record with more than 32 values and no null goes, and Chroma Cloud rejects it.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -587,10 +679,12 @@ public class ChromaCollectionClient
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
+		CheckDocumentDeletions(records);
 		return Operation("upsert", cancellationToken, async () =>
 		{
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
-			var prepared = WithSparseVectors(await WithDeletions(WithDocumentCopies(records, update: true), cancellationToken));
+			// The sparse vectors before the deletions, which count every key that goes against the quota of Chroma Cloud.
+			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(records, update: true))), cancellationToken);
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -619,7 +713,7 @@ public class ChromaCollectionClient
 
 	// The copy of each document under the document copy key, when the server takes it: Chroma Cloud takes a metadata value of at most
 	// 8,182 bytes. In an update or an upsert, a document without its copy, as one too long or one deleted, deletes the stored copy with
-	// a null, which WithDeletions sends only to the records that have it; a null document that stays keeps its copy.
+	// a null, which WithDeletions sends along; a null document that stays keeps its copy.
 	private ChromaRecords WithDocumentCopies(ChromaRecords records, bool update)
 	{
 		if (_documentCopyKey is not { } key || records.Documents is not { } documents)
@@ -651,16 +745,65 @@ public class ChromaCollectionClient
 		};
 	}
 
+	// The mark under the document deletion key, in an update or an upsert: true for a document deleted with NullDocumentsDelete, which
+	// goes empty, and the null that deletes it for any other document, so that no write reads the records first. A null document that
+	// stays keeps its mark.
+	private ChromaRecords WithDocumentMarks(ChromaRecords records)
+	{
+		if (_documentDeletionKey is not { } key || records.Documents is not { } documents)
+		{
+			return records;
+		}
+		var metadatas = new List<IReadOnlyDictionary<string, object>?>(records.Ids.Count);
+		for (var i = 0; i < records.Ids.Count; i++)
+		{
+			var given = records.Metadatas?[i];
+			if (documents[i] is null && !records.NullDocumentsDelete)
+			{
+				metadatas.Add(given);
+				continue;
+			}
+			var metadata = given?.ToDictionary(pair => pair.Key, pair => pair.Value) ?? [];
+			metadata[key] = documents[i] is null ? true : null!;
+			metadatas.Add(metadata);
+		}
+		return new ChromaRecords(records.Ids)
+		{
+			Embeddings = records.Embeddings,
+			Metadatas = metadatas.Any(metadata => metadata is not null) ? metadatas : null,
+			Documents = records.Documents,
+			Uris = records.Uris,
+			NullDocumentsDelete = records.NullDocumentsDelete,
+		};
+	}
+
+	// Chroma has no deletion of a document: the client writes an empty one, which only the copy under a document copy key or the mark
+	// under a document deletion key tells from an empty text, and which empty document deletions read back as empty. Without one of the
+	// three ways, a null document with NullDocumentsDelete throws, before any request, with the three.
+	private void CheckDocumentDeletions(ChromaRecords records)
+	{
+		if (DocumentReadKey is null && !_emptyDocumentDeletions && records.NullDocumentsDelete && records.Documents?.Any(document => document is null) == true)
+		{
+			throw new ArgumentException("NullDocumentsDelete needs a way to tell a deleted document from an empty one: Chroma cannot delete a document, so the client writes an empty one. Choose one on the collection client: WithDocumentCopyKey(key) copies each document into a metadata key and reads an empty document without its copy as null; WithDocumentDeletionKey(key) writes only a mark under a metadata key and reads an empty document with the mark as null; WithEmptyDocumentDeletions() writes an empty document that reads back as an empty string.", nameof(records));
+		}
+	}
+
 	// In UpdateAsync and UpsertAsync: a null value or an empty list deletes the key, a null document deletes the document with
-	// NullDocumentsDelete, and a text that goes takes the sparse vectors computed from it along. Chroma has no deletion of a document:
-	// the client writes an empty one. A deletion goes only to a record that has what it deletes, so the client reads those records
-	// first: Chroma Cloud counts a null against its quota of keys, and the other values go as they are.
+	// NullDocumentsDelete, and a text that goes takes the sparse vectors computed from it along. A null goes to the record whether it has
+	// the key or not: every tested Chroma takes it, also in an upsert that creates the record, and leaves the record without the key. So
+	// the write does not depend on a read that another writer can change before it goes. Chroma has no deletion of a document: the client
+	// writes an empty one to every record whose document goes, without a read, as only a client with a document copy key, a document
+	// deletion key or empty document deletions gets here (CheckDocumentDeletions); with a copy or a mark it reads that empty document as
+	// none. Chroma Cloud counts a null against its quota of keys, and a sparse vector too: when the values, the sparse vectors that
+	// WithSparseVectors computed and the nulls would take the metadata of a record beyond it, the write throws before it goes, or with
+	// ReadsBeyondKeyQuota the client reads that record first and sends the nulls only to the keys it has.
 	private async Task<ChromaRecords> WithDeletions(ChromaRecords records, CancellationToken cancellationToken)
 	{
 		var count = records.Ids.Count;
 		var indexes = _collection.SparseVectorIndexes.Where(index => index.SourceKey is not null && index.EmbeddingFunction is not null).ToList();
 		var deleted = new List<string>?[count];
 		var documentDeleted = new bool[count];
+		var keysRead = new bool[count];
 		for (var i = 0; i < count; i++)
 		{
 			var metadata = records.Metadatas?[i];
@@ -676,20 +819,30 @@ public class ChromaCollectionClient
 			foreach (var index in indexes)
 			{
 				var textDeleted = index.SourceKey == ChromaSearchKeys.Document ? documentDeleted[i] : keys?.Contains(index.SourceKey!) == true;
-				if (textDeleted && !(metadata?.TryGetValue(index.Key, out var vector) == true && vector is not null))
+				// A vector the caller gives stays, and the null of one is in the keys already: each key counts once against the quota.
+				if (textDeleted && metadata?.ContainsKey(index.Key) != true)
 				{
 					(keys ??= []).Add(index.Key);
 				}
 			}
 			deleted[i] = keys;
+			var keyCount = keys is null ? 0 : (metadata?.Count(pair => !keys.Contains(pair.Key)) ?? 0) + keys.Count;
+			if (_httpClient.IsChromaCloud && keyCount > ChromaCloudQuotas.MaxMetadataKeys)
+			{
+				if (!_httpClient.ReadsBeyondKeyQuota)
+				{
+					throw new ArgumentException($"Record \"{records.Ids[i]}\" would take {keyCount} metadata keys to Chroma Cloud, beyond its quota of {ChromaCloudQuotas.MaxMetadataKeys}: its values and nulls, with the keys that the client adds, like the copy of the document, the mark of a deleted document and the BM25 sparse vectors. Send fewer keys or fewer nulls, or use ChromaConfigurationOptions.WithReadsBeyondKeyQuota() in the options of the ChromaClient: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix.", nameof(records));
+				}
+				keysRead[i] = true;
+			}
 		}
-		var readIds = records.Ids.Where((_, i) => deleted[i] is not null || documentDeleted[i]).Distinct().ToList();
-		if (readIds.Count == 0)
+		if (!deleted.Any(keys => keys is not null) && !documentDeleted.Contains(true))
 		{
 			return records;
 		}
-		var include = ChromaGetInclude.Metadatas | (documentDeleted.Contains(true) ? ChromaGetInclude.Documents : ChromaGetInclude.None);
-		var stored = (await GetEntries(readIds, null, null, null, null, include, cancellationToken)).ToDictionary(entry => entry.Id);
+		var readIds = records.Ids.Where((_, i) => keysRead[i]).Distinct().ToList();
+		var stored = readIds.Count == 0 ? new Dictionary<string, ChromaCollectionEntry>()
+			: (await GetEntries(readIds, null, null, null, null, ChromaGetInclude.Metadatas, cancellationToken)).ToDictionary(entry => entry.Id);
 		var metadatas = new List<IReadOnlyDictionary<string, object>?>(count);
 		var documents = records.Documents?.ToList();
 		for (var i = 0; i < count; i++)
@@ -699,7 +852,7 @@ public class ChromaCollectionClient
 			if (deleted[i] is { } keys)
 			{
 				var metadata = given?.Where(pair => !keys.Contains(pair.Key)).ToDictionary(pair => pair.Key, pair => pair.Value) ?? [];
-				foreach (var key in keys.Where(key => entry?.Metadata?.ContainsKey(key) == true))
+				foreach (var key in keys.Where(key => !keysRead[i] || entry?.Metadata?.ContainsKey(key) == true))
 				{
 					metadata[key] = null!;
 				}
@@ -709,7 +862,7 @@ public class ChromaCollectionClient
 			{
 				metadatas.Add(given);
 			}
-			if (documentDeleted[i] && entry?.Document is { Length: > 0 })
+			if (documentDeleted[i])
 			{
 				documents![i] = string.Empty;
 			}
@@ -725,8 +878,9 @@ public class ChromaCollectionClient
 	}
 
 	// As the Python client of Chroma: for each sparse vector index of the schema with a source key and an embedding function, the vector
-	// of each record whose metadata does not have the key, from its document (#document) or from the text in its metadata. The records
-	// and the metadata of the caller stay as they are: the ones that change are copies.
+	// of each record whose metadata does not have the key, from its document (#document) or from the text in its metadata. An empty text
+	// gets its empty vector, which replaces the vector of the old text. The records and the metadata of the caller stay as they are: the
+	// ones that change are copies.
 	private ChromaRecords WithSparseVectors(ChromaRecords records)
 	{
 		if (records.Metadatas is null && records.Documents is null)
@@ -747,8 +901,8 @@ public class ChromaCollectionClient
 				var metadata = metadatas[i];
 				if (metadata is not null && metadata.TryGetValue(index.Key, out var given))
 				{
-					// The key holds the vectors of the index: a record gives one, or deletes it with null, and nothing else.
-					if (given is not null && !IsSparseVector(given))
+					// The key holds the vectors of the index: a record gives one, or deletes it with null or an empty list, and nothing else.
+					if (given is not null && !IsSparseVector(given) && !(ChromaRequestChecks.IsList(given) && ChromaRequestChecks.IsEmpty(given)))
 					{
 						throw new ArgumentException($"The metadata key \"{index.Key}\" holds the vectors of the sparse vector index on \"{index.SourceKey}\": a record cannot give it another value.", nameof(records));
 					}
@@ -757,7 +911,7 @@ public class ChromaCollectionClient
 				var text = index.SourceKey == ChromaSearchKeys.Document
 					? records.Documents is { } documents && i < documents.Count ? documents[i] : null
 					: metadata is not null && metadata.TryGetValue(index.SourceKey!, out var value) ? value as string : null;
-				if (text is null or [])
+				if (text is null)
 				{
 					continue;
 				}
@@ -1224,7 +1378,7 @@ public class ChromaCollectionClient
 						{
 							Document = copy.Document(response.Documents?[i]?[j], response.Metadatas?[i]?[j]),
 							Embedding = response.Embeddings?[i]?[j],
-							Metadata = copy.Metadata(response.Metadatas?[i] is { } metadatas ? metadatas[j] ?? DocumentCopyReader.NoKeys : null),
+							Metadata = copy.Metadata(response.Metadatas?[i] is { } metadatas ? metadatas[j] ?? DocumentReader.NoKeys : null),
 							Score = opposite ? -response.Scores?[i]?[j] : response.Scores?[i]?[j],
 						})
 						.ToList();
@@ -1238,21 +1392,21 @@ public class ChromaCollectionClient
 			return searches.Select(search => search.Where == ChromaWhereOperator.None ? [] : results[next++]).ToList();
 		});
 
-	// The keys a search selects, and with the documents the copy key, which tells a deleted document from an empty one.
+	// The keys a search selects, and with the documents the copy key or the deletion key, which tells a deleted document from an empty one.
 	private List<string> SearchSelect(ChromaSearch search)
 	{
 		var keys = search.Select?.Distinct().ToList() ?? [];
-		if (SearchReadsDocuments(search).ReadsMetadata && !keys.Contains(ChromaSearchKeys.Metadata) && !keys.Contains(_documentCopyKey!))
+		if (SearchReadsDocuments(search).ReadsMetadata && !keys.Contains(ChromaSearchKeys.Metadata) && !keys.Contains(DocumentReadKey!))
 		{
-			keys.Add(_documentCopyKey!);
+			keys.Add(DocumentReadKey!);
 		}
 		return keys;
 	}
 
-	// The metadata stays in the results of a search that selects it, or the copy key itself.
-	private DocumentCopyReader SearchReadsDocuments(ChromaSearch search)
+	// The metadata stays in the results of a search that selects it, or the copy key or the deletion key itself.
+	private DocumentReader SearchReadsDocuments(ChromaSearch search)
 		=> search.Select is { } select
-			? ReadsDocuments(select.Contains(ChromaSearchKeys.Document), select.Contains(ChromaSearchKeys.Metadata) || _documentCopyKey is { } key && select.Contains(key))
+			? ReadsDocuments(select.Contains(ChromaSearchKeys.Document), select.Contains(ChromaSearchKeys.Metadata) || DocumentReadKey is { } key && select.Contains(key))
 			: default;
 
 	// The where clause of the Search API holds the metadata, the documents (#document) and the ids (#id); several filters go in $and.

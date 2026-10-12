@@ -151,12 +151,12 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That(ex!.Message, Does.Contain("$contains"));
 	}
 
-	// A null deletes a key and a null document with NullDocumentsDelete the document, which comes back empty; a key the metadata
-	// does not have stays, and a new record gets none of the nulls.
+	// A null deletes a key and a null document with NullDocumentsDelete, from a client with a document copy key, the document, which
+	// comes back null; a key the metadata does not have stays, and a new record gets the nulls too, which Chroma stores without the keys.
 	[Test]
 	public async Task DeletionsInAnUpsert()
 	{
-		var client = await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact));
+		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithDocumentCopyKey("text");
 		var metadata = new Dictionary<string, object> { ["k"] = 1L, ["keep"] = 2L };
 		if (MetadataListsSupported)
 		{
@@ -177,26 +177,152 @@ public class MetadataTests : ChromaTestsBase
 		});
 		var records = (await client.GetAsync(["a", "b"], include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
 		Assert.That(records["a"].Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["keep"] = 2L, ["x"] = 3L }));
-		Assert.That(records["a"].Document, Is.EqualTo(""));
+		Assert.That(records["a"].Document, Is.Null);
 		Assert.That(records["b"].Metadata, Is.Not.Null.And.Empty);
 		Assert.That(records["b"].Document, Is.Null);
 	}
 
+	// Chroma Cloud counts a null against its quota of 32 keys: a record with 31 values, the null of a key it has and the null of one it
+	// does not have would take 33. By default the client throws before the write, without a read, and the record stays as it was; with
+	// ReadsBeyondKeyQuota it reads the record first and sends only the null of the key it has.
+	[TestCase(false)]
+	[TestCase(true)]
+	public async Task NullsBeyondTheQuotaOfKeysOfChromaCloud(bool readsBeyondKeyQuota)
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact).WithReadsBeyondKeyQuota(readsBeyondKeyQuota);
+		var client = await Init(options);
+		var values = Enumerable.Range(0, 31).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		var stored = new Dictionary<string, object>(values) { ["gone"] = 1L };
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [stored] });
+		var requests = new Requests();
+		using var httpClient = new HttpClient(requests);
+		var writer = new ChromaCollectionClient(client.Collection, options, httpClient);
+		var upsert = new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = null!, ["missing"] = null! }] };
+		if (readsBeyondKeyQuota)
+		{
+			await writer.UpsertAsync(upsert);
+			Assert.That(requests.Paths, Does.Contain("get").And.Contain("upsert"));
+			Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
+		}
+		else
+		{
+			Assert.That(() => writer.UpsertAsync(upsert), Throws.ArgumentException.With.Message.StartsWith("Record \"a\" would take 33 metadata keys to Chroma Cloud"));
+			Assert.That(requests.Paths, Is.Empty);
+			Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(stored));
+		}
+	}
+
+	// Exactly 32 keys with the nulls, which the client sends without a read: Chroma Cloud takes them.
+	[Test]
+	public async Task NullsWithinTheQuotaOfKeysOfChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var client = await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact));
+		var values = Enumerable.Range(0, 30).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = 1L }] });
+		await client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = null!, ["missing"] = null! }] });
+		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
+	}
+
+	// A text that becomes empty takes the vector of the old text away on Chroma Cloud: its empty vector replaces it.
+	[Test]
+	public async Task AnEmptyTextReplacesItsVectorOnChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has sparse vector indexes.");
+		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact);
+		var collection = await new ChromaClient(options, HttpClient).CreateCollectionAsync(new ChromaCollectionDefinition($"collection{Random.Shared.Next()}")
+		{
+			Schema = new ChromaCollectionSchema().WithBm25Index("title"),
+		});
+		var client = new ChromaCollectionClient(collection, options, HttpClient);
+		var key = collection.FindBm25Index("title")!.Key;
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object> { ["title"] = "red apple" }] });
+		Assert.That(((ChromaSparseVector)(await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata![key]).Indices, Is.Not.Empty);
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [new Dictionary<string, object> { ["title"] = "" }] });
+		Assert.That(((ChromaSparseVector)(await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata![key]).Indices, Is.Empty);
+	}
+
+	// A record with 33 values and no null goes, and Chroma Cloud rejects it with its own error, which counts the keys of the request.
+	[Test]
+	public async Task ValuesBeyondTheQuotaOfKeysOfChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var client = await Init(BaseConfigurationOptions);
+		var metadata = Enumerable.Range(0, 33).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		var ex = Assert.ThrowsAsync<ChromaException>(() => client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [metadata] }));
+		Assert.That(ex!.StatusCode, Is.EqualTo(HttpStatusCode.UnprocessableEntity));
+		Assert.That(ex.Message, Does.Contain("current usage of 33 exceeds limit of 32"));
+	}
+
+	// Chroma Cloud counts the sparse vector that the client computes from a text against its 32 keys: 30 values, title, its title_bm25 and
+	// the null of gone are 33, and the write throws before it goes; the record stays as it was.
+	[Test]
+	public async Task ComputedSparseVectorsCountOnChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact);
+		var collection = await new ChromaClient(options, HttpClient).CreateCollectionAsync(new ChromaCollectionDefinition($"collection{Random.Shared.Next()}")
+		{
+			Schema = new ChromaCollectionSchema().WithSparseVectorIndex("title_bm25", "title", bm25: true, ChromaEmbeddingFunctionReference.ChromaBm25()),
+		});
+		var client = new ChromaCollectionClient(collection, options, HttpClient);
+		var values = Enumerable.Range(0, 30).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["title"] = "red apple" }] });
+		var stored = (await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata!;
+		Assert.That(stored, Has.Count.EqualTo(32));
+		var write = new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["title"] = "green apple", ["gone"] = null! }] };
+		Assert.That(() => client.UpsertAsync(write), Throws.ArgumentException.With.Message.StartsWith("Record \"a\" would take 33 metadata keys to Chroma Cloud"));
+		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata!["title"], Is.EqualTo("red apple"));
+	}
+
 	// The copy of the document under the document copy key lets a where filter find the whole text. A document comes back as it was
-	// written: empty, or null when it was deleted, which takes its copy along.
+	// written: empty, or null when it was deleted, which takes its copy along; so does a record that had no document, and a new one.
 	[Test]
 	public async Task DocumentCopy()
 	{
 		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithDocumentCopyKey("text");
-		await client.AddAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding1, Embedding2], Documents = ["apple pie", "banana split"] });
+		await client.AddAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding1, Embedding2, Embedding1], Documents = ["apple pie", "banana split", null!] });
 		var found = await client.GetAsync(where: ChromaWhereOperator.Equal("text", "apple pie"), include: ChromaGetInclude.None);
 		Assert.That(found.Select(x => x.Id), Is.EqualTo(new[] { "a" }));
-		await client.UpsertAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding1, Embedding2], Documents = [null!, ""], NullDocumentsDelete = true });
+		await client.UpsertAsync(new ChromaRecords(["a", "b", "c", "d"]) { Embeddings = [Embedding1, Embedding2, Embedding1, Embedding2], Documents = [null!, "", null!, null!], NullDocumentsDelete = true });
 		var records = (await client.GetAsync(include: ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
-		Assert.That((records["a"].Document, records["b"].Document), Is.EqualTo(((string?)null, "")));
+		Assert.That((records["a"].Document, records["b"].Document, records["c"].Document, records["d"].Document), Is.EqualTo(((string?)null, "", (string?)null, (string?)null)));
 		var record = (await client.GetAsync("a", include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents))!;
 		Assert.That(record.Metadata, Is.Not.Null.And.Empty);
 		Assert.That(record.Document, Is.Null);
+	}
+
+	// With a document deletion key a deleted document comes back null, also of a record that had none and of a new one, and an empty one
+	// comes back empty; the mark stays in the metadata, and goes away when the record gets a document again.
+	[Test]
+	public async Task DocumentDeletionKey()
+	{
+		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithDocumentDeletionKey("deleted");
+		await client.AddAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding1, Embedding2, Embedding1], Documents = ["apple pie", "banana split", null!] });
+		await client.UpsertAsync(new ChromaRecords(["a", "b", "c", "d"]) { Embeddings = [Embedding1, Embedding2, Embedding1, Embedding2], Documents = [null!, "", null!, null!], NullDocumentsDelete = true });
+		var records = (await client.GetAsync(include: ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
+		Assert.That((records["a"].Document, records["b"].Document, records["c"].Document, records["d"].Document), Is.EqualTo(((string?)null, "", (string?)null, (string?)null)));
+		var found = (await client.QueryAsync(new ChromaQuery([Embedding1]) { NResults = 4, Include = ChromaQueryInclude.Documents }))[0].ToDictionary(x => x.Id);
+		Assert.That((found["a"].Document, found["b"].Document), Is.EqualTo(((string?)null, "")));
+		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["deleted"] = true }));
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Documents = ["again"] });
+		var again = (await client.GetAsync("a", include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents))!;
+		Assert.That(again.Document, Is.EqualTo("again"));
+		Assert.That(again.Metadata, Is.Not.Null.And.Empty);
+	}
+
+	// With empty document deletions a deleted document comes back empty, also of a record that had none and of a new one, and the
+	// records get no key.
+	[Test]
+	public async Task EmptyDocumentDeletions()
+	{
+		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithEmptyDocumentDeletions();
+		await client.AddAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding1, Embedding2], Documents = ["apple pie", null!] });
+		await client.UpsertAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding1, Embedding2, Embedding1], Documents = [null!, null!, null!], NullDocumentsDelete = true });
+		var records = (await client.GetAsync(include: ChromaGetInclude.Documents | ChromaGetInclude.Metadatas)).ToDictionary(x => x.Id);
+		Assert.That((records["a"].Document, records["b"].Document, records["c"].Document), Is.EqualTo(("", "", "")));
+		Assert.That(records.Values.Select(x => x.Metadata), Is.All.Not.Null.And.All.Empty);
 	}
 
 	// The values of ChromaMetadataConvert come back as they were written, and a filter with a converted value finds the same instant
@@ -319,6 +445,19 @@ public class MetadataTests : ChromaTestsBase
 		});
 		Assert.That((await client.GetAsync(include: ChromaGetInclude.Metadatas)).Select(x => string.Join(",", x.Metadata!.Keys)), Has.All.EqualTo("k"));
 		Assert.That(await client.GetAsync(where: ChromaWhereOperator.Contains("texts", "x"), include: ChromaGetInclude.None), Is.Empty);
+	}
+
+	// Records the last segment of the path of each request it sends.
+	sealed class Requests() : DelegatingHandler(new HttpClientHandler())
+	{
+		public List<string> Paths { get; } = [];
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			var path = request.RequestUri!.AbsolutePath;
+			Paths.Add(path.Substring(path.LastIndexOf('/') + 1));
+			return base.SendAsync(request, cancellationToken);
+		}
 	}
 
 	async Task<ChromaCollectionClient> Init(ChromaConfigurationOptions options)
