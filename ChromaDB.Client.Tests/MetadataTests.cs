@@ -183,16 +183,34 @@ public class MetadataTests : ChromaTestsBase
 	}
 
 	// Chroma Cloud counts a null against its quota of 32 keys: a record with 31 values, the null of a key it has and the null of one it
-	// does not have goes, as the client reads it first and sends only the null of the key it has.
-	[Test]
-	public async Task NullsBeyondTheQuotaOfKeysOfChromaCloud()
+	// does not have would take 33. By default the client throws before the write, without a read, and the record stays as it was; with
+	// ReadsBeyondKeyQuota it reads the record first and sends only the null of the key it has.
+	[TestCase(false)]
+	[TestCase(true)]
+	public async Task NullsBeyondTheQuotaOfKeysOfChromaCloud(bool readsBeyondKeyQuota)
 	{
 		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
-		var client = await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact));
+		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact).WithReadsBeyondKeyQuota(readsBeyondKeyQuota);
+		var client = await Init(options);
 		var values = Enumerable.Range(0, 31).ToDictionary(i => $"k{i}", i => (object)(long)i);
-		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = 1L }] });
-		await client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = null!, ["missing"] = null! }] });
-		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
+		var stored = new Dictionary<string, object>(values) { ["gone"] = 1L };
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [stored] });
+		var requests = new Requests();
+		using var httpClient = new HttpClient(requests);
+		var writer = new ChromaCollectionClient(client.Collection, options, httpClient);
+		var upsert = new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [new Dictionary<string, object>(values) { ["gone"] = null!, ["missing"] = null! }] };
+		if (readsBeyondKeyQuota)
+		{
+			await writer.UpsertAsync(upsert);
+			Assert.That(requests.Paths, Does.Contain("get").And.Contain("upsert"));
+			Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
+		}
+		else
+		{
+			Assert.That(() => writer.UpsertAsync(upsert), Throws.ArgumentException.With.Message.StartsWith("Record \"a\" would take 33 metadata keys to Chroma Cloud"));
+			Assert.That(requests.Paths, Is.Empty);
+			Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(stored));
+		}
 	}
 
 	// Exactly 32 keys with the nulls, which the client sends without a read: Chroma Cloud takes them.
@@ -376,6 +394,19 @@ public class MetadataTests : ChromaTestsBase
 		});
 		Assert.That((await client.GetAsync(include: ChromaGetInclude.Metadatas)).Select(x => string.Join(",", x.Metadata!.Keys)), Has.All.EqualTo("k"));
 		Assert.That(await client.GetAsync(where: ChromaWhereOperator.Contains("texts", "x"), include: ChromaGetInclude.None), Is.Empty);
+	}
+
+	// Records the last segment of the path of each request it sends.
+	sealed class Requests() : DelegatingHandler(new HttpClientHandler())
+	{
+		public List<string> Paths { get; } = [];
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			var path = request.RequestUri!.AbsolutePath;
+			Paths.Add(path.Substring(path.LastIndexOf('/') + 1));
+			return base.SendAsync(request, cancellationToken);
+		}
 	}
 
 	async Task<ChromaCollectionClient> Init(ChromaConfigurationOptions options)

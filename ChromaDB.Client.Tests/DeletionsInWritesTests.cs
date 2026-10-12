@@ -58,16 +58,40 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("documents")[0].ValueKind, Is.EqualTo(JsonValueKind.Null));
 	}
 
-	// Chroma Cloud counts a null against its quota of 32 keys: when the nulls would take the metadata of a record beyond it, the client
-	// reads that record and sends the nulls only to the keys it has. A record within the quota needs no read.
-	[Test]
-	public async Task BeyondTheQuotaOfKeysOfChromaCloud()
+	// Chroma Cloud counts a null against its quota of 32 keys: when the values and the nulls would take the metadata of a record beyond it,
+	// the client throws before any request, with the record and its count of keys. A record within the quota needs no read.
+	[TestCase(true)]
+	[TestCase(false)]
+	public void BeyondTheQuotaOfKeysOfChromaCloud(bool upsert)
 	{
 		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k0":0,"gone":1}]}""");
 		var many = Enumerable.Range(0, 31).ToDictionary(i => $"k{i}", i => (object)(long)i);
 		many["gone"] = null!;
 		many["missing"] = null!;
-		await Client(server, uri: "https://api.trychroma.com").UpsertAsync(new ChromaRecords(["a", "b"])
+		var records = new ChromaRecords(["a", "b"])
+		{
+			Embeddings = upsert ? [Embedding, Embedding] : null,
+			Metadatas = [many, new Dictionary<string, object> { ["k"] = null! }],
+		};
+		var client = Client(server, uri: "https://api.trychroma.com");
+		var ex = Assert.ThrowsAsync<ArgumentException>(() => upsert ? client.UpsertAsync(records) : client.UpdateAsync(records));
+		Assert.That(ex!.Message, Does.StartWith("Record \"a\" would take 33 metadata keys to Chroma Cloud, values and nulls together, beyond its quota of 32. Send fewer keys or fewer nulls, or use WithReadsBeyondKeyQuota() in the options of the client: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix."));
+		Assert.That(ex.ParamName, Is.EqualTo("records"));
+		Assert.That(server.Paths, Is.Empty);
+	}
+
+	// With ReadsBeyondKeyQuota the client reads such a record first, and sends the nulls only to the keys it has. The option is off by
+	// default, and stays through the other options and WithMetadataValues of a collection client.
+	[Test]
+	public async Task BeyondTheQuotaOfKeysOfChromaCloudWithTheRead()
+	{
+		Assert.That(new ChromaConfigurationOptions("https://api.trychroma.com").ReadsBeyondKeyQuota, Is.False);
+		Assert.That(new ChromaConfigurationOptions("https://api.trychroma.com").WithReadsBeyondKeyQuota().WithDatabase("d").ReadsBeyondKeyQuota, Is.True);
+		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k0":0,"gone":1}]}""");
+		var many = Enumerable.Range(0, 31).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		many["gone"] = null!;
+		many["missing"] = null!;
+		await Client(server, uri: "https://api.trychroma.com", readsBeyondKeyQuota: true).WithMetadataValues(ChromaMetadataValues.Exact).UpsertAsync(new ChromaRecords(["a", "b"])
 		{
 			Embeddings = [Embedding, Embedding],
 			Metadatas = [many, new Dictionary<string, object> { ["k"] = null! }],
@@ -81,17 +105,19 @@ public class DeletionsInWritesTests
 		Assert.That(metadatas[1].GetRawText(), Is.EqualTo("""{"k":null}"""));
 	}
 
-	// The read is only for Chroma Cloud, and only beyond its quota: 33 keys with the nulls on a single server, and exactly 32 on Chroma
-	// Cloud, go without a read.
-	[TestCase("http://localhost:8000", 31)]
-	[TestCase("https://api.trychroma.com", 30)]
-	public async Task NoReadWithinTheQuotaOrOnASingleServer(string uri, int values)
+	// The error and the read are only for Chroma Cloud, and only beyond its quota: 33 keys with the nulls on a single server, and exactly 32
+	// on Chroma Cloud, also with ReadsBeyondKeyQuota, go without a read.
+	[TestCase("http://localhost:8000", 31, false)]
+	[TestCase("http://localhost:8000", 31, true)]
+	[TestCase("https://api.trychroma.com", 30, false)]
+	[TestCase("https://api.trychroma.com", 30, true)]
+	public async Task NoReadWithinTheQuotaOrOnASingleServer(string uri, int values, bool readsBeyondKeyQuota)
 	{
 		var server = new FakeServer("""{"ids":["a"],"metadatas":[{"k0":0,"gone":1}]}""");
 		var metadata = Enumerable.Range(0, values).ToDictionary(i => $"k{i}", i => (object)(long)i);
 		metadata["gone"] = null!;
 		metadata["missing"] = null!;
-		await Client(server, uri: uri).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [metadata] });
+		await Client(server, uri: uri, readsBeyondKeyQuota: readsBeyondKeyQuota).UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [metadata] });
 		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "upsert" }));
 		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(values + 2));
 	}
@@ -396,9 +422,9 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[server.Paths.IndexOf("add")].GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
 	}
 
-	static ChromaCollectionClient Client(HttpMessageHandler handler, string? schema = null, string uri = "http://localhost:8000")
+	static ChromaCollectionClient Client(HttpMessageHandler handler, string? schema = null, string uri = "http://localhost:8000", bool readsBeyondKeyQuota = false)
 		=> new(new ChromaCollection("c") { Id = Guid.NewGuid(), SchemaJson = schema is null ? null : JsonDocument.Parse(schema).RootElement },
-			new ChromaConfigurationOptions(uri), new HttpClient(handler));
+			new ChromaConfigurationOptions(uri).WithReadsBeyondKeyQuota(readsBeyondKeyQuota), new HttpClient(handler));
 
 	// Answers pre-flight-checks with a batch size, the reads with the stored records, and the writes with nothing; records the requests.
 	sealed class FakeServer(string stored) : HttpMessageHandler

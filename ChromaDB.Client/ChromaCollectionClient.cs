@@ -599,9 +599,10 @@ public class ChromaCollectionClient
 	/// <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document, which needs <c>WithDocumentCopyKey</c>,
 	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
 	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key or not, so
-	/// two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have stay. The
-	/// client reads the records first only on Chroma Cloud, for a record whose nulls would take its metadata beyond the quota of keys: a
-	/// write that lands between that read and the write can keep what it wrote there.
+	/// two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have stay. On Chroma
+	/// Cloud, a record whose values and nulls would take its metadata beyond the quota of 32 keys throws an <c>ArgumentException</c> before
+	/// the write, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads it first and sends only the
+	/// nulls of its keys, and a write that lands between that read and the write can keep what it wrote there.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -664,8 +665,10 @@ public class ChromaCollectionClient
 	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
 	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key
 	/// or not, so two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have
-	/// stay. The client reads the records first only on Chroma Cloud, for a record whose nulls would take its metadata beyond the quota of
-	/// keys: a write that lands between that read and the write can keep what it wrote there.
+	/// stay. On Chroma Cloud, a record whose values and nulls would take its metadata beyond the quota of 32 keys throws an
+	/// <c>ArgumentException</c> before the write, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client
+	/// reads it first and sends only the nulls of its keys, and a write that lands between that read and the write can keep what it wrote
+	/// there.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -788,9 +791,9 @@ public class ChromaCollectionClient
 	// the write does not depend on a read that another writer can change before it goes. Chroma has no deletion of a document: the client
 	// writes an empty one to every record whose document goes, without a read, as only a client with a document copy key, a document
 	// deletion key or empty document deletions gets here (CheckDocumentDeletions); with a copy or a mark it reads that empty document as
-	// none. One case reads the records first: Chroma Cloud
-	// counts a null against its quota of keys, so when the nulls would take the metadata of a record beyond it, they go only to the keys
-	// the record has.
+	// none. Chroma Cloud counts a null against its quota of keys: when the values and the nulls would take the metadata of a record beyond
+	// it, the write throws before it goes, or with ReadsBeyondKeyQuota the client reads that record first and sends the nulls only to the
+	// keys it has.
 	private async Task<ChromaRecords> WithDeletions(ChromaRecords records, CancellationToken cancellationToken)
 	{
 		var count = records.Ids.Count;
@@ -820,8 +823,15 @@ public class ChromaCollectionClient
 				}
 			}
 			deleted[i] = keys;
-			keysRead[i] = keys is not null && _httpClient.IsChromaCloud
-				&& (metadata?.Count(pair => !keys.Contains(pair.Key)) ?? 0) + keys.Count > ChromaCloudQuotas.MaxMetadataKeys;
+			var keyCount = keys is null ? 0 : (metadata?.Count(pair => !keys.Contains(pair.Key)) ?? 0) + keys.Count;
+			if (_httpClient.IsChromaCloud && keyCount > ChromaCloudQuotas.MaxMetadataKeys)
+			{
+				if (!_httpClient.ReadsBeyondKeyQuota)
+				{
+					throw new ArgumentException($"Record \"{records.Ids[i]}\" would take {keyCount} metadata keys to Chroma Cloud, values and nulls together, beyond its quota of {ChromaCloudQuotas.MaxMetadataKeys}. Send fewer keys or fewer nulls, or use WithReadsBeyondKeyQuota() in the options of the client: it reads the record first and sends only the nulls of the keys it has, but then two writes of the same record at the same time can mix.", nameof(records));
+				}
+				keysRead[i] = true;
+			}
 		}
 		if (!deleted.Any(keys => keys is not null) && !documentDeleted.Contains(true))
 		{
