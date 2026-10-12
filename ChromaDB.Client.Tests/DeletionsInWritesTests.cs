@@ -126,22 +126,30 @@ public class DeletionsInWritesTests
 	}
 
 	// A collection client chooses once how it deletes documents, and the same call again changes nothing: a client that got it twice, and
-	// once more through WithMetadataValues, sends the same requests as a client that got it once.
+	// once more through WithMetadataValues, sends the same requests as a client that got it once, and reads the same records: the documents,
+	// with the copy, the mark or neither, and the metadata values, of the same types.
 	[TestCase("copy")]
 	[TestCase("mark")]
 	[TestCase("empty")]
 	public async Task TheSameWayAgainChangesNothing(string way)
 	{
-		var once = new FakeServer("""{"ids":[]}""");
-		var again = new FakeServer("""{"ids":[]}""");
-		await Delete(Way(Client(once), way));
-		await Delete(Way(Way(Way(Client(again), way), way).WithMetadataValues(ChromaMetadataValues.Exact), way));
+		const string Stored = """{"ids":["a","b"],"metadatas":[{"text":"","date":"2026-10-04"},{"deleted":true}],"documents":["",""]}""";
+		var once = new FakeServer(Stored);
+		var again = new FakeServer(Stored);
+		var onceClient = Way(Client(once).WithMetadataValues(ChromaMetadataValues.Exact), way);
+		var againClient = Way(Way(Way(Client(again).WithMetadataValues(ChromaMetadataValues.Exact), way), way).WithMetadataValues(ChromaMetadataValues.Exact), way);
+		await Delete(onceClient);
+		await Delete(againClient);
 		Assert.That(again.Paths, Is.EqualTo(once.Paths));
 		Assert.That(again.Bodies.Select(Text), Is.EqualTo(once.Bodies.Select(Text)));
+		Assert.That(await Read(againClient), Is.EqualTo(await Read(onceClient)));
 
 		static Task Delete(ChromaCollectionClient client)
 			=> client.UpsertAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding, Embedding], Documents = [null!, "x"], NullDocumentsDelete = true });
 		static string Text(JsonElement body) => body.ValueKind == JsonValueKind.Undefined ? "" : body.GetRawText();
+		static async Task<IEnumerable<string>> Read(ChromaCollectionClient client)
+			=> (await client.GetAsync(include: ChromaGetInclude.Documents | ChromaGetInclude.Metadatas))
+				.Select(x => $"{x.Id} [{x.Document ?? "null"}] {string.Join(", ", x.Metadata!.Select(pair => $"{pair.Key}={pair.Value} ({pair.Value.GetType().Name})"))}");
 	}
 
 	// A call that would change the way throws: another method, or the same method with another key, also through WithMetadataValues. The
