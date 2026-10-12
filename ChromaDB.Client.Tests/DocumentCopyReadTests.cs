@@ -6,8 +6,9 @@ using NUnit.Framework;
 namespace ChromaDB.Client.Tests;
 
 // A client with a document copy key reads an empty document without its copy as null: the client wrote it for a document deleted with
-// NullDocumentsDelete. An empty document with its copy was written empty. The metadata goes with the documents, and away from the
-// results that did not ask for it.
+// NullDocumentsDelete. An empty document with its copy was written empty. A client with a document deletion key reads an empty document
+// with its mark as null, and one without it as empty. The metadata goes with the documents, and away from the results that did not ask
+// for it.
 [TestFixture]
 public class DocumentCopyReadTests
 {
@@ -59,6 +60,29 @@ public class DocumentCopyReadTests
 		Assert.That(keys, Is.EqualTo(sent));
 		Assert.That(results.Select(x => x.Document), Is.EqualTo(new[] { "", null }));
 		Assert.That(results[0].Metadata is not null, Is.EqualTo(metadataKept));
+	}
+
+	// The mark is true under the key: an empty document with it reads as null, in a get, a query and a search, and a search selects the
+	// key with the documents.
+	[Test]
+	public async Task DocumentDeletionKey()
+	{
+		var get = new FakeServer("""{"ids":["empty","deleted","text","unmarked"],"metadatas":[null,{"deleted":true},{"deleted":true},{"deleted":false}],"documents":["","","x",""]}""");
+		var documents = await Client(get).WithDocumentDeletionKey("deleted").GetAsync(include: ChromaGetInclude.Documents);
+		Assert.That(get.Include(), Is.EquivalentTo(new[] { "metadatas", "documents" }));
+		Assert.That(documents.Select(x => x.Document), Is.EqualTo(new[] { "", null, "x", "" }));
+		Assert.That(documents.Select(x => x.Metadata), Is.All.Null);
+
+		var query = new FakeServer("""{"ids":[["empty","deleted"]],"metadatas":[[null,{"deleted":true}]],"documents":[["",""]],"distances":[[0.1,0.2]]}""");
+		var results = (await Client(query).WithDocumentDeletionKey("deleted").QueryAsync(new ChromaQuery([Embedding]) { Include = ChromaQueryInclude.Documents }))[0];
+		Assert.That(results.Select(x => x.Document), Is.EqualTo(new[] { "", null }));
+
+		var search = new FakeServer("""{"ids":[["empty","deleted"]],"documents":[["",""]],"metadatas":[[{},{"deleted":true}]],"scores":[[0.1,0.2]]}""");
+		var found = await Client(search).WithDocumentDeletionKey("deleted").SearchAsync(new ChromaSearch { Select = [ChromaSearchKeys.Document] });
+		var keys = search.Bodies[^1].GetProperty("searches")[0].GetProperty("select").GetProperty("keys").EnumerateArray().Select(x => x.GetString());
+		Assert.That(keys, Is.EqualTo(new[] { ChromaSearchKeys.Document, "deleted" }));
+		Assert.That(found.Select(x => x.Document), Is.EqualTo(new[] { "", null }));
+		Assert.That(() => Client(get).WithDocumentDeletionKey(null!), Throws.ArgumentNullException);
 	}
 
 	// The copies of a client by name go to the collection it reads.

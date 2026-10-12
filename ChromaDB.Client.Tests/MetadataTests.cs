@@ -224,6 +224,25 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That(record.Document, Is.Null);
 	}
 
+	// With a document deletion key a deleted document comes back null, also of a record that had none and of a new one, and an empty one
+	// comes back empty; the mark stays in the metadata, and goes away when the record gets a document again.
+	[Test]
+	public async Task DocumentDeletionKey()
+	{
+		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithDocumentDeletionKey("deleted");
+		await client.AddAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding1, Embedding2, Embedding1], Documents = ["apple pie", "banana split", null!] });
+		await client.UpsertAsync(new ChromaRecords(["a", "b", "c", "d"]) { Embeddings = [Embedding1, Embedding2, Embedding1, Embedding2], Documents = [null!, "", null!, null!], NullDocumentsDelete = true });
+		var records = (await client.GetAsync(include: ChromaGetInclude.Documents)).ToDictionary(x => x.Id);
+		Assert.That((records["a"].Document, records["b"].Document, records["c"].Document, records["d"].Document), Is.EqualTo(((string?)null, "", (string?)null, (string?)null)));
+		var found = (await client.QueryAsync(new ChromaQuery([Embedding1]) { NResults = 4, Include = ChromaQueryInclude.Documents }))[0].ToDictionary(x => x.Id);
+		Assert.That((found["a"].Document, found["b"].Document), Is.EqualTo(((string?)null, "")));
+		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["deleted"] = true }));
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Documents = ["again"] });
+		var again = (await client.GetAsync("a", include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents))!;
+		Assert.That(again.Document, Is.EqualTo("again"));
+		Assert.That(again.Metadata, Is.Not.Null.And.Empty);
+	}
+
 	// The values of ChromaMetadataConvert come back as they were written, and a filter with a converted value finds the same instant
 	// at another offset.
 	[Test]

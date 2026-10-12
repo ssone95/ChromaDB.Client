@@ -116,7 +116,7 @@ public class DeletionsInWritesTests
 		{
 			var ex = Assert.ThrowsAsync<ArgumentException>(() => Write(client, Records([null, "doc b"], true)));
 			Assert.That(ex!.Message, Does.StartWith("NullDocumentsDelete deletes a null document only with a document copy key"));
-			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey"));
+			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey").And.Contain("WithDocumentDeletionKey"));
 			Assert.That(ex.ParamName, Is.EqualTo("records"));
 		}
 		Assert.That(server.Paths, Is.Empty);
@@ -144,6 +144,33 @@ public class DeletionsInWritesTests
 		var write = server.Bodies[1];
 		Assert.That(write.GetProperty("documents").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "", "", "new" }));
 		Assert.That(write.GetProperty("metadatas").EnumerateArray().Select(x => x.GetRawText()), Is.EqualTo(new[] { """{"text":null}""", """{"text":null}""", """{"text":"new"}""" }));
+	}
+
+	// With a document deletion key the client marks a deleted document instead of copying every one: an empty document with true under
+	// the key, and the null of the mark for any other document, without a read. A null document that stays keeps its mark, and an add
+	// writes no mark.
+	[TestCase(true)]
+	[TestCase(false)]
+	public async Task NullDocumentsDeleteWithADocumentDeletionKey(bool upsert)
+	{
+		var server = new FakeServer("""{"ids":[]}""");
+		var client = Client(server).WithDocumentDeletionKey("deleted");
+		var records = new ChromaRecords(["a", "b", "c"])
+		{
+			Embeddings = upsert ? [Embedding, Embedding, Embedding] : null,
+			Metadatas = [null, new Dictionary<string, object> { ["k"] = 1L }, null],
+			Documents = [null!, "", "new"],
+			NullDocumentsDelete = true,
+		};
+		await (upsert ? client.UpsertAsync(records) : client.UpdateAsync(records));
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", upsert ? "upsert" : "update" }));
+		var write = server.Bodies[1];
+		Assert.That(write.GetProperty("documents").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "", "", "new" }));
+		Assert.That(write.GetProperty("metadatas").EnumerateArray().Select(x => x.GetRawText()), Is.EqualTo(new[] { """{"deleted":true}""", """{"k":1,"deleted":null}""", """{"deleted":null}""" }));
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Documents = [null!] });
+		Assert.That(server.Bodies[^1].GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
+		await client.AddAsync(new ChromaRecords(["d"]) { Embeddings = [Embedding], Documents = [""] });
+		Assert.That(server.Bodies[^1].GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
 	}
 
 	// The sparse vectors of a text that goes are deleted too, unless the caller gives them; an empty text has no vector.

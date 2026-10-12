@@ -30,19 +30,21 @@ public class ConcurrentWritesTests : ChromaTestsBase
 		Assert.That((await b.GetAsync("r", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["s"] = "A" }));
 	}
 
-	// With a document copy key, the write of B, which gives the record a document, lands after A started and before A writes: A writes
-	// last, so the record is the one A wrote, without a document.
-	[TestCase(true)]
-	[TestCase(false)]
-	public async Task AWriteThatDeletesTheDocumentAfterAnotherThatWritesOne(bool upsert)
+	// With a document copy key or a document deletion key, the write of B, which gives the record a document, lands after A started and
+	// before A writes: A writes last, so the record is the one A wrote, without a document.
+	[TestCase(true, "copy")]
+	[TestCase(false, "copy")]
+	[TestCase(true, "mark")]
+	[TestCase(false, "mark")]
+	public async Task AWriteThatDeletesTheDocumentAfterAnotherThatWritesOne(bool upsert, string way)
 	{
 		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact);
 		var collection = await new ChromaClient(options, HttpClient).CreateCollectionAsync($"collection{Random.Shared.Next()}");
-		var b = new ChromaCollectionClient(collection, options, HttpClient).WithDocumentCopyKey("text");
+		var b = Deleting(new ChromaCollectionClient(collection, options, HttpClient), way);
 		await b.AddAsync(new ChromaRecords(["r"]) { Embeddings = [Embedding], Metadatas = [new Dictionary<string, object> { ["s"] = "0" }] });
 		var hook = new BeforeTheWrite(() => b.UpsertAsync(new ChromaRecords(["r"]) { Embeddings = [Embedding], Metadatas = [new Dictionary<string, object> { ["s"] = "B" }], Documents = ["B"] }));
 		using var httpClient = new HttpClient(hook);
-		var a = new ChromaCollectionClient(collection, options, httpClient).WithDocumentCopyKey("text");
+		var a = Deleting(new ChromaCollectionClient(collection, options, httpClient), way);
 		var deletion = new ChromaRecords(["r"])
 		{
 			Embeddings = upsert ? [Embedding] : null,
@@ -53,9 +55,18 @@ public class ConcurrentWritesTests : ChromaTestsBase
 		await (upsert ? a.UpsertAsync(deletion) : a.UpdateAsync(deletion));
 		Assert.That(hook.Ran, Is.True);
 		var record = (await b.GetAsync("r", include: ChromaGetInclude.Metadatas | ChromaGetInclude.Documents))!;
-		Assert.That(record.Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["s"] = "A" }));
+		var metadata = new Dictionary<string, object> { ["s"] = "A" };
+		if (way == "mark")
+		{
+			metadata["deleted"] = true;
+		}
+		Assert.That(record.Metadata, Is.EquivalentTo(metadata));
 		Assert.That(record.Document, Is.Null);
 	}
+
+	// A client with a way to tell a deleted document: a copy of each document, or a mark.
+	static ChromaCollectionClient Deleting(ChromaCollectionClient client, string way)
+		=> way == "copy" ? client.WithDocumentCopyKey("text") : client.WithDocumentDeletionKey("deleted");
 
 	// Writes of the same record at the same time, half of them deleting the key that the others add: the record left is one of the two.
 	// It does not catch a client that reads before it writes every time: the read and the write of a task fall around another write only
