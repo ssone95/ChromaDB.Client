@@ -49,14 +49,17 @@ public abstract class ChromaWhereDocumentOperator
 		=> System.Text.Json.JsonSerializer.Serialize(ToRequestWhereDocument(), Common.HttpClientHelpers.TypeInfo<Dictionary<string, object>>(Common.HttpClientHelpers.PostJsonSerializerOptions));
 
 	/// <summary>
-	/// The documents that contain the character, with <c>$contains</c>.
+	/// The documents that contain the character, with <c>$contains</c>. On Chroma Cloud the client throws an <c>ArgumentException</c>,
+	/// as a text of one character gives the wrong records there (KD-57 in docs/COMPATIBILITY.md).
 	/// </summary>
 	/// <param name="value">The text the documents contain.</param>
 	/// <returns>The filter.</returns>
 	public static ChromaWhereDocumentOperator Contains(char value)
 		=> Contains(value.ToString());
 	/// <summary>
-	/// The documents that contain the text, with <c>$contains</c>.
+	/// The documents that contain the text, with <c>$contains</c>. On Chroma Cloud a text of fewer than 3 characters gives the wrong
+	/// records once it has indexed them (KD-57 in docs/COMPATIBILITY.md), so the client throws an <c>ArgumentException</c> before the
+	/// request: a <c>Regex</c> with the text, its special characters escaped, is right.
 	/// </summary>
 	/// <param name="value">The text the documents contain.</param>
 	/// <returns>The filter.</returns>
@@ -64,14 +67,17 @@ public abstract class ChromaWhereDocumentOperator
 		=> new ChromaWhereDocumentStringOperator("$contains", "$not_contains", value);
 
 	/// <summary>
-	/// The documents that do not contain the character, with <c>$not_contains</c>.
+	/// The documents that do not contain the character, with <c>$not_contains</c>. On Chroma Cloud the client throws an
+	/// <c>ArgumentException</c>, as a text of one character gives the wrong records there (KD-57 in docs/COMPATIBILITY.md).
 	/// </summary>
 	/// <param name="value">The text the documents do not contain.</param>
 	/// <returns>The filter.</returns>
 	public static ChromaWhereDocumentOperator NotContains(char value)
 		=> NotContains(value.ToString());
 	/// <summary>
-	/// The documents that do not contain the text, with <c>$not_contains</c>.
+	/// The documents that do not contain the text, with <c>$not_contains</c>. On Chroma Cloud a text of fewer than 3 characters gives the
+	/// wrong records once it has indexed them (KD-57 in docs/COMPATIBILITY.md), so the client throws an <c>ArgumentException</c> before
+	/// the request: a <c>NotRegex</c> with the text, its special characters escaped, is right.
 	/// </summary>
 	/// <param name="value">The text the documents do not contain.</param>
 	/// <returns>The filter.</returns>
@@ -79,7 +85,10 @@ public abstract class ChromaWhereDocumentOperator
 		=> new ChromaWhereDocumentStringOperator("$not_contains", "$contains", value);
 
 	/// <summary>
-	/// The documents that match the regular expression, with <c>$regex</c>, from Chroma 1.0.12; the earlier versions reject it.
+	/// The documents that match the regular expression, with <c>$regex</c>, from Chroma 1.0.12; the earlier versions reject it. On Chroma
+	/// Cloud a pattern that takes an empty text, like <c>^$</c>, finds every record (KD-56 in docs/COMPATIBILITY.md), so the client throws
+	/// an <c>ArgumentException</c> before the request, also for a pattern it cannot read as Chroma does: <c>Regex("(?s).")</c> finds the
+	/// records with a document that is not empty.
 	/// </summary>
 	/// <param name="pattern">The regular expression.</param>
 	/// <returns>The filter.</returns>
@@ -87,6 +96,9 @@ public abstract class ChromaWhereDocumentOperator
 		=> new ChromaWhereDocumentStringOperator("$regex", "$not_regex", pattern);
 	/// <summary>
 	/// The documents that do not match the regular expression, with <c>$not_regex</c>, from Chroma 1.0.12; the earlier versions reject it.
+	/// On Chroma Cloud a pattern that takes an empty text finds no record (KD-56 in docs/COMPATIBILITY.md), so the client throws an
+	/// <c>ArgumentException</c> before the request, also for a pattern it cannot read as Chroma does: <c>NotRegex("(?s).")</c> finds the
+	/// records with an empty document or none.
 	/// </summary>
 	/// <param name="pattern">The regular expression.</param>
 	/// <returns>The filter.</returns>

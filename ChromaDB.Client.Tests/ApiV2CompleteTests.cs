@@ -34,6 +34,42 @@ public class ApiV2CompleteTests : ChromaTestsBase
 		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.NotRegex("^apple"))).Select(x => x.Id), Is.EquivalentTo(new[] { "b", "c" }));
 	}
 
+	// KD-56: on Chroma Cloud a pattern that takes an empty text, and a $contains of fewer than 3 characters, throw before the request, also
+	// in a delete, which would delete every record. On every server Regex("(?s).") finds the records with a document that is not empty,
+	// also of only a new line, NotRegex("(?s).") the others, and a $regex with a short text the documents that contain it.
+	[Test]
+	public async Task DocumentFiltersThatChromaCloudGetsWrong()
+	{
+		Assume.That(RegexSupported, Is.True, "Chroma 1.0.11 and earlier have no $regex.");
+		var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
+		var collection = client.GetCollectionClient(await client.CreateCollectionAsync($"collection{Random.Shared.Next()}"));
+		await collection.AddAsync(new ChromaRecords(["none", "empty", "text", "line", "abc"])
+		{
+			Embeddings = [new([1f, 0f]), new([0f, 1f]), new([1f, 1f]), new([1f, 2f]), new([2f, 1f])],
+			Documents = [null, "", "x", "\n", "abc"],
+		});
+		var empty = ChromaWhereDocumentOperator.Regex("^$");
+		var shortText = ChromaWhereDocumentOperator.Contains("ab");
+		if (ChromaCloud)
+		{
+			Assert.That(() => collection.GetAsync(whereDocument: empty), Throws.ArgumentException.With.Message.Contains("takes an empty text"));
+			Assert.That(() => collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex("^[[:alpha:]]*$")), Throws.ArgumentException);
+			Assert.That(() => collection.GetAsync(whereDocument: shortText), Throws.ArgumentException.With.Message.Contains("fewer than 3 characters"));
+			Assert.That(() => collection.DeleteAsync(new ChromaDelete { WhereDocument = empty }), Throws.ArgumentException);
+			Assert.That(() => collection.DeleteAsync(new ChromaDelete { WhereDocument = ChromaWhereDocumentOperator.NotContains("") }), Throws.ArgumentException);
+			Assert.That(await collection.CountAsync(), Is.EqualTo(5));
+		}
+		else
+		{
+			Assert.That((await collection.GetAsync(whereDocument: empty, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(new[] { "empty" }));
+			Assert.That((await collection.GetAsync(whereDocument: shortText, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(new[] { "abc" }));
+		}
+		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex("(?s)."), include: ChromaGetInclude.None)).Select(x => x.Id), Is.EquivalentTo(new[] { "text", "line", "abc" }));
+		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.NotRegex("(?s)."), include: ChromaGetInclude.None)).Select(x => x.Id), Is.EquivalentTo(new[] { "none", "empty" }));
+		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex("ab"), include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(new[] { "abc" }));
+		Assert.That((await collection.GetAsync(whereDocument: ChromaWhereDocumentOperator.Contains("abc"), include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(new[] { "abc" }));
+	}
+
 	// On the servers that ignore the limit, nothing is deleted: without the check they would delete both apples.
 	[Test]
 	public async Task DeleteWithLimit()

@@ -35,7 +35,7 @@ A single Chroma server limits how deep a list of filters can go: [Other behavior
 
 So the client counts that depth, the length of the lists along the deepest path of the filter. Beyond 900, it splits each list of n filters into ⌈√n⌉ lists with the same meaning.
 
-`ChromaWhereDocumentOperator.Regex` and `NotRegex` filter the documents with a regular expression; [docs/COMPATIBILITY.md](COMPATIBILITY.md) lists the versions.
+`ChromaWhereDocumentOperator.Regex` and `NotRegex` filter the documents with a regular expression; [docs/COMPATIBILITY.md](COMPATIBILITY.md) lists the versions. On Chroma Cloud two filters on the documents give the wrong records, also in a delete: a pattern that takes an empty text, like `^$`, `^` or `^.*$`, finds every record with `Regex` and none with `NotRegex` (KD-56), and, once Chroma Cloud has indexed the records, a text of fewer than 3 characters, like `ab`, finds no record with `Contains` and every record with `NotContains` (KD-57). So there the client throws an `ArgumentException` before the request, in every read and delete. It reads a pattern as Chroma does, with the syntax of the Rust crate `regex`, also a nested or POSIX class such as `[[:alpha:]]`, a word boundary such as `\b{start-half}` and the verbose mode `(?x)`, and it throws too for a pattern it cannot read, which Chroma rejects. `Regex("(?s).")` finds the records with a document that is not empty, `NotRegex("(?s).")` the records with an empty document or none, and `Regex` and `NotRegex` with a short text as the pattern, its special characters escaped, like `Regex("ab")`, the same records as `Contains` and `NotContains`.
 
 ```csharp
 var apples = await collectionClient.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex("^apple"));
