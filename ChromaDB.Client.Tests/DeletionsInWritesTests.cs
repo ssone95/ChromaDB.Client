@@ -122,6 +122,17 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(values + 2));
 	}
 
+	// The check is for a write with nulls: a record with 33 values and no null goes as it is, and Chroma Cloud answers.
+	[Test]
+	public async Task ValuesWithoutNullsGo()
+	{
+		var server = new FakeServer("""{"ids":[]}""");
+		var metadata = Enumerable.Range(0, 33).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		await Client(server, uri: "https://api.trychroma.com").UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding], Metadatas = [metadata] });
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", "upsert" }));
+		Assert.That(server.Bodies[1].GetProperty("metadatas")[0].EnumerateObject().Count(), Is.EqualTo(33));
+	}
+
 	// The null of a sparse vector that the caller gives, with the null of its text, counts once against the quota of Chroma Cloud: 30
 	// values, title and title_bm25 are 32 keys, which go without a read.
 	[Test]

@@ -65,9 +65,10 @@ public class ChromaConfigurationOptions
 	/// </summary>
 	public ChromaUpsertStrategy UpsertStrategy { get; init; }
 	/// <summary>
-	/// Whether <c>UpdateAsync</c> and <c>UpsertAsync</c> on Chroma Cloud read a record first when its values and the nulls of the write
-	/// would take it beyond the quota of 32 metadata keys, and send only the nulls of the keys it has; false by default, when such a write
-	/// throws an <c>ArgumentException</c> before it goes, without a read. The read and the write are two requests, with two risks: a write
+	/// Whether <c>UpdateAsync</c> and <c>UpsertAsync</c> on Chroma Cloud read a record first when a write with nulls would take it beyond
+	/// the quota of 32 metadata keys, and send only the nulls of the keys it has; false by default, when such a write throws an
+	/// <c>ArgumentException</c> before it goes, without a read. A record with more than 32 values and no null goes either way, and Chroma
+	/// Cloud rejects it. The read and the write are two requests, with two risks: a write
 	/// of another client of the same record between them can mix with this one, and when an id comes more than once in the same write, a
 	/// key that a later occurrence deletes can stay if an earlier one wrote it.
 	/// </summary>

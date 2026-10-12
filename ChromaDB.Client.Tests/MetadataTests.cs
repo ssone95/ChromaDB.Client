@@ -225,6 +225,18 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That((await client.GetAsync("a", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(values));
 	}
 
+	// A record with 33 values and no null goes, and Chroma Cloud rejects it with its own error, which counts the keys of the request.
+	[Test]
+	public async Task ValuesBeyondTheQuotaOfKeysOfChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 32 keys.");
+		var client = await Init(BaseConfigurationOptions);
+		var metadata = Enumerable.Range(0, 33).ToDictionary(i => $"k{i}", i => (object)(long)i);
+		var ex = Assert.ThrowsAsync<ChromaException>(() => client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Metadatas = [metadata] }));
+		Assert.That(ex!.StatusCode, Is.EqualTo(HttpStatusCode.UnprocessableEntity));
+		Assert.That(ex.Message, Does.Contain("current usage of 33 exceeds limit of 32"));
+	}
+
 	// Chroma Cloud counts the sparse vector that the client computes from a text against its 32 keys: 30 values, title, its title_bm25 and
 	// the null of gone are 33, and the write throws before it goes; the record stays as it was.
 	[Test]

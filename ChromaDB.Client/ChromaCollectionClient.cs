@@ -600,9 +600,10 @@ public class ChromaCollectionClient
 	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
 	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key or not, so
 	/// two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have stay. On Chroma
-	/// Cloud, a record whose values and nulls would take its metadata beyond the quota of 32 keys throws an <c>ArgumentException</c> before
-	/// the write, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads it first and sends only the
-	/// nulls of its keys, and a write that lands between that read and the write can keep what it wrote there.
+	/// Cloud, a write with nulls that would take the metadata of a record beyond the quota of 32 keys throws an <c>ArgumentException</c>
+	/// before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads the record first and
+	/// sends only the nulls of its keys, and a write that lands between that read and the write can keep what it wrote there. A record
+	/// with more than 32 values and no null goes, and Chroma Cloud rejects it.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -666,10 +667,10 @@ public class ChromaCollectionClient
 	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
 	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key
 	/// or not, so two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have
-	/// stay. On Chroma Cloud, a record whose values and nulls would take its metadata beyond the quota of 32 keys throws an
-	/// <c>ArgumentException</c> before the write, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client
-	/// reads it first and sends only the nulls of its keys, and a write that lands between that read and the write can keep what it wrote
-	/// there.
+	/// stay. On Chroma Cloud, a write with nulls that would take the metadata of a record beyond the quota of 32 keys throws an
+	/// <c>ArgumentException</c> before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads
+	/// the record first and sends only the nulls of its keys, and a write that lands between that read and the write can keep what it
+	/// wrote there. A record with more than 32 values and no null goes, and Chroma Cloud rejects it.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
