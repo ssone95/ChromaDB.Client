@@ -58,6 +58,9 @@ public class ConcurrentWritesTests : ChromaTestsBase
 	}
 
 	// Writes of the same record at the same time, half of them deleting the key that the others add: the record left is one of the two.
+	// It does not catch a client that reads before it writes every time: the read and the write of a task fall around another write only
+	// in some rounds. On Chroma 1.5.9, with such a client, 20 rounds failed in 3 runs out of 10, and 100 rounds in 10 out of 10, at 35
+	// seconds a run. The tests with BeforeTheWrite above put the other write between the two every time.
 	[Test]
 	public async Task ConcurrentWritesLeaveOneOfThem()
 	{
