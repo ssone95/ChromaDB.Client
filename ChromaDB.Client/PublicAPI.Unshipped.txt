@@ -31,6 +31,7 @@ virtual ChromaDB.Client.ChromaClient.GetCollectionClient(string! name) -> Chroma
 virtual ChromaDB.Client.ChromaCollectionClient.GetCollectionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChromaDB.Client.Models.ChromaCollection!>!
 virtual ChromaDB.Client.ChromaCollectionClient.WithDocumentCopyKey(string! documentCopyKey) -> ChromaDB.Client.ChromaCollectionClient!
 virtual ChromaDB.Client.ChromaCollectionClient.WithDocumentDeletionKey(string! documentDeletionKey) -> ChromaDB.Client.ChromaCollectionClient!
+virtual ChromaDB.Client.ChromaCollectionClient.WithEmptyDocumentDeletions() -> ChromaDB.Client.ChromaCollectionClient!
 ChromaDB.Client.Models.ChromaQuery.ExpectedSpace.get -> ChromaDB.Client.ChromaSpace?
 ChromaDB.Client.Models.ChromaQuery.ExpectedSpace.init -> void
 static ChromaDB.Client.ChromaWhereOperator.Document(ChromaDB.Client.ChromaWhereDocumentOperator! filter) -> ChromaDB.Client.ChromaWhereOperator!

@@ -116,7 +116,7 @@ public class DeletionsInWritesTests
 		{
 			var ex = Assert.ThrowsAsync<ArgumentException>(() => Write(client, Records([null, "doc b"], true)));
 			Assert.That(ex!.Message, Does.StartWith("NullDocumentsDelete deletes a null document only with a document copy key"));
-			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey").And.Contain("WithDocumentDeletionKey"));
+			Assert.That(ex.Message, Does.Contain("WithDocumentCopyKey").And.Contain("WithDocumentDeletionKey").And.Contain("WithEmptyDocumentDeletions"));
 			Assert.That(ex.ParamName, Is.EqualTo("records"));
 		}
 		Assert.That(server.Paths, Is.Empty);
@@ -171,6 +171,28 @@ public class DeletionsInWritesTests
 		Assert.That(server.Bodies[^1].GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
 		await client.AddAsync(new ChromaRecords(["d"]) { Embeddings = [Embedding], Documents = [""] });
 		Assert.That(server.Bodies[^1].GetProperty("metadatas").ValueKind, Is.EqualTo(JsonValueKind.Null));
+	}
+
+	// With empty document deletions the client writes an empty document, and the null of the sparse vector of the document, without a
+	// read and without any key of its own.
+	[TestCase(true)]
+	[TestCase(false)]
+	public async Task NullDocumentsDeleteWithEmptyDocumentDeletions(bool upsert)
+	{
+		var server = new FakeServer("""{"ids":[]}""");
+		var client = Client(server, Schema).WithEmptyDocumentDeletions();
+		var records = new ChromaRecords(["a", "b"])
+		{
+			Embeddings = upsert ? [Embedding, Embedding] : null,
+			Metadatas = [null, new Dictionary<string, object> { ["k"] = 1L }],
+			Documents = [null!, null!],
+			NullDocumentsDelete = true,
+		};
+		await (upsert ? client.UpsertAsync(records) : client.UpdateAsync(records));
+		Assert.That(server.Paths, Is.EqualTo(new[] { "pre-flight-checks", upsert ? "upsert" : "update" }));
+		var write = server.Bodies[1];
+		Assert.That(write.GetProperty("documents").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "", "" }));
+		Assert.That(write.GetProperty("metadatas").EnumerateArray().Select(x => x.GetRawText()), Is.EqualTo(new[] { """{"doc_bm25":null}""", """{"k":1,"doc_bm25":null}""" }));
 	}
 
 	// The sparse vectors of a text that goes are deleted too, unless the caller gives them; an empty text has no vector.

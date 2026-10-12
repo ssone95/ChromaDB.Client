@@ -85,6 +85,16 @@ public class DocumentCopyReadTests
 		Assert.That(() => Client(get).WithDocumentDeletionKey(null!), Throws.ArgumentNullException);
 	}
 
+	// With empty document deletions a client reads the documents as they are, without the metadata.
+	[Test]
+	public async Task EmptyDocumentDeletions()
+	{
+		var server = new FakeServer("""{"ids":["empty","text"],"documents":["","x"]}""");
+		var documents = await Client(server).WithEmptyDocumentDeletions().GetAsync(include: ChromaGetInclude.Documents);
+		Assert.That(server.Include(), Is.EqualTo(new[] { "documents" }));
+		Assert.That(documents.Select(x => x.Document), Is.EqualTo(new[] { "", "x" }));
+	}
+
 	// The copies of a client by name go to the collection it reads.
 	[Test]
 	public async Task ByName()

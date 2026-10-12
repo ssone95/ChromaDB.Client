@@ -243,6 +243,19 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That(again.Metadata, Is.Not.Null.And.Empty);
 	}
 
+	// With empty document deletions a deleted document comes back empty, also of a record that had none and of a new one, and the
+	// records get no key.
+	[Test]
+	public async Task EmptyDocumentDeletions()
+	{
+		var client = (await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact))).WithEmptyDocumentDeletions();
+		await client.AddAsync(new ChromaRecords(["a", "b"]) { Embeddings = [Embedding1, Embedding2], Documents = ["apple pie", null!] });
+		await client.UpsertAsync(new ChromaRecords(["a", "b", "c"]) { Embeddings = [Embedding1, Embedding2, Embedding1], Documents = [null!, null!, null!], NullDocumentsDelete = true });
+		var records = (await client.GetAsync(include: ChromaGetInclude.Documents | ChromaGetInclude.Metadatas)).ToDictionary(x => x.Id);
+		Assert.That((records["a"].Document, records["b"].Document, records["c"].Document), Is.EqualTo(("", "", "")));
+		Assert.That(records.Values.Select(x => x.Metadata), Is.All.Not.Null.And.All.Empty);
+	}
+
 	// The values of ChromaMetadataConvert come back as they were written, and a filter with a converted value finds the same instant
 	// at another offset.
 	[Test]

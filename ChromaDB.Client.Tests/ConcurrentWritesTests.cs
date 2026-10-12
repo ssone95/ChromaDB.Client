@@ -30,12 +30,15 @@ public class ConcurrentWritesTests : ChromaTestsBase
 		Assert.That((await b.GetAsync("r", include: ChromaGetInclude.Metadatas))!.Metadata, Is.EquivalentTo(new Dictionary<string, object> { ["s"] = "A" }));
 	}
 
-	// With a document copy key or a document deletion key, the write of B, which gives the record a document, lands after A started and
-	// before A writes: A writes last, so the record is the one A wrote, without a document.
+	// With a document copy key, a document deletion key or empty document deletions, the write of B, which gives the record a document,
+	// lands after A started and before A writes: A writes last, so the record is the one A wrote, without its document: null, or empty with
+	// empty document deletions.
 	[TestCase(true, "copy")]
 	[TestCase(false, "copy")]
 	[TestCase(true, "mark")]
 	[TestCase(false, "mark")]
+	[TestCase(true, "empty")]
+	[TestCase(false, "empty")]
 	public async Task AWriteThatDeletesTheDocumentAfterAnotherThatWritesOne(bool upsert, string way)
 	{
 		var options = BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact);
@@ -61,12 +64,17 @@ public class ConcurrentWritesTests : ChromaTestsBase
 			metadata["deleted"] = true;
 		}
 		Assert.That(record.Metadata, Is.EquivalentTo(metadata));
-		Assert.That(record.Document, Is.Null);
+		Assert.That(record.Document, Is.EqualTo(way == "empty" ? "" : null));
 	}
 
-	// A client with a way to tell a deleted document: a copy of each document, or a mark.
+	// A client with a way to delete documents: a copy of each document, a mark, or empty documents.
 	static ChromaCollectionClient Deleting(ChromaCollectionClient client, string way)
-		=> way == "copy" ? client.WithDocumentCopyKey("text") : client.WithDocumentDeletionKey("deleted");
+		=> way switch
+		{
+			"copy" => client.WithDocumentCopyKey("text"),
+			"mark" => client.WithDocumentDeletionKey("deleted"),
+			_ => client.WithEmptyDocumentDeletions(),
+		};
 
 	// Writes of the same record at the same time, half of them deleting the key that the others add: the record left is one of the two.
 	// It does not catch a client that reads before it writes every time: the read and the write of a task fall around another write only
