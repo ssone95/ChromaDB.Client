@@ -48,4 +48,4 @@ var results = await collectionClient.SearchAsync(new ChromaSearch { Rank = Chrom
   - the versions that apply it: [COMPATIBILITY.md](COMPATIBILITY.md);
   - a single server rejects a sparse vector index, and does not get the ones added with `ifSupported`;
   - Chroma 1.0.0 to 1.2.2 and 0.6.3 create the collection without the schema. Then `CreateCollectionAsync` deletes it and throws a `ChromaException`, and `GetOrCreateCollectionAsync` throws and keeps it, since it may have existed before;
-  - Chroma 1.3.0 ignores the space in the schema, which 1.3.2 and later apply, so the client does the same when the collection has another space.
+  - Chroma 1.3.0 ignores the space in a schema that turns no index on or off, and applies it when the schema also turns an index on or off; 1.3.2 and later always apply it. When the collection comes back with another space, the client does the same.

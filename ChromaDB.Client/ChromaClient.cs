@@ -139,8 +139,8 @@ public class ChromaClient : IDisposable
 	}
 
 	// The message when the collection the server answers with does not have the settings of the definition: another space, as a
-	// collection that exists keeps its own and Chroma before 1.3.2 ignores the one of a schema, or an index other than the one the
-	// settings are for. Chroma 1.0.5 and earlier send no configuration to tell it by.
+	// collection that exists keeps its own and Chroma 1.3.0 ignores the one of a schema that turns no index on or off, or an index other
+	// than the one the settings are for. Chroma 1.0.5 and earlier send no configuration to tell it by.
 	private static string? SettingsIgnored(ChromaCollectionDefinition definition, ChromaCollection collection)
 	{
 		if (definition.Configuration is not { } settings)
@@ -150,7 +150,7 @@ public class ChromaClient : IDisposable
 		if (settings.Space is { } space && collection.Space is { } actual && actual != space)
 		{
 			return $"The collection has the space {ChromaSpaceNames.ToName(actual)}, not {ChromaSpaceNames.ToName(space)}: a collection that exists keeps its space"
-				+ (definition.SettingsInSchema ? ", and only Chroma 1.3.2 and later apply the space with a schema." : ".");
+				+ (definition.SettingsInSchema ? ", and Chroma 1.3.0 ignores the space of a schema that turns no index on or off, which 1.3.2 and later apply." : ".");
 		}
 		if (collection.ConfigurationJson is not { ValueKind: System.Text.Json.JsonValueKind.Object } configuration)
 		{
@@ -464,7 +464,7 @@ public class ChromaClient : IDisposable
 			}
 			// As the deletion, not canceled with the call: the answer arrived, and the space decides whether the collection must go.
 			await _httpClient.WithSpace(collection, CancellationToken.None);
-			// Chroma 1.3.0 creates the collection with the space of the schema ignored: l2.
+			// Chroma 1.3.0 creates the collection with the space of a schema that turns no index on or off ignored: l2.
 			if (SettingsIgnored(definition, collection) is { } ignored)
 			{
 				await DatabaseOperation("delete_collection", collection.Name, tenant, database, () => DeleteCollectionCore(collection.Name, tenant, database, deleteRecordsFirst: false, CancellationToken.None));
