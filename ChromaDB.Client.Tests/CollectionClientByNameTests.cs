@@ -89,6 +89,21 @@ public class CollectionClientByNameTests
 		Assert.That(server.Requests.Skip(2), Is.EqualTo(new[] { $"GET collections/{First}/count", "GET collections/c", $"GET collections/{First}/count", "GET collections/c", $"GET collections/{Second}/count" }));
 	}
 
+	// With ReadRetries.Default, a 500 of a collection gone goes again first, up to the attempts, and then the client reads the collection.
+	[Test]
+	public async Task AnyFailureReadsTheCollectionAgainAfterTheAttempts()
+	{
+		var server = new FakeServer(First);
+		var collection = Client(server).GetCollectionClient("c");
+		await collection.CountAsync();
+		server.MissingId = First;
+		server.MissingAnswer = (HttpStatusCode.InternalServerError, """{"error":"RuntimeError('coroutine raised StopIteration')"}""");
+		server.Id = Second;
+		Assert.That(await collection.CountAsync(), Is.EqualTo(3));
+		Assert.That(server.Requests.Skip(2), Is.EqualTo(Enumerable.Repeat($"GET collections/{First}/count", ChromaReadRetries.Default.MaxAttempts)
+			.Concat(["GET collections/c", $"GET collections/{Second}/count"])));
+	}
+
 	// When the name has no collection either, the failure of the operation stands.
 	[Test]
 	public async Task NoCollectionOfTheNameKeepsTheFailure()
