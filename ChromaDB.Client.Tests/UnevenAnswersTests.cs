@@ -55,6 +55,15 @@ public class UnevenAnswersTests
 		Assert.That(ex!.Message, Is.EqualTo("The answer of the server to a query has 1 lists of ids and 0 lists of distances, while it has one list of each for every query embedding."));
 	}
 
+	// A query has no null list for a query embedding with records: it is uneven, unlike a search.
+	[Test]
+	public void AQueryWithANullList()
+	{
+		var server = new FixedServer("""{"ids":[["a"]],"embeddings":[null],"include":["embeddings"]}""");
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Client(server, ChromaReadRetries.None).QueryAsync(new ChromaQuery([new([1f, 0f])]) { Include = ChromaQueryInclude.Embeddings }));
+		Assert.That(ex!.Message, Is.EqualTo("The answer of the server to a query has 1 id and 0 embeddings, while it has one item for every record in each list."));
+	}
+
 	// A search answers null for a list it does not select: that answer is whole.
 	[Test]
 	public async Task ASearchWithANullList()
