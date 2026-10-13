@@ -110,11 +110,16 @@ public class ChromaCollectionClient
 	// same get right after goes. Before each new attempt it waits a random time up to the base delay times 2 to the attempts that went
 	// again before, and up to the largest delay: the full jitter of AWS, so that clients that failed together do not come back together.
 	// An answer whose lists do not have one item for every record goes again too (AnswerChecks). A missing collection is not an error
-	// that passes, and a write never goes again: one that failed may have gone.
-	private async Task<T> Read<T>(Func<Task<T>> read, CancellationToken cancellationToken, Func<ChromaException, bool>? handledElsewhere = null)
+	// that passes, and a write never goes again: one that failed may have gone. A read that went before, as the query of KD-24, counts
+	// its attempts on from them, after the delay of the last one.
+	private async Task<T> Read<T>(Func<Task<T>> read, CancellationToken cancellationToken, Func<ChromaException, bool>? handledElsewhere = null, int attemptsBefore = 0)
 	{
 		var retries = _httpClient.ReadRetries;
-		for (var attempt = 1; ; attempt++)
+		if (attemptsBefore > 0)
+		{
+			await Task.Delay(retries.Delay(attemptsBefore - 1, Jitter()), cancellationToken);
+		}
+		for (var attempt = attemptsBefore + 1; ; attempt++)
 		{
 			try
 			{
@@ -509,7 +514,7 @@ public class ChromaCollectionClient
 			var (where, whereDocument, queryIds) = ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids);
 			var asked = query.Include ?? ChromaQueryInclude.Metadatas | ChromaQueryInclude.Documents | ChromaQueryInclude.Distances;
 			var copy = ReadsDocuments(asked.HasFlag(ChromaQueryInclude.Documents), asked.HasFlag(ChromaQueryInclude.Metadatas));
-			Task<CollectionEntriesQueryResponse> Send(IReadOnlyList<string>? ids, Func<ChromaException, bool>? handledElsewhere = null)
+			Task<CollectionEntriesQueryResponse> Send(IReadOnlyList<string>? ids, Func<ChromaException, bool>? handledElsewhere = null, int attemptsBefore = 0)
 				=> Read(async () => (await _httpClient.Post<CollectionQueryRequest, CollectionEntriesQueryResponse>(_httpClient.Routes.Collection + "/query", new CollectionQueryRequest()
 				{
 					QueryEmbeddings = query.QueryEmbeddings,
@@ -518,7 +523,7 @@ public class ChromaCollectionClient
 					WhereDocument = whereDocument?.ToRequestWhereDocument(),
 					Include = (copy.ReadsMetadata ? asked | ChromaQueryInclude.Metadatas : asked).ToInclude(),
 					Ids = ids,
-				}, requestParams, cancellationToken)).Checked(), cancellationToken, handledElsewhere);
+				}, requestParams, cancellationToken)).Checked(), cancellationToken, handledElsewhere, attemptsBefore);
 			if (query.Offset > int.MaxValue - query.NResults)
 			{
 				throw new ArgumentOutOfRangeException(nameof(query), "The results and the offset of a query together go beyond the largest number of results.");
@@ -547,12 +552,13 @@ public class ChromaCollectionClient
 				var found = new HashSet<string>((await GetEntries(queryIds, null, null, null, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id));
 				if (queryIds.All(found.Contains))
 				{
-					// Every id has a record, so the error has another cause, which can pass: the query goes again, with ReadRetries.
+					// Every id has a record, so the error has another cause, which can pass: the query goes again, with ReadRetries, its
+					// first attempt counted.
 					if (_httpClient.ReadRetries.MaxAttempts == 1)
 					{
 						throw;
 					}
-					response = await Send(queryIds);
+					response = await Send(queryIds, attemptsBefore: 1);
 				}
 				else if (found.Count == 0)
 				{

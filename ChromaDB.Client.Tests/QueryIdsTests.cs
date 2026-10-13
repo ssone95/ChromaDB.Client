@@ -135,6 +135,16 @@ public class QueryIdsTests
 		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query", "pre-flight-checks", "get", "query", "query" }));
 	}
 
+	// The attempts count from the first query: at most MaxAttempts queries, and then the error stands.
+	[Test]
+	public async Task InternalErrorWithAllTheIdsGoesAgainUpToTheAttempts()
+	{
+		var handler = new ScriptedHandler("""{"ids":["a","c"]}""", Enumerable.Repeat((HttpStatusCode.InternalServerError, FindingIdError), 5).ToArray());
+		await Assert.ThatAsync(() => Client(handler, new ChromaReadRetries(4, TimeSpan.Zero, TimeSpan.Zero)).QueryAsync(new ChromaQuery([Embedding]) { Ids = ["a", "c"] }),
+			Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id"));
+		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query", "pre-flight-checks", "get", "query", "query", "query" }));
+	}
+
 	// Without ids, the error goes again with ReadRetries (ReadRetriesTests), and without attempts it stands at once.
 	[Test]
 	public async Task InternalErrorWithoutIdsIsThrown()
