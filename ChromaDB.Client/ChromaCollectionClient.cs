@@ -599,8 +599,9 @@ public class ChromaCollectionClient
 	/// Updates the records with the ids; by default, unless <c>WithBatchSplitting(false)</c>, they go in batches of the
 	/// <c>max_batch_size</c> of the server. The client computes the sparse vectors of the <c>chroma_bm25</c> indexes of the schema
 	/// that have a source key, as the Python client of Chroma does. A null value in the metadata, written <c>null!</c> as the type does
-	/// not allow it, or an empty list deletes the key and the sparse vectors computed from its text; with
-	/// <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document, which needs <c>WithDocumentCopyKey</c>,
+	/// not allow it, or an empty list deletes the key and the sparse vectors computed from its text. A null document keeps the stored one
+	/// on Chroma 1.x and Chroma Cloud, and the 0.x servers delete it; with <c>ChromaRecords.NullDocumentsDelete</c> a null document
+	/// deletes the document on every server, which needs <c>WithDocumentCopyKey</c>,
 	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
 	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key or not, so
 	/// two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have stay. On Chroma
@@ -667,9 +668,10 @@ public class ChromaCollectionClient
 	/// not compute them. It computes the sparse vectors of the <c>chroma_bm25</c> indexes of the schema that have a source key, as
 	/// the Python client of Chroma does. A null value in the metadata, written <c>null!</c> as the type does not allow it, or an empty
 	/// list deletes the key of a record that exists and the sparse vectors computed from its text, and a new record is added without
-	/// it; with <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document, which needs <c>WithDocumentCopyKey</c>,
-	/// <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null document throws an
-	/// <c>ArgumentException</c> before any request. A null goes to the record whether it has the key
+	/// it. A null document keeps the stored one on Chroma 1.x and Chroma Cloud, and the 0.x servers delete it; with
+	/// <c>ChromaRecords.NullDocumentsDelete</c> a null document deletes the document on every server, which needs
+	/// <c>WithDocumentCopyKey</c>, <c>WithDocumentDeletionKey</c> or <c>WithEmptyDocumentDeletions</c>: without one of them, a null
+	/// document throws an <c>ArgumentException</c> before any request. A null goes to the record whether it has the key
 	/// or not, so two writes of the same record at the same time leave the record of one of them; the keys the metadata does not have
 	/// stay. On Chroma Cloud, a write with nulls that would take the metadata of a record beyond the quota of 32 keys throws an
 	/// <c>ArgumentException</c> before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads
