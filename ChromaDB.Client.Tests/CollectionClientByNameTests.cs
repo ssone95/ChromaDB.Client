@@ -74,11 +74,12 @@ public class CollectionClientByNameTests
 	}
 
 	// Any failure counts, as the servers tell a collection gone in their own ways: Chroma 0.4 answers 500 with "coroutine raised StopIteration".
+	// Without attempts, as a read goes again after a 500 before (ReadRetriesTests).
 	[Test]
 	public async Task AnyFailureReadsTheCollectionAgain()
 	{
 		var server = new FakeServer(First);
-		var collection = Client(server).GetCollectionClient("c");
+		var collection = Client(server, ChromaReadRetries.None).GetCollectionClient("c");
 		await collection.CountAsync();
 		server.MissingId = First;
 		server.MissingAnswer = (HttpStatusCode.InternalServerError, """{"error":"RuntimeError('coroutine raised StopIteration')"}""");
@@ -147,8 +148,8 @@ public class CollectionClientByNameTests
 
 	const string Bm25Schema = """{"defaults":{},"keys":{"doc_bm25":{"sparse_vector":{"sparse_vector_index":{"enabled":true,"config":{"embedding_function":{"type":"known","name":"chroma_bm25","config":{}},"source_key":"#document"}}}}}}""";
 
-	static ChromaClient Client(HttpMessageHandler handler)
-		=> new(new ChromaConfigurationOptions("http://localhost:8000").WithBatchSplitting(false), new HttpClient(handler));
+	static ChromaClient Client(HttpMessageHandler handler, ChromaReadRetries? retries = null)
+		=> new(new ChromaConfigurationOptions("http://localhost:8000").WithBatchSplitting(false).WithReadRetries(retries ?? ChromaReadRetries.Default), new HttpClient(handler));
 
 	// Answers the collection c with Id and the space l2, as Chroma 1.5.9 reports it, or as missing with NameMissing, MissingAnswer to the requests on MissingId, and 3 for a count;
 	// records the requests, without the prefix of the database.

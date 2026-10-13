@@ -73,6 +73,12 @@ public class ChromaConfigurationOptions
 	/// key that a later occurrence deletes can stay if an earlier one wrote it.
 	/// </summary>
 	public bool ReadsBeyondKeyQuota { get; init; }
+	/// <summary>
+	/// How a read goes again after an error that can pass, as an answer <c>500</c> of Chroma 1.5.9 to a get while other clients write and
+	/// delete the same records: <c>ChromaReadRetries.Default</c> by default, and <c>ChromaReadRetries.None</c> never goes again. A write
+	/// never goes again.
+	/// </summary>
+	public ChromaReadRetries ReadRetries { get; init; } = ChromaReadRetries.Default;
 	private readonly int? _maxBatchSize;
 
 	/// <summary>
@@ -182,6 +188,7 @@ public class ChromaConfigurationOptions
 		MaxBatchSize = options.MaxBatchSize;
 		UpsertStrategy = options.UpsertStrategy;
 		ReadsBeyondKeyQuota = options.ReadsBeyondKeyQuota;
+		ReadRetries = options.ReadRetries;
 		_chromaCloud = options._chromaCloud;
 	}
 
@@ -271,6 +278,14 @@ public class ChromaConfigurationOptions
 	/// <returns>The new options; these do not change.</returns>
 	public ChromaConfigurationOptions WithReadsBeyondKeyQuota(bool readsBeyondKeyQuota = true)
 		=> new(this) { ReadsBeyondKeyQuota = readsBeyondKeyQuota };
+
+	/// <summary>
+	/// A copy of these options with the given attempts and delays of the reads after an error that can pass: see <c>ChromaReadRetries</c>.
+	/// </summary>
+	/// <param name="readRetries">The attempts and the delays; <c>ChromaReadRetries.None</c> never goes again.</param>
+	/// <returns>The new options; these do not change.</returns>
+	public ChromaConfigurationOptions WithReadRetries(ChromaReadRetries readRetries)
+		=> new(this) { ReadRetries = readRetries ?? throw new ArgumentNullException(nameof(readRetries)) };
 
 	/// <summary>
 	/// A copy of these options with the given version of the Chroma API.

@@ -24,6 +24,7 @@ internal sealed class ChromaHttpClient
 	public bool BatchSplitting { get; }
 	public ChromaUpsertStrategy UpsertStrategy { get; }
 	public bool ReadsBeyondKeyQuota { get; }
+	public ChromaReadRetries ReadRetries { get; }
 	public int? MaxBatchSize { get; }
 	public bool IsChromaCloud { get; }
 
@@ -37,6 +38,7 @@ internal sealed class ChromaHttpClient
 		BatchSplitting = options.BatchSplitting;
 		UpsertStrategy = options.UpsertStrategy;
 		ReadsBeyondKeyQuota = options.ReadsBeyondKeyQuota;
+		ReadRetries = options.ReadRetries;
 		IsChromaCloud = options.IsChromaCloud;
 		// Works around KD-21 (docs/COMPATIBILITY.md)
 		// Chroma Cloud declares a max_batch_size of 1000, but takes 300 records per write and answers at most 300 per read, without an
@@ -75,6 +77,7 @@ internal sealed class ChromaHttpClient
 		BatchSplitting = other.BatchSplitting;
 		UpsertStrategy = other.UpsertStrategy;
 		ReadsBeyondKeyQuota = other.ReadsBeyondKeyQuota;
+		ReadRetries = other.ReadRetries;
 		MaxBatchSize = other.MaxBatchSize;
 		IsChromaCloud = other.IsChromaCloud;
 		DeserializerOptions = HttpClientHelpers.DeserializerOptions(metadataValues);
