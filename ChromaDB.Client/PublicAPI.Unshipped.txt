@@ -53,3 +53,13 @@ ChromaDB.Client.ChromaConfigurationOptions.ReadsBeyondKeyQuota.get -> bool
 ChromaDB.Client.ChromaConfigurationOptions.ReadsBeyondKeyQuota.init -> void
 ChromaDB.Client.ChromaConfigurationOptions.WithReadsBeyondKeyQuota(bool readsBeyondKeyQuota = true) -> ChromaDB.Client.ChromaConfigurationOptions!
 ChromaDB.Client.ChromaUpsertStrategy.SkipUnchangedEmbeddings = 1 -> ChromaDB.Client.ChromaUpsertStrategy
+ChromaDB.Client.ChromaConfigurationOptions.ReadRetries.get -> ChromaDB.Client.ChromaReadRetries!
+ChromaDB.Client.ChromaConfigurationOptions.ReadRetries.init -> void
+ChromaDB.Client.ChromaConfigurationOptions.WithReadRetries(ChromaDB.Client.ChromaReadRetries! readRetries) -> ChromaDB.Client.ChromaConfigurationOptions!
+ChromaDB.Client.ChromaReadRetries
+ChromaDB.Client.ChromaReadRetries.BaseDelay.get -> System.TimeSpan
+ChromaDB.Client.ChromaReadRetries.ChromaReadRetries(int maxAttempts, System.TimeSpan baseDelay, System.TimeSpan maxDelay) -> void
+ChromaDB.Client.ChromaReadRetries.MaxAttempts.get -> int
+ChromaDB.Client.ChromaReadRetries.MaxDelay.get -> System.TimeSpan
+static ChromaDB.Client.ChromaReadRetries.Default.get -> ChromaDB.Client.ChromaReadRetries!
+static ChromaDB.Client.ChromaReadRetries.None.get -> ChromaDB.Client.ChromaReadRetries!

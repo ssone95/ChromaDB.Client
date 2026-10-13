@@ -115,21 +115,42 @@ public class QueryIdsTests
 		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query", "pre-flight-checks", "get" }));
 	}
 
-	// When every id has a record, the error has another cause.
+	// When every id has a record, the error has another cause, which can pass: the query goes again with ReadRetries, and without
+	// attempts the error stands at once.
 	[Test]
 	public async Task InternalErrorWithAllTheIdsIsThrown()
 	{
 		var handler = new ScriptedHandler("""{"ids":["a","c"]}""", (HttpStatusCode.InternalServerError, FindingIdError));
-		await Assert.ThatAsync(() => Client(handler).QueryAsync(new ChromaQuery([Embedding]) { Ids = ["a", "c"] }),
+		await Assert.ThatAsync(() => Client(handler, ChromaReadRetries.None).QueryAsync(new ChromaQuery([Embedding]) { Ids = ["a", "c"] }),
 			Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id").And.Property(nameof(ChromaException.StatusCode)).EqualTo(HttpStatusCode.InternalServerError));
 		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query", "pre-flight-checks", "get" }));
 	}
 
 	[Test]
+	public async Task InternalErrorWithAllTheIdsGoesAgain()
+	{
+		var handler = new ScriptedHandler("""{"ids":["a","c"]}""", (HttpStatusCode.InternalServerError, FindingIdError), (HttpStatusCode.InternalServerError, FindingIdError), (HttpStatusCode.OK, """{"ids":[["c","a"]]}"""));
+		var result = await Client(handler, new ChromaReadRetries(4, TimeSpan.Zero, TimeSpan.Zero)).QueryAsync(new ChromaQuery([Embedding]) { Ids = ["a", "c"] });
+		Assert.That(result.Single().Select(x => x.Id), Is.EqualTo(new[] { "c", "a" }));
+		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query", "pre-flight-checks", "get", "query", "query" }));
+	}
+
+	// The attempts count from the first query: at most MaxAttempts queries, and then the error stands.
+	[Test]
+	public async Task InternalErrorWithAllTheIdsGoesAgainUpToTheAttempts()
+	{
+		var handler = new ScriptedHandler("""{"ids":["a","c"]}""", Enumerable.Repeat((HttpStatusCode.InternalServerError, FindingIdError), 5).ToArray());
+		await Assert.ThatAsync(() => Client(handler, new ChromaReadRetries(4, TimeSpan.Zero, TimeSpan.Zero)).QueryAsync(new ChromaQuery([Embedding]) { Ids = ["a", "c"] }),
+			Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id"));
+		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query", "pre-flight-checks", "get", "query", "query", "query" }));
+	}
+
+	// Without ids, the error goes again with ReadRetries (ReadRetriesTests), and without attempts it stands at once.
+	[Test]
 	public async Task InternalErrorWithoutIdsIsThrown()
 	{
 		var handler = new ScriptedHandler("""{"ids":[]}""", (HttpStatusCode.InternalServerError, FindingIdError));
-		await Assert.ThatAsync(() => Client(handler).QueryAsync(Embedding), Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id"));
+		await Assert.ThatAsync(() => Client(handler, ChromaReadRetries.None).QueryAsync(Embedding), Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id"));
 		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query" }));
 	}
 
@@ -137,7 +158,7 @@ public class QueryIdsTests
 	public async Task InternalErrorWithEmptyIdsIsThrown()
 	{
 		var handler = new ScriptedHandler("""{"ids":[]}""", (HttpStatusCode.InternalServerError, FindingIdError));
-		await Assert.ThatAsync(() => Client(handler).QueryAsync(new ChromaQuery([Embedding]) { Ids = [] }), Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id"));
+		await Assert.ThatAsync(() => Client(handler, ChromaReadRetries.None).QueryAsync(new ChromaQuery([Embedding]) { Ids = [] }), Throws.InstanceOf<ChromaException>().With.Message.Contains("Error finding id"));
 		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query" }));
 	}
 
@@ -149,10 +170,10 @@ public class QueryIdsTests
 		Assert.That(handler.Requests.Select(x => x.Path), Is.EqualTo(new[] { "query" }));
 	}
 
-	static ChromaCollectionClient Client(HttpMessageHandler handler)
+	static ChromaCollectionClient Client(HttpMessageHandler handler, ChromaReadRetries? retries = null)
 	{
 		var collection = new ChromaCollection("collection") { Id = Guid.NewGuid() };
-		return new ChromaCollectionClient(collection, new ChromaConfigurationOptions("http://localhost:8000"), new HttpClient(handler));
+		return new ChromaCollectionClient(collection, new ChromaConfigurationOptions("http://localhost:8000").WithReadRetries(retries ?? ChromaReadRetries.Default), new HttpClient(handler));
 	}
 
 	sealed class RecordingHandler(string response) : HttpMessageHandler
