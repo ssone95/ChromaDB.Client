@@ -523,7 +523,7 @@ public class ChromaCollectionClient
 					WhereDocument = whereDocument?.ToRequestWhereDocument(),
 					Include = (copy.ReadsMetadata ? asked | ChromaQueryInclude.Metadatas : asked).ToInclude(),
 					Ids = ids,
-				}, requestParams, cancellationToken)).Checked(), cancellationToken, handledElsewhere, attemptsBefore);
+				}, requestParams, cancellationToken)).Checked(query.QueryEmbeddings.Count), cancellationToken, handledElsewhere, attemptsBefore);
 			if (query.Offset > int.MaxValue - query.NResults)
 			{
 				throw new ArgumentOutOfRangeException(nameof(query), "The results and the offset of a query together go beyond the largest number of results.");
@@ -1436,7 +1436,7 @@ public class ChromaCollectionClient
 				}).ToList(),
 				ReadLevel = readLevel is { } level ? ReadLevelName(level) : null,
 			};
-			var response = await Read(async () => (await _httpClient.Post<CollectionSearchRequest, CollectionSearchResponse>(_httpClient.Routes.Collection + "/search", request, requestParams, cancellationToken)).Checked(), cancellationToken);
+			var response = await Read(async () => (await _httpClient.Post<CollectionSearchRequest, CollectionSearchResponse>(_httpClient.Routes.Collection + "/search", request, requestParams, cancellationToken)).Checked(sent.Count), cancellationToken);
 			var results = response.Ids
 				.Select((ids, i) =>
 				{

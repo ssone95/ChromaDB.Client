@@ -64,6 +64,23 @@ public class UnevenAnswersTests
 		Assert.That(ex!.Message, Is.EqualTo("The answer of the server to a query has 1 id and 0 embeddings, while it has one item for every record in each list."));
 	}
 
+	// A query has one list of ids for every query embedding, and a search for every search: fewer is uneven, not fewer results.
+	[Test]
+	public void AQueryWithoutTheIdsOfAnEmbedding()
+	{
+		var server = new FixedServer("""{"ids":[],"include":["distances"]}""");
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Client(server, ChromaReadRetries.None).QueryAsync(new ChromaQuery([new([1f, 0f])]) { Include = ChromaQueryInclude.Distances }));
+		Assert.That(ex!.Message, Is.EqualTo("The answer of the server to a query has 0 lists of ids for 1 query embedding, while it has one list of each for every query embedding."));
+	}
+
+	[Test]
+	public void ASearchWithoutTheIdsOfASearch()
+	{
+		var server = new FixedServer("""{"ids":[["a"]]}""");
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Client(server, ChromaReadRetries.None).SearchAsync([new ChromaSearch { Limit = 5 }, new ChromaSearch { Limit = 3 }]));
+		Assert.That(ex!.Message, Is.EqualTo("The answer of the server to a search has 1 list of ids for 2 searches, while it has one list of each for every search."));
+	}
+
 	// A search answers null for a list it does not select: that answer is whole.
 	[Test]
 	public async Task ASearchWithANullList()

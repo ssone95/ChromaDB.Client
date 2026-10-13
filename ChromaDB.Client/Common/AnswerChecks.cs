@@ -18,9 +18,10 @@ internal static class AnswerChecks
 		return answer;
 	}
 
-	// A query has one list of each for every query embedding.
-	public static CollectionEntriesQueryResponse Checked(this CollectionEntriesQueryResponse answer)
+	// A query has one list of each for every query embedding, the ids too.
+	public static CollectionEntriesQueryResponse Checked(this CollectionEntriesQueryResponse answer, int queryEmbeddings)
 	{
+		CheckIds("query", answer.Ids, queryEmbeddings);
 		CheckEach("query", answer.Ids, "distances", answer.Distances, list => list?.Count, optional: false);
 		CheckEach("query", answer.Ids, "metadatas", answer.Metadatas, list => list?.Count, optional: false);
 		CheckEach("query", answer.Ids, "embeddings", answer.Embeddings, list => list?.Count, optional: false);
@@ -29,14 +30,24 @@ internal static class AnswerChecks
 		return answer;
 	}
 
-	// A search has one list of each for every search, which is null when the search does not select it.
-	public static CollectionSearchResponse Checked(this CollectionSearchResponse answer)
+	// A search has one list of each for every search, the ids too; another list is null when the search does not select it.
+	public static CollectionSearchResponse Checked(this CollectionSearchResponse answer, int searches)
 	{
+		CheckIds("search", answer.Ids, searches);
 		CheckEach("search", answer.Ids, "documents", answer.Documents, list => list?.Count, optional: true);
 		CheckEach("search", answer.Ids, "embeddings", answer.Embeddings, list => list?.Count, optional: true);
 		CheckEach("search", answer.Ids, "metadatas", answer.Metadatas, list => list?.Count, optional: true);
 		CheckEach("search", answer.Ids, "scores", answer.Scores, list => list?.Count, optional: true);
 		return answer;
+	}
+
+	private static void CheckIds(string operation, List<List<string>> ids, int expected)
+	{
+		if (ids.Count != expected)
+		{
+			var each = operation == "query" ? "query embedding" : "search";
+			throw Uneven($"The answer of the server to a {operation} has {ids.Count} {(ids.Count == 1 ? "list" : "lists")} of ids for {expected} {(expected == 1 ? each : operation == "query" ? "query embeddings" : "searches")}, while it has one list of each for every {each}.");
+		}
 	}
 
 	private static void CheckEach<T>(string operation, List<List<string>> ids, string name, List<T>? lists, Func<T, int?> count, bool optional)
