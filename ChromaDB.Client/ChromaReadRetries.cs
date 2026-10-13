@@ -19,16 +19,19 @@ public sealed class ChromaReadRetries
 	/// </summary>
 	/// <param name="maxAttempts">How many times a read goes at most, the first included: 1 never goes again.</param>
 	/// <param name="baseDelay">The largest delay before the second attempt; each following one can double it.</param>
-	/// <param name="maxDelay">The largest delay before any attempt, at least <c>baseDelay</c>.</param>
+	/// <param name="maxDelay">The largest delay before any attempt, at least <c>baseDelay</c> and at most <c>Int32.MaxValue</c>
+	/// milliseconds, the longest delay of <c>Task.Delay</c>.</param>
 	public ChromaReadRetries(int maxAttempts, TimeSpan baseDelay, TimeSpan maxDelay)
 	{
 		if (maxAttempts < 1)
 		{
 			throw new ArgumentOutOfRangeException(nameof(maxAttempts), "A read goes at least once.");
 		}
-		if (baseDelay < TimeSpan.Zero || maxDelay < baseDelay)
+		// Beyond Int32.MaxValue milliseconds, the longest delay of Task.Delay on every platform of the client, Task.Delay would throw in
+		// the middle of a read.
+		if (baseDelay < TimeSpan.Zero || maxDelay < baseDelay || maxDelay.TotalMilliseconds > int.MaxValue)
 		{
-			throw new ArgumentOutOfRangeException(baseDelay < TimeSpan.Zero ? nameof(baseDelay) : nameof(maxDelay), "The delays cannot be negative, and the largest one is at least the base.");
+			throw new ArgumentOutOfRangeException(baseDelay < TimeSpan.Zero ? nameof(baseDelay) : nameof(maxDelay), "The delays cannot be negative, the largest one is at least the base, and it is at most Int32.MaxValue milliseconds, the longest delay of Task.Delay.");
 		}
 		MaxAttempts = maxAttempts;
 		BaseDelay = baseDelay;

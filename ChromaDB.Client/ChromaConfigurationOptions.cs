@@ -78,7 +78,12 @@ public class ChromaConfigurationOptions
 	/// delete the same records: <c>ChromaReadRetries.Default</c> by default, and <c>ChromaReadRetries.None</c> never goes again. A write
 	/// never goes again.
 	/// </summary>
-	public ChromaReadRetries ReadRetries { get; init; } = ChromaReadRetries.Default;
+	public ChromaReadRetries ReadRetries
+	{
+		get => _readRetries;
+		init => _readRetries = value ?? throw new ArgumentNullException(nameof(ReadRetries));
+	}
+	private readonly ChromaReadRetries _readRetries = ChromaReadRetries.Default;
 	private readonly int? _maxBatchSize;
 
 	/// <summary>

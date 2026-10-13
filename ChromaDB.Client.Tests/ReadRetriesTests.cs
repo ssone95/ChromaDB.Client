@@ -175,6 +175,25 @@ public class ReadRetriesTests
 	public void WrongSettings(int attempts, int baseDelay, int maxDelay)
 		=> Assert.That(() => new ChromaReadRetries(attempts, TimeSpan.FromMilliseconds(baseDelay), TimeSpan.FromMilliseconds(maxDelay)), Throws.InstanceOf<ArgumentOutOfRangeException>());
 
+	// The longest delay of Task.Delay on every platform of the client, Int32.MaxValue milliseconds, is the largest one: beyond it Task.Delay
+	// would throw in the middle of a read.
+	[Test]
+	public void TheLongestDelay()
+	{
+		var longest = TimeSpan.FromMilliseconds(int.MaxValue);
+		Assert.That(new ChromaReadRetries(2, longest, longest).Delay(0, 1.0), Is.EqualTo(longest));
+		Assert.That(() => new ChromaReadRetries(2, TimeSpan.Zero, longest + TimeSpan.FromMilliseconds(1)), Throws.InstanceOf<ArgumentOutOfRangeException>().With.Property("ParamName").EqualTo("maxDelay"));
+		Assert.That(() => new ChromaReadRetries(2, TimeSpan.Zero, TimeSpan.MaxValue), Throws.InstanceOf<ArgumentOutOfRangeException>());
+	}
+
+	// ReadRetries is never null, also when set directly.
+	[Test]
+	public void NoNull()
+	{
+		Assert.That(() => new ChromaConfigurationOptions(Local) { ReadRetries = null! }, Throws.ArgumentNullException);
+		Assert.That(() => new ChromaConfigurationOptions(Local).WithReadRetries(null!), Throws.ArgumentNullException.With.Property("ParamName").EqualTo("readRetries"));
+	}
+
 	// A cancellation during the delay after a failed attempt stops the read at once: no other attempt goes.
 	[Test]
 	public void ACancellationBetweenTheAttempts()
