@@ -121,6 +121,17 @@ public class ReadRetriesTests
 	public void TheSettingStays()
 		=> Assert.That(new ChromaConfigurationOptions(Local).WithReadRetries(ChromaReadRetries.None).WithTenant("t").WithBatchSplitting(false).ReadRetries, Is.SameAs(ChromaReadRetries.None));
 
+	// And through WithMetadataValues of a client made by name, as a provider of Microsoft.Extensions.VectorData makes it.
+	[Test]
+	public void TheSettingStaysThroughWithMetadataValues()
+	{
+		var server = new Server(fail: int.MaxValue, (HttpStatusCode.InternalServerError, FindingId));
+		var client = new ChromaClient(new ChromaConfigurationOptions(Local).WithReadRetries(ChromaReadRetries.None), new HttpClient(server));
+		var collection = client.GetCollectionClient("c").WithMetadataValues(ChromaMetadataValues.Exact);
+		Assert.ThrowsAsync<ChromaException>(() => collection.GetAsync());
+		Assert.That(server.Reads, Is.EqualTo(1));
+	}
+
 	// Full jitter: a random time between zero and the smaller of the largest delay and the base times 2 to the attempts before.
 	[TestCase(0, 0.0, 0)]
 	[TestCase(0, 0.5, 50)]
@@ -202,6 +213,7 @@ public class ReadRetriesTests
 				"search" => """{"ids":[[]]}""",
 				"count" => "0",
 				"delete" => """{"deleted":0}""",
+				"c" => """{"id":"11111111-2222-3333-4444-555555555555","name":"c"}""",
 				_ => "{}",
 			};
 			return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(answer) });
