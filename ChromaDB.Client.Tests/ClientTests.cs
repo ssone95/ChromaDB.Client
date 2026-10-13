@@ -134,7 +134,7 @@ public class ClientTests : ChromaTestsBase
 	// Chroma 1.3.0 applies the space of a schema that also turns an index on or off, here one turned off.
 	[TestCase(ChromaSpace.Cosine, new[] { 0f, 0f })]
 	[TestCase(ChromaSpace.InnerProduct, new[] { -1f, 0f })]
-	public async Task CreateCollectionWithSpaceAndSchemaWithAnIndex(ChromaSpace space, float[] distances)
+	public async Task CreateCollectionWithSpaceAndSchemaWithAnIndexTurnedOff(ChromaSpace space, float[] distances)
 	{
 		Assume.That(SchemaApplied, Is.True, "Chroma 1.3.0 and later apply the schema.");
 		await SpaceWithSchema(space, new ChromaCollectionSchema().WithoutIndex(ChromaSchemaIndex.StringInverted, "k"), distances);
