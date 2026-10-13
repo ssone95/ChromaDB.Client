@@ -208,6 +208,10 @@ public abstract class ChromaTestsBase
 	// Chroma 1.0.6 and later apply a new configuration of a collection; the earlier versions answer without applying it.
 	protected static bool NewConfigurationApplied => ChromaImage.Version >= new Version(1, 0, 6);
 
+	// Chroma 1.0.0 and later and Chroma Cloud keep the stored document when an update or an upsert sends a null one; every 0.x server
+	// deletes it.
+	protected static bool NullDocumentKept => ChromaCloud || ChromaImage.Version >= new Version(1, 0, 0);
+
 	// Chroma 1.3.0 and later apply the indexes of a schema.
 	protected static bool SchemaApplied => ChromaCloud || ChromaImage.Version >= new Version(1, 3, 0);
 

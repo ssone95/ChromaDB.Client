@@ -119,6 +119,21 @@ public class CollectionClientCUDTests : ChromaTestsBase
 			documents: ["test"]);
 	}
 
+	// Without NullDocumentsDelete the client sends a null document as it is: Chroma 1.0.0 and later and Chroma Cloud keep the stored
+	// document, as in an update without documents, and every 0.x server deletes it.
+	[Test]
+	public async Task NullDocumentInAnUpdateAndAnUpsert()
+	{
+		var client = await Init();
+		await client.AddAsync(["a", "b", "c"], embeddings: Embeddings(3), documents: ["doc a", "doc b", "doc c"]);
+		var metadata = new Dictionary<string, object> { ["k"] = 2 };
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [metadata], Documents = [null] });
+		await client.UpsertAsync(new ChromaRecords(["b"]) { Embeddings = Embeddings(1), Metadatas = [metadata], Documents = [null] });
+		await client.UpdateAsync(["c"], metadatas: [metadata]);
+		var documents = (await client.GetAsync(include: ChromaGetInclude.Documents)).OrderBy(x => x.Id).Select(x => x.Document);
+		Assert.That(documents, Is.EqualTo(NullDocumentKept ? new[] { "doc a", "doc b", "doc c" } : new[] { null, null, "doc c" }));
+	}
+
 	[Test]
 	public async Task UpsertJustIds()
 	{
