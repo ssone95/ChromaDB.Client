@@ -4,9 +4,13 @@ namespace ChromaDB.Client;
 /// How a read goes again after an error that can pass, with the exponential backoff with full jitter of AWS ("Exponential Backoff And
 /// Jitter"): before each new attempt it waits a random time between zero and the smaller of <c>MaxDelay</c> and <c>BaseDelay</c> times 2
 /// to the number of the attempts that went again before. The reads are each request of <c>GetAsync</c>, <c>PeekAsync</c>,
-/// <c>QueryAsync</c>, <c>SearchAsync</c> and <c>CountAsync</c>. The errors that can pass are an answer <c>429</c>, <c>500</c>,
-/// <c>502</c>, <c>503</c> or <c>504</c>, other than a missing collection, and a request that fails on the network; after the last
-/// attempt the error stands. A write never goes again: one that failed may have gone.
+/// <c>QueryAsync</c>, <c>SearchAsync</c> and <c>CountAsync</c>, and the reads that a write makes first, as the get of
+/// <c>ChromaUpsertStrategy.SkipUnchangedEmbeddings</c>, the get of <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> and the
+/// pages of ids of <c>DeleteCollectionAsync</c> with <c>deleteRecordsFirst</c>. The errors that can pass are an answer <c>429</c>,
+/// <c>500</c>, <c>502</c>, <c>503</c> or <c>504</c>, other than a missing collection, a request that fails on the network, and an
+/// answer whose lists do not have one item for every record. After the last attempt the error stands: for such an answer, a
+/// <c>ChromaException</c> that says it. A timeout of the <c>HttpClient</c> does not go again. A write never goes again: one that
+/// failed may have gone.
 /// </summary>
 public sealed class ChromaReadRetries
 {

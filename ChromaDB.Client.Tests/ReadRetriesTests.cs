@@ -76,6 +76,29 @@ public class ReadRetriesTests
 		Assert.That(server.Reads, Is.EqualTo(1));
 	}
 
+	// The get that a write makes first goes again, as the one of SkipUnchangedEmbeddings; the write goes once.
+	[Test]
+	public async Task TheReadOfAWriteGoesAgain()
+	{
+		var server = new Server(fail: 1, (HttpStatusCode.InternalServerError, FindingId));
+		var options = new ChromaConfigurationOptions(Local).WithReadRetries(NoDelay).WithUpsertStrategy(ChromaUpsertStrategy.SkipUnchangedEmbeddings);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.NewGuid() }, options, new HttpClient(server));
+		await client.UpsertAsync(new ChromaRecords(["a"]) { Embeddings = [new([1f, 0f])] });
+		Assert.That(server.Reads, Is.EqualTo(2));
+		Assert.That(server.Paths.Count(x => x == "upsert"), Is.EqualTo(1));
+	}
+
+	// A timeout of the HttpClient does not go again.
+	[Test]
+	public void ATimeoutDoesNotGoAgain()
+	{
+		var server = new Server(fail: 0, default) { Hang = TimeSpan.FromSeconds(30) };
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.NewGuid() }, new ChromaConfigurationOptions(Local).WithReadRetries(NoDelay), new HttpClient(server) { Timeout = TimeSpan.FromMilliseconds(200) });
+		var ex = Assert.ThrowsAsync<ChromaException>(() => client.GetAsync());
+		Assert.That(ex!.InnerException, Is.InstanceOf<TaskCanceledException>());
+		Assert.That(server.Reads, Is.EqualTo(1));
+	}
+
 	// A write that failed may have gone: it never goes again.
 	[TestCase("add")]
 	[TestCase("update")]
@@ -186,15 +209,22 @@ public class ReadRetriesTests
 		public string? Failing { get; init; }
 		public bool Throw { get; init; }
 		public Action? OnFail { get; init; }
+		public TimeSpan Hang { get; init; }
+		public List<string> Paths { get; } = [];
 		public int Reads { get; private set; }
 		public int Writes { get; private set; }
 
-		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			var path = request.RequestUri!.AbsolutePath;
 			var last = path[(path.LastIndexOf('/') + 1)..];
+			Paths.Add(last);
 			var counted = Failing is null ? ReadPaths.Contains(last) : last == Failing;
 			var count = counted ? Failing is null ? ++Reads : ++Writes : 0;
+			if (counted && Hang > TimeSpan.Zero)
+			{
+				await Task.Delay(Hang, cancellationToken);
+			}
 			if (counted && count <= fail)
 			{
 				OnFail?.Invoke();
@@ -202,7 +232,7 @@ public class ReadRetriesTests
 				{
 					throw new HttpRequestException("The connection was reset.");
 				}
-				return Task.FromResult(new HttpResponseMessage(error.Status) { Content = new StringContent(error.Body) });
+				return new HttpResponseMessage(error.Status) { Content = new StringContent(error.Body) };
 			}
 			var answer = last switch
 			{
@@ -216,7 +246,7 @@ public class ReadRetriesTests
 				"c" => """{"id":"11111111-2222-3333-4444-555555555555","name":"c"}""",
 				_ => "{}",
 			};
-			return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(answer) });
+			return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(answer) };
 		}
 	}
 }
