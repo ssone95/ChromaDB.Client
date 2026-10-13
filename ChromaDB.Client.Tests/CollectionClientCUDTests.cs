@@ -254,8 +254,9 @@ public class CollectionClientCUDTests : ChromaTestsBase
 		await client.AddAsync([id1, id2],
 			embeddings: Embeddings(2),
 			documents: ["Doc1", "Doc2"]);
+		// Three characters tell the documents apart: on Chroma Cloud a $contains of fewer characters throws (KD-57).
 		await client.DeleteAsync([id1, id2],
-			whereDocument: ChromaWhereDocumentOperator.Contains("2"));
+			whereDocument: ChromaWhereDocumentOperator.Contains("oc2"));
 	}
 
 	[Test]
