@@ -195,7 +195,7 @@ public abstract class ChromaTestsBase
 	// with "Error sending message to compactor". A server already running counts by CHROMA_IMAGE too.
 	protected static bool RejectedSparseVectorsBreakTheServer => ChromaImage.Version >= new Version(1, 0, 21) && ChromaImage.Version <= new Version(1, 1, 1);
 
-	// Chroma 1.3.0 accepts the space in the schema and ignores it.
+	// Chroma 1.3.2 and later apply the space in a schema; 1.3.0 only when the schema also turns an index on or off, and keeps l2 otherwise.
 	protected static bool SpaceInSchemaApplied => ChromaCloud || ChromaImage.Version >= new Version(1, 3, 2);
 
 	// Chroma 1.5.3 and later apply the limit of a delete, declare it in their OpenAPI description and answer a count, which for a delete by

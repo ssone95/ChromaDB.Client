@@ -132,8 +132,8 @@ public class SparseVectorsAndSchemaTests
 			""".Replace("\r", "").Replace("\n", "").Replace("\t", "")));
 	}
 
-	// Chroma 1.3.0 creates the collection with the space of the schema ignored, l2: CreateCollection deletes it and throws,
-	// GetOrCreateCollection throws and keeps it, since it may have existed before.
+	// Chroma 1.3.0 creates the collection with the space of a schema that turns no index on or off ignored, l2: CreateCollection deletes
+	// it and throws, GetOrCreateCollection throws and keeps it, since it may have existed before.
 	[TestCase("create", true)]
 	[TestCase("get_or_create", false)]
 	public async Task SpaceIgnoredByTheServer(string operation, bool deleted)
@@ -143,7 +143,7 @@ public class SparseVectorsAndSchemaTests
 			: (HttpStatusCode.OK, """{"id":"11111111-2222-3333-4444-555555555555","name":"c","configuration_json":{"hnsw":{"space":"l2"}},"schema":{"defaults":{},"keys":{}}}"""));
 		var definition = new ChromaCollectionDefinition("c") { Configuration = new() { Space = ChromaSpace.Cosine }, Schema = new ChromaCollectionSchema() };
 		await Assert.ThatAsync(() => operation == "create" ? Client(server).CreateCollectionAsync(definition) : Client(server).GetOrCreateCollectionAsync(definition),
-			Throws.InstanceOf<ChromaException>().With.Message.Contains("space l2, not cosine").And.Message.Contains("1.3.2"));
+			Throws.InstanceOf<ChromaException>().With.Message.Contains("space l2, not cosine").And.Message.Contains("Chroma 1.3.0 ignores the space of a schema that turns no index on or off"));
 		Assert.That(server.Requests.Any(x => x.Method == "DELETE"), Is.EqualTo(deleted));
 	}
 

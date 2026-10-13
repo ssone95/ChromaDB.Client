@@ -128,8 +128,22 @@ public class ClientTests : ChromaTestsBase
 	public async Task CreateCollectionWithSpaceAndSchema(ChromaSpace space, float[] distances)
 	{
 		Assume.That(SpaceInSchemaApplied, Is.True, "Chroma 1.3.2 and later apply the space in the schema.");
+		await SpaceWithSchema(space, new ChromaCollectionSchema(), distances);
+	}
+
+	// Chroma 1.3.0 applies the space of a schema that also turns an index on or off, here one turned off.
+	[TestCase(ChromaSpace.Cosine, new[] { 0f, 0f })]
+	[TestCase(ChromaSpace.InnerProduct, new[] { -1f, 0f })]
+	public async Task CreateCollectionWithSpaceAndSchemaWithAnIndex(ChromaSpace space, float[] distances)
+	{
+		Assume.That(SchemaApplied, Is.True, "Chroma 1.3.0 and later apply the schema.");
+		await SpaceWithSchema(space, new ChromaCollectionSchema().WithoutIndex(ChromaSchemaIndex.StringInverted, "k"), distances);
+	}
+
+	private async Task SpaceWithSchema(ChromaSpace space, ChromaCollectionSchema schema, float[] distances)
+	{
 		var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
-		var collection = await client.CreateCollectionAsync(new ChromaCollectionDefinition($"collection{Random.Shared.Next()}") { Configuration = new() { Space = space }, Schema = new ChromaCollectionSchema() });
+		var collection = await client.CreateCollectionAsync(new ChromaCollectionDefinition($"collection{Random.Shared.Next()}") { Configuration = new() { Space = space }, Schema = schema });
 		Assert.That(collection.Space, Is.EqualTo(space));
 		Assert.That((await client.GetCollectionAsync(collection.Name)).Space, Is.EqualTo(space));
 
