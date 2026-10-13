@@ -43,6 +43,9 @@ public class ChromaException : Exception
 	// How many records of a write in batches went before the error, which is the inner exception.
 	internal int? RecordsWent { get; init; }
 
+	// An answer to a read whose lists do not have one item for every record (AnswerChecks): the read goes again.
+	internal bool UnevenAnswer { get; init; }
+
 	internal bool IsMissingCollection
 		=> StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest or HttpStatusCode.InternalServerError
 			&& (Message.Contains("does not exist") || ErrorType == "NotFoundError" && Message.StartsWith("Collection", StringComparison.Ordinal));

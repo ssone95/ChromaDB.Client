@@ -109,7 +109,8 @@ public class ChromaCollectionClient
 	// or "Error creating hnsw segment reader" to a get with embeddings while other clients write and delete the same records, and the
 	// same get right after goes. Before each new attempt it waits a random time up to the base delay times 2 to the attempts that went
 	// again before, and up to the largest delay: the full jitter of AWS, so that clients that failed together do not come back together.
-	// A missing collection is not an error that passes, and a write never goes again: one that failed may have gone.
+	// An answer whose lists do not have one item for every record goes again too (AnswerChecks). A missing collection is not an error
+	// that passes, and a write never goes again: one that failed may have gone.
 	private async Task<T> Read<T>(Func<Task<T>> read, CancellationToken cancellationToken, Func<ChromaException, bool>? handledElsewhere = null)
 	{
 		var retries = _httpClient.ReadRetries;
@@ -128,7 +129,8 @@ public class ChromaCollectionClient
 
 	private static bool CanPass(ChromaException ex)
 		=> (int?)ex.StatusCode is 429 or 500 or 502 or 503 or 504 && !ex.IsMissingCollection
-			|| ex.StatusCode is null && ex.InnerException is HttpRequestException or IOException;
+			|| ex.StatusCode is null && ex.InnerException is HttpRequestException or IOException
+			|| ex.UnevenAnswer;
 
 	private static readonly Random JitterSource = new();
 
@@ -451,7 +453,7 @@ public class ChromaCollectionClient
 			Offset = offset,
 			Include = (copy.ReadsMetadata ? asked | ChromaGetInclude.Metadatas : asked).ToInclude(),
 		};
-		var response = await Read(() => _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>(_httpClient.Routes.Collection + "/get", request, requestParams, cancellationToken), cancellationToken);
+		var response = await Read(async () => (await _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>(_httpClient.Routes.Collection + "/get", request, requestParams, cancellationToken)).Checked("get"), cancellationToken);
 		return response.Map(copy) ?? [];
 	}
 
@@ -508,7 +510,7 @@ public class ChromaCollectionClient
 			var asked = query.Include ?? ChromaQueryInclude.Metadatas | ChromaQueryInclude.Documents | ChromaQueryInclude.Distances;
 			var copy = ReadsDocuments(asked.HasFlag(ChromaQueryInclude.Documents), asked.HasFlag(ChromaQueryInclude.Metadatas));
 			Task<CollectionEntriesQueryResponse> Send(IReadOnlyList<string>? ids, Func<ChromaException, bool>? handledElsewhere = null)
-				=> Read(() => _httpClient.Post<CollectionQueryRequest, CollectionEntriesQueryResponse>(_httpClient.Routes.Collection + "/query", new CollectionQueryRequest()
+				=> Read(async () => (await _httpClient.Post<CollectionQueryRequest, CollectionEntriesQueryResponse>(_httpClient.Routes.Collection + "/query", new CollectionQueryRequest()
 				{
 					QueryEmbeddings = query.QueryEmbeddings,
 					NResults = query.NResults + query.Offset,
@@ -516,7 +518,7 @@ public class ChromaCollectionClient
 					WhereDocument = whereDocument?.ToRequestWhereDocument(),
 					Include = (copy.ReadsMetadata ? asked | ChromaQueryInclude.Metadatas : asked).ToInclude(),
 					Ids = ids,
-				}, requestParams, cancellationToken), cancellationToken, handledElsewhere);
+				}, requestParams, cancellationToken)).Checked(), cancellationToken, handledElsewhere);
 			if (query.Offset > int.MaxValue - query.NResults)
 			{
 				throw new ArgumentOutOfRangeException(nameof(query), "The results and the offset of a query together go beyond the largest number of results.");
@@ -1075,7 +1077,7 @@ public class ChromaCollectionClient
 				Ids = ids.Skip(i).Take(size).ToList(),
 				Include = ChromaGetInclude.Embeddings.ToInclude(),
 			};
-			var response = await Read(() => _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>(_httpClient.Routes.Collection + "/get", request, requestParams, cancellationToken), cancellationToken);
+			var response = await Read(async () => (await _httpClient.Post<CollectionGetRequest, CollectionEntriesGetResponse>(_httpClient.Routes.Collection + "/get", request, requestParams, cancellationToken)).Checked("get"), cancellationToken);
 			foreach (var entry in response.Map())
 			{
 				stored[entry.Id] = entry;
@@ -1428,7 +1430,7 @@ public class ChromaCollectionClient
 				}).ToList(),
 				ReadLevel = readLevel is { } level ? ReadLevelName(level) : null,
 			};
-			var response = await Read(() => _httpClient.Post<CollectionSearchRequest, CollectionSearchResponse>(_httpClient.Routes.Collection + "/search", request, requestParams, cancellationToken), cancellationToken);
+			var response = await Read(async () => (await _httpClient.Post<CollectionSearchRequest, CollectionSearchResponse>(_httpClient.Routes.Collection + "/search", request, requestParams, cancellationToken)).Checked(), cancellationToken);
 			var results = response.Ids
 				.Select((ids, i) =>
 				{
@@ -1730,7 +1732,7 @@ public class ChromaCollectionClient
 			{
 				Limit = limit,
 			};
-			var response = await Read(() => _httpClient.Post<CollectionPeekRequest, CollectionEntriesGetResponse>(_httpClient.Routes.Collection + "/get", request, requestParams, cancellationToken), cancellationToken);
+			var response = await Read(async () => (await _httpClient.Post<CollectionPeekRequest, CollectionEntriesGetResponse>(_httpClient.Routes.Collection + "/get", request, requestParams, cancellationToken)).Checked("peek"), cancellationToken);
 			return response.Map() ?? [];
 		});
 
