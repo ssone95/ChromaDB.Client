@@ -321,7 +321,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 	{
 		var client = await Init();
 		var result = await client.QueryAsync([Embeddings1, Embeddings2],
-			whereDocument: ChromaWhereDocumentOperator.Contains(Doc1[^1]),
+			whereDocument: ChromaWhereDocumentOperator.Contains(Doc1[^3..]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -344,7 +344,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 		Assume.That(CountCollectionsAndNotContainsSupported, Is.True, "Chroma 0.4.15 has no count_collections, no $not_contains filter and no tenant and database in the collections.");
 		var client = await Init();
 		var result = await client.QueryAsync([Embeddings1, Embeddings2],
-			whereDocument: ChromaWhereDocumentOperator.NotContains(Doc2[^1]),
+			whereDocument: ChromaWhereDocumentOperator.NotContains(Doc2[^3..]),
 			include: ChromaQueryInclude.Distances);
 		Assert.That(result, Has.Count.EqualTo(2));
 		Assert.That(result[0], Has.Count.EqualTo(1));
@@ -518,6 +518,7 @@ public class CollectionClientQueryTests : ChromaTestsBase
 		{ MetadataKey1, "2" },
 		{ MetadataKey2, 2 },
 	};
+	// Their last three characters tell them apart: on Chroma Cloud a $contains of fewer characters throws (KD-57).
 	static readonly string Doc1 = "Doc1";
 	static readonly string Doc2 = "Doc2";
 
