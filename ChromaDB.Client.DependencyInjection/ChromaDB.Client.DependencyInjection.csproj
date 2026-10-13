@@ -7,7 +7,7 @@
 		<IsPackable>true</IsPackable>
 		<!-- The analyzers of trimming and NativeAOT run on the target that has them. -->
 		<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-		<VersionPrefix>2.14.0</VersionPrefix>
+		<VersionPrefix>2.14.1</VersionPrefix>
 		<PackageId>ChromaDB.Client.DependencyInjection</PackageId>
 		<!-- -p:PackageIdPrefix=Name publishes the package as Name.Client.DependencyInjection. -->
 		<PackageId Condition="'$(PackageIdPrefix)' != ''">$(PackageIdPrefix).Client.DependencyInjection</PackageId>
