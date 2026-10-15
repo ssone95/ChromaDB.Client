@@ -24,6 +24,8 @@ Website: [chromadotnet.org](https://chromadotnet.org)
 Built on the client:
 
 - [CommunityToolkit.VectorData.Chroma](https://www.nuget.org/packages/CommunityToolkit.VectorData.Chroma): the Chroma provider for Microsoft.Extensions.VectorData, in the [AI Community Toolkit](https://github.com/CommunityToolkit/AI) of the .NET Foundation. It works with Semantic Kernel and Agent Framework.
+  - Cited in [Semantic Kernel](https://github.com/microsoft/semantic-kernel/blob/main/dotnet/src/VectorData/Chroma/README.md).
+  - Cited in [Microsoft Agent Framework](https://github.com/microsoft/agent-framework/blob/main/dotnet/samples/community-projects.md).
 - CommunityToolkit.Aspire.Chroma: the Chroma client integration, in the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) of the .NET Foundation.
 
 Through CommunityToolkit.VectorData.Chroma:
