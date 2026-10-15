@@ -21,10 +21,15 @@ Website: [chromadotnet.org](https://chromadotnet.org)
 
 ## Used by
 
-- [CommunityToolkit.VectorData.Chroma](https://www.nuget.org/packages/CommunityToolkit.VectorData.Chroma), the Chroma provider for Microsoft.Extensions.VectorData in the AI Community Toolkit of the .NET Foundation. It works with Semantic Kernel and Agent Framework.
-- CommunityToolkit.Aspire.Chroma, the Chroma client integration of the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire).
-- [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/tree/main/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma), the Microsoft course, through CommunityToolkit.VectorData.Chroma.
-- [LangChain .NET](https://github.com/tryAGI/LangChain.Databases), through CommunityToolkit.VectorData.Chroma.
+Built on the client:
+
+- [CommunityToolkit.VectorData.Chroma](https://www.nuget.org/packages/CommunityToolkit.VectorData.Chroma): the Chroma provider for Microsoft.Extensions.VectorData, in the [AI Community Toolkit](https://github.com/CommunityToolkit/AI). It works with Semantic Kernel and Agent Framework.
+- CommunityToolkit.Aspire.Chroma: the Chroma client integration, in the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire).
+
+Through CommunityToolkit.VectorData.Chroma:
+
+- [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/tree/main/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma): a RAG sample in the Microsoft course.
+- [LangChain .NET](https://github.com/tryAGI/LangChain.Databases): the integration tests of LangChain.Databases.
 
 ## Installation
 
