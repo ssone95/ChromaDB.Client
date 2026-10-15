@@ -21,17 +21,14 @@ Website: [chromadotnet.org](https://chromadotnet.org)
 
 ## Used by
 
-Built on the client:
-
 - [CommunityToolkit.VectorData.Chroma](https://www.nuget.org/packages/CommunityToolkit.VectorData.Chroma): the Chroma provider for Microsoft.Extensions.VectorData, in the [AI Community Toolkit](https://github.com/CommunityToolkit/AI/blob/546aa1b8e306e7518b0225341ea62cd86c916297/MEVD/src/Chroma/Chroma.csproj#L18) of the .NET Foundation. It works with Semantic Kernel and Agent Framework.
-  - Cited in [Semantic Kernel](https://github.com/microsoft/semantic-kernel/blob/7e68276a4a85022dd4da255beae3263ab5cbf059/dotnet/src/VectorData/Chroma/README.md#L1).
-  - Cited in [Microsoft Agent Framework](https://github.com/microsoft/agent-framework/blob/deecbcb062198f926516f89b65e5b1676e4514c2/dotnet/samples/community-projects.md#L26).
+  - Used by:
+    - [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/blob/359ffe5adf0cb74a397fd99af8786e14d0930ca3/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma/RAGSimple-05MEAIVectorsChroma.csproj#L12): a RAG sample in the Microsoft course.
+    - [LangChain .NET](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/src/IntegrationTests/LangChain.Databases.IntegrationTests.csproj#L19): the integration tests of LangChain.Databases.
+  - Cited in:
+    - [Semantic Kernel](https://github.com/microsoft/semantic-kernel/blob/7e68276a4a85022dd4da255beae3263ab5cbf059/dotnet/src/VectorData/Chroma/README.md#L1)
+    - [Microsoft Agent Framework](https://github.com/microsoft/agent-framework/blob/deecbcb062198f926516f89b65e5b1676e4514c2/dotnet/samples/community-projects.md#L26)
 - CommunityToolkit.Aspire.Chroma: the Chroma client integration, in the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire/blob/523b84b27c5d019d242d95c2252046ba3619303c/src/CommunityToolkit.Aspire.Chroma/CommunityToolkit.Aspire.Chroma.csproj#L12) of the .NET Foundation.
-
-Through CommunityToolkit.VectorData.Chroma:
-
-- [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/blob/359ffe5adf0cb74a397fd99af8786e14d0930ca3/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma/RAGSimple-05MEAIVectorsChroma.csproj#L12): a RAG sample in the Microsoft course.
-- [LangChain .NET](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/src/IntegrationTests/LangChain.Databases.IntegrationTests.csproj#L19): the integration tests of LangChain.Databases.
 
 ## Installation
 
