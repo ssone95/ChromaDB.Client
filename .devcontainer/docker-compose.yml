@@ -1,0 +1,12 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/dotnet:1-10.0
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    # Chroma answers on localhost:8000 inside the app container too.
+    network_mode: service:chroma
+
+  chroma:
+    image: chromadb/chroma:1.5.9
+    restart: unless-stopped

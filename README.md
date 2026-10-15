@@ -8,6 +8,8 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ChromaDotNet/ChromaDB.Client/badge)](https://scorecard.dev/viewer/?uri=github.com/ChromaDotNet/ChromaDB.Client)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15264/badge)](https://www.bestpractices.dev/projects/15264)
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ChromaDotNet/ChromaDB.Client?quickstart=1)
+
 _ChromaDB.Client_, published on NuGet as `ChromaDotNet.Client`, is a .NET client for Chroma and Chroma Cloud. It covers:
 
 - collections, tenants and databases;
@@ -29,6 +31,18 @@ Website: [chromadotnet.org](https://chromadotnet.org)
     - [Semantic Kernel](https://github.com/microsoft/semantic-kernel/blob/7e68276a4a85022dd4da255beae3263ab5cbf059/dotnet/src/VectorData/Chroma/README.md#L1): recommended for Chroma in .NET.
     - [Microsoft Agent Framework](https://github.com/microsoft/agent-framework/blob/deecbcb062198f926516f89b65e5b1676e4514c2/dotnet/samples/community-projects.md#L26): listed among the .NET community projects.
 - CommunityToolkit.Aspire.Chroma: the Chroma client integration, in the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire/blob/523b84b27c5d019d242d95c2252046ba3619303c/src/CommunityToolkit.Aspire.Chroma/CommunityToolkit.Aspire.Chroma.csproj#L12) of the .NET Foundation.
+
+## Try it in your browser
+
+Click **Open in GitHub Codespaces** above. The Codespace has .NET 10 and Chroma on port 8000. When the terminal is ready, run:
+
+```
+dotnet run Samples/quickstart.cs
+```
+
+The [quickstart](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/Samples/quickstart.cs) takes `ChromaDotNet.Client` from NuGet, creates a collection, adds records with documents and metadata, queries them by similarity and by metadata, and deletes the collection. The embeddings are written by hand, so no model or key is needed.
+
+You need a GitHub account. The Codespace uses the free Codespaces hours of your account.
 
 ## Installation
 
