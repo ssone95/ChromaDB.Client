@@ -22,6 +22,9 @@ Website: [chromadotnet.org](https://chromadotnet.org)
 ## Used by
 
 - [CommunityToolkit.VectorData.Chroma](https://www.nuget.org/packages/CommunityToolkit.VectorData.Chroma), the Chroma provider for Microsoft.Extensions.VectorData in the AI Community Toolkit of the .NET Foundation. It works with Semantic Kernel and Agent Framework.
+- The Chroma integrations of the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire), hosting and client.
+- [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/tree/main/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma), the Microsoft course, through CommunityToolkit.VectorData.Chroma.
+- [LangChain .NET](https://github.com/tryAGI/LangChain.Databases), through CommunityToolkit.VectorData.Chroma.
 
 ## Installation
 
