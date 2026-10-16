@@ -1,0 +1,17 @@
+{
+	"name": "ChromaDB.Client with Chroma",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"forwardPorts": [8000],
+	"portsAttributes": {
+		"8000": { "label": "Chroma" }
+	},
+	"postCreateCommand": "dotnet --version",
+	"postAttachCommand": "echo 'Chroma is on http://localhost:8000. Try the client: dotnet run Samples/quickstart.cs'",
+	"customizations": {
+		"vscode": {
+			"extensions": ["ms-dotnettools.csharp"]
+		}
+	}
+}

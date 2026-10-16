@@ -8,6 +8,8 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ChromaDotNet/ChromaDB.Client/badge)](https://scorecard.dev/viewer/?uri=github.com/ChromaDotNet/ChromaDB.Client)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15264/badge)](https://www.bestpractices.dev/projects/15264)
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ChromaDotNet/ChromaDB.Client?quickstart=1)
+
 _ChromaDB.Client_, published on NuGet as `ChromaDotNet.Client`, is a .NET client for Chroma and Chroma Cloud. It covers:
 
 - collections, tenants and databases;
@@ -24,11 +26,24 @@ Website: [chromadotnet.org](https://chromadotnet.org)
 - [CommunityToolkit.VectorData.Chroma](https://www.nuget.org/packages/CommunityToolkit.VectorData.Chroma): the Chroma provider for Microsoft.Extensions.VectorData, in the [AI Community Toolkit](https://github.com/CommunityToolkit/AI/blob/546aa1b8e306e7518b0225341ea62cd86c916297/MEVD/src/Chroma/Chroma.csproj#L18) of the .NET Foundation. It works with Semantic Kernel and Agent Framework.
   - Used by:
     - [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/blob/359ffe5adf0cb74a397fd99af8786e14d0930ca3/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma/RAGSimple-05MEAIVectorsChroma.csproj#L12): a RAG sample in the Microsoft course.
-    - [LangChain .NET](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/src/IntegrationTests/LangChain.Databases.IntegrationTests.csproj#L19): the integration tests of LangChain.Databases.
+    - [LangChain .NET](https://github.com/tryAGI/LangChain/blob/4d8062616101cced1c6737aac7bc76535f6efc86/examples/LangChain.Samples.Chroma/LangChain.Samples.Chroma.csproj#L16): a RAG sample with Chroma.
+    - [LangChain.Databases](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/src/IntegrationTests/LangChain.Databases.IntegrationTests.csproj#L19): Chroma in the integration tests and in the README.
   - Cited in:
     - [Semantic Kernel](https://github.com/microsoft/semantic-kernel/blob/7e68276a4a85022dd4da255beae3263ab5cbf059/dotnet/src/VectorData/Chroma/README.md#L1): recommended for Chroma in .NET.
     - [Microsoft Agent Framework](https://github.com/microsoft/agent-framework/blob/deecbcb062198f926516f89b65e5b1676e4514c2/dotnet/samples/community-projects.md#L26): listed among the .NET community projects.
 - CommunityToolkit.Aspire.Chroma: the Chroma client integration, in the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire/blob/523b84b27c5d019d242d95c2252046ba3619303c/src/CommunityToolkit.Aspire.Chroma/CommunityToolkit.Aspire.Chroma.csproj#L12) of the .NET Foundation.
+
+## Try it in your browser
+
+Click **Open in GitHub Codespaces** above. The Codespace has .NET 10 and Chroma on port 8000. When the terminal is ready, run:
+
+```
+dotnet run Samples/quickstart.cs
+```
+
+The [quickstart](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/Samples/quickstart.cs) takes `ChromaDotNet.Client` from NuGet, creates a collection, adds records with documents and metadata, queries them by similarity and by metadata, and deletes the collection. The embeddings are written by hand, so no model or key is needed.
+
+You need a GitHub account. The Codespace uses the free Codespaces hours of your account.
 
 ## Installation
 
