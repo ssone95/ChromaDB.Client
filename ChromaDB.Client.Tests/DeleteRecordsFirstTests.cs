@@ -147,9 +147,21 @@ public class DeleteRecordsFirstTests
 		Assert.That(server.Deleted, Is.EqualTo(Enumerable.Range(0, 350).Select(i => $"r{i}")));
 	}
 
-	// Holds the records r0 to r{count - 1}, answers a get with a limit beyond 300 with the 422 of Chroma Cloud, and records the limits
-	// asked and the ids deleted.
-	sealed class QuotaServer(int count) : HttpMessageHandler
+	// A tenant of Chroma Cloud whose quota of the reads is higher than the one of the deletes: the delete of a page beyond it gets 422 and
+	// deletes nothing, and the client reads a smaller page. Every record goes, each id once.
+	[Test]
+	public async Task TheQuotaOfTheDeletes()
+	{
+		var server = new QuotaServer(350, readQuota: 1000, deleteQuota: 300);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		Assert.That(await client.DeleteAllAsync(), Is.EqualTo(350));
+		Assert.That(server.Limits, Is.EqualTo(new[] { 1000, 300, 300, 300 }));
+		Assert.That(server.Deleted, Is.EqualTo(Enumerable.Range(0, 350).Select(i => $"r{i}")));
+	}
+
+	// Holds the records r0 to r{count - 1}, answers a get with a limit beyond the quota of the reads, and a delete of more ids than the
+	// quota of the deletes, with the 422 of Chroma Cloud, and records the limits asked and the ids deleted.
+	sealed class QuotaServer(int count, int readQuota = 300, int deleteQuota = 300) : HttpMessageHandler
 	{
 		readonly List<string> _ids = Enumerable.Range(0, count).Select(i => $"r{i}").ToList();
 
@@ -169,15 +181,19 @@ public class DeleteRecordsFirstTests
 				var limit = body.GetProperty("limit").GetInt32();
 				var offset = body.TryGetProperty("offset", out var start) && start.ValueKind == JsonValueKind.Number ? start.GetInt32() : 0;
 				Limits.Add(limit);
-				if (limit > 300)
+				if (limit > readQuota)
 				{
-					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Limit value' exceeded quota limit for action 'Get': current usage of {{limit}} exceeds limit of 300. https://trychroma.com/request-quota-increase"}""");
+					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Limit value' exceeded quota limit for action 'Get': current usage of {{limit}} exceeds limit of {{readQuota}}. https://trychroma.com/request-quota-increase"}""");
 				}
 				return Answer(HttpStatusCode.OK, JsonSerializer.Serialize(new { ids = _ids.Skip(offset).Take(limit).ToList() }));
 			}
 			if (path.EndsWith("/delete"))
 			{
 				var ids = Ids(body).Select(x => x!).ToList();
+				if (ids.Count > deleteQuota)
+				{
+					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Number of records' exceeded quota limit for action 'Delete': current usage of {{ids.Count}} exceeds limit of {{deleteQuota}}. https://trychroma.com/request-quota-increase"}""");
+				}
 				Deleted.AddRange(ids);
 				_ids.RemoveAll(ids.Contains);
 				return Answer(HttpStatusCode.OK, "{}");

@@ -480,7 +480,18 @@ public class ChromaCollectionClient
 				{
 					throw new ChromaException($"The records were not deleted: the server returns them after their delete, like {ids[0]}. The collection stays with them.");
 				}
-				await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
+				// Chroma Cloud rejects a delete beyond its quota of records, which can be lower than the one of the reads, before it deletes
+				// any of them: the client keeps that limit and reads a smaller page.
+				try
+				{
+					await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
+				}
+				catch (ChromaException ex) when (RecordsQuota(ex) is { } quota && quota < ids.Count)
+				{
+					_httpClient.LearnRecordsLimit(quota);
+					size = quota;
+					continue;
+				}
 				count += ids.Count;
 				deleted = ids;
 			}
