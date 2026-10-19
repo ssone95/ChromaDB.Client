@@ -27,9 +27,10 @@ Website: [chromadotnet.org](https://chromadotnet.org)
   - Used by:
     - [Generative AI for Beginners .NET](https://github.com/microsoft/Generative-AI-for-beginners-dotnet/blob/359ffe5adf0cb74a397fd99af8786e14d0930ca3/samples/CoreSamples/RAGSimple-05MEAIVectorsChroma/RAGSimple-05MEAIVectorsChroma.csproj#L12): a RAG sample in the Microsoft course.
     - [LangChain .NET](https://github.com/tryAGI/LangChain/blob/4d8062616101cced1c6737aac7bc76535f6efc86/examples/LangChain.Samples.Chroma/LangChain.Samples.Chroma.csproj#L16): a RAG sample with Chroma.
-    - [LangChain.Databases](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/src/IntegrationTests/LangChain.Databases.IntegrationTests.csproj#L19): Chroma in the integration tests and in the README.
+    - [LangChain.Databases](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/src/IntegrationTests/LangChain.Databases.IntegrationTests.csproj#L19): the integration tests.
   - Cited in:
     - [Semantic Kernel](https://github.com/microsoft/semantic-kernel/blob/7e68276a4a85022dd4da255beae3263ab5cbf059/dotnet/src/VectorData/Chroma/README.md#L1): recommended for Chroma in .NET.
+    - [LangChain.Databases](https://github.com/tryAGI/LangChain.Databases/blob/17c118f863ef1437b4ecaa0222081eb045b38a87/README.md#L36): recommended for Chroma in its README.
     - [Microsoft Agent Framework](https://github.com/microsoft/agent-framework/blob/deecbcb062198f926516f89b65e5b1676e4514c2/dotnet/samples/community-projects.md#L26): listed among the .NET community projects.
 - CommunityToolkit.Aspire.Chroma: the Chroma client integration, in the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire/blob/523b84b27c5d019d242d95c2252046ba3619303c/src/CommunityToolkit.Aspire.Chroma/CommunityToolkit.Aspire.Chroma.csproj#L12) of the .NET Foundation.
 - [BotSharp.Plugin.Chroma](https://github.com/SciSharp/BotSharp/blob/c8f632bf13bb22aed53c8ba63d41ee9e0e0fb75b/src/Plugins/BotSharp.Plugin.Chroma/BotSharp.Plugin.Chroma.csproj#L14): the Chroma vector database plugin of BotSharp, by SciSharp.
