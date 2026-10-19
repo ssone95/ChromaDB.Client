@@ -25,6 +25,20 @@ public abstract class ChromaWhereDocumentOperator
 	internal abstract ChromaWhereDocumentOperator Negate();
 
 	/// <summary>
+	/// A filter written as the dictionary of the <c>where_document</c> of the Chroma API, as the Python client takes it, like
+	/// <c>{"$contains": "text"}</c> or <c>{"$and": [...]}</c>: nested filters as <c>Dictionary&lt;string, object&gt;</c>, lists as arrays.
+	/// Get, query and delete send it as it is, and the server checks it. The Search API takes the filters on the documents in its where
+	/// clause, on <c>#document</c>: there the client writes it as it writes the other filters, and for what it cannot write, like an
+	/// operator other than <c>$contains</c>, <c>$not_contains</c>, <c>$regex</c>, <c>$not_regex</c>, <c>$and</c> and <c>$or</c>, throws a
+	/// <c>NotSupportedException</c> without sending the search. <c>&amp;</c> and <c>|</c> join it to other filters; <c>Not</c> throws a
+	/// <c>NotSupportedException</c>.
+	/// </summary>
+	/// <param name="whereDocument">The filter, as a dictionary.</param>
+	/// <returns>The filter.</returns>
+	public static ChromaWhereDocumentOperator FromDictionary(IReadOnlyDictionary<string, object> whereDocument)
+		=> new ChromaWhereDocumentDictionaryOperator(whereDocument ?? throw new ArgumentNullException(nameof(whereDocument)));
+
+	/// <summary>
 	/// The documents that the filter does not match: Chroma has no <c>$not</c>, so the negation goes into the operators,
 	/// <c>$contains</c> to <c>$not_contains</c>, <c>$regex</c> to <c>$not_regex</c>, and <c>$and</c> to <c>$or</c> of the negations.
 	/// </summary>
@@ -217,4 +231,44 @@ internal class ChromaWhereDocumentStringOperator : ChromaWhereDocumentOperator
 		{
 			{ ChromaSearchKeys.Document, new Dictionary<string, object> { { Operator, String } } }
 		};
+}
+
+// A filter on the documents given as the dictionary of the where_document of the Chroma API: sent as it is, and written for the
+// Search API on #document, as the other filters are.
+internal sealed class ChromaWhereDocumentDictionaryOperator(IReadOnlyDictionary<string, object> whereDocument) : ChromaWhereDocumentOperator("dictionary")
+{
+	internal override Dictionary<string, object> ToWhereDocument() => whereDocument.ToDictionary(x => x.Key, x => x.Value);
+
+	internal override Dictionary<string, object> ToSearchWhere() => ToSearchWhere(whereDocument);
+
+	internal override ChromaWhereDocumentOperator Negate()
+		=> throw new NotSupportedException("Not cannot negate a filter on the documents given as a dictionary: Chroma has no $not.");
+
+	// {"$and"|"$or": [filters]} keeps its operator, and {"$contains"|"$not_contains"|"$regex"|"$not_regex": text} goes on #document.
+	private static Dictionary<string, object> ToSearchWhere(object? node)
+	{
+		if (node is not IEnumerable<KeyValuePair<string, object>> filter)
+		{
+			throw Unwritable("has a filter that is not a dictionary");
+		}
+		var pairs = filter.Take(2).ToList();
+		if (pairs.Count != 1)
+		{
+			throw Unwritable($"has a filter with {(pairs.Count == 0 ? "no operator" : "more than one operator")}: Chroma takes one in each");
+		}
+		var pair = pairs[0];
+		return pair.Key switch
+		{
+			"$and" or "$or" when pair.Value is System.Collections.IEnumerable list and not string and not IEnumerable<KeyValuePair<string, object>>
+				=> new() { { pair.Key, list.Cast<object?>().Select(x => (object)ToSearchWhere(x)).ToArray() } },
+			"$contains" or "$not_contains" or "$regex" or "$not_regex" when pair.Value is string text
+				=> new() { { ChromaSearchKeys.Document, new Dictionary<string, object> { { pair.Key, text } } } },
+			"$and" or "$or" => throw Unwritable($"has {pair.Key} with a value that is not a list of filters"),
+			"$contains" or "$not_contains" or "$regex" or "$not_regex" => throw Unwritable($"has {pair.Key} with a value that is not a text"),
+			_ => throw Unwritable($"has {pair.Key}, which the client cannot write for the Search API: it writes $contains, $not_contains, $regex, $not_regex, $and and $or. ChromaWhereOperator.FromDictionary sends a where clause of the Search API as it is, with #document"),
+		};
+	}
+
+	private static NotSupportedException Unwritable(string what)
+		=> new($"The filter on the documents given as a dictionary {what}.");
 }

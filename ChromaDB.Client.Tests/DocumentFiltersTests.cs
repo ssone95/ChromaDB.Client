@@ -51,6 +51,9 @@ public class DocumentFiltersTests
 		yield return ChromaWhereDocumentOperator.Contains("  ");
 		yield return ChromaWhereDocumentOperator.Contains("abc") & ChromaWhereDocumentOperator.NotContains("x");
 		yield return ChromaWhereDocumentOperator.Not(ChromaWhereDocumentOperator.Contains("ab") | ChromaWhereDocumentOperator.Regex("xyz"));
+		// The same checks for a filter given as a dictionary.
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$regex"] = "^$" });
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$and"] = new object[] { new Dictionary<string, object> { ["$contains"] = "abc" }, new Dictionary<string, object> { ["$contains"] = "ab" } } });
 	}
 
 	static IEnumerable<ChromaWhereDocumentOperator> RightOnChromaCloud()
@@ -76,6 +79,7 @@ public class DocumentFiltersTests
 		yield return ChromaWhereDocumentOperator.Contains("αβγ");
 		yield return ChromaWhereDocumentOperator.Contains("😀😀😀");
 		yield return ChromaWhereDocumentOperator.Contains("abc") & ChromaWhereDocumentOperator.Regex("x");
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = "abc" });
 	}
 
 	[Test]
@@ -146,6 +150,63 @@ public class DocumentFiltersTests
 		Assert.That(ex!.Message, Does.StartWith($"Chroma Cloud rejects the pattern \"{pattern}\" of $not_regex, of {bytes} bytes in UTF-8: the quota of the tenant for a regex pattern is {limit} bytes"));
 	}
 
+	// A filter given as a dictionary goes in every operation as the same filter written with the operators: get, query and delete send it as
+	// it is, and the Search API gets it on #document, also nested.
+	[Test]
+	public async Task FromDictionaryAsTheOperators([ValueSource(nameof(Operations))] string operation)
+	{
+		var dictionary = ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object>
+		{
+			["$or"] = new object[]
+			{
+				new Dictionary<string, object> { ["$contains"] = "abc" },
+				new Dictionary<string, object> { ["$and"] = new object[] { new Dictionary<string, object> { ["$regex"] = "x+" }, new Dictionary<string, object> { ["$not_contains"] = "zzz" } } },
+			},
+		});
+		var operators = ChromaWhereDocumentOperator.Contains("abc") | (ChromaWhereDocumentOperator.Regex("x+") & ChromaWhereDocumentOperator.NotContains("zzz"));
+		var last = operation.Split(' ')[0];
+		var fromDictionary = new Server();
+		await Run(Client(fromDictionary, Local), operation, dictionary);
+		var fromOperators = new Server();
+		await Run(Client(fromOperators, Local), operation, operators);
+		Assert.That(fromDictionary.Body(last), Is.Not.Null.And.EqualTo(fromOperators.Body(last)));
+		Assert.That(dictionary.ToString(), Is.EqualTo(operators.ToString()));
+	}
+
+	static IEnumerable<IReadOnlyDictionary<string, object>> NotForTheSearch()
+	{
+		yield return new Dictionary<string, object> { ["$foo"] = "x" };
+		yield return new Dictionary<string, object> { ["#document"] = new Dictionary<string, object> { ["$contains"] = "abc" } };
+		yield return new Dictionary<string, object> { ["$contains"] = "abc", ["$regex"] = "x" };
+		yield return new Dictionary<string, object>();
+		yield return new Dictionary<string, object> { ["$contains"] = 3 };
+		yield return new Dictionary<string, object> { ["$and"] = "abc" };
+		yield return new Dictionary<string, object> { ["$or"] = new object[] { new Dictionary<string, object> { ["$contains"] = "abc" }, new Dictionary<string, object> { ["$bar"] = "x" } } };
+	}
+
+	// What the client cannot write for the Search API throws there without a search, and a get sends it as it is.
+	[Test]
+	public async Task FromDictionaryThatTheSearchCannotWrite([ValueSource(nameof(NotForTheSearch))] IReadOnlyDictionary<string, object> filter)
+	{
+		foreach (var operation in new[] { "search", "search with where document" })
+		{
+			var server = new Server();
+			var ex = Assert.ThrowsAsync<NotSupportedException>(() => Run(Client(server, Local), operation, ChromaWhereDocumentOperator.FromDictionary(filter)));
+			Assert.That(ex!.Message, Does.StartWith("The filter on the documents given as a dictionary "));
+			Assert.That(server.Paths, Does.Not.Contain("search"));
+		}
+		var get = new Server();
+		await Client(get, Local).GetAsync(whereDocument: ChromaWhereDocumentOperator.FromDictionary(filter));
+		Assert.That(System.Text.Json.JsonDocument.Parse(get.Body("get")!).RootElement.GetProperty("where_document").GetRawText(), Is.EqualTo(System.Text.Json.JsonSerializer.Serialize(filter)));
+	}
+
+	[Test]
+	public void FromDictionaryNullAndNot()
+	{
+		Assert.Throws<ArgumentNullException>(() => ChromaWhereDocumentOperator.FromDictionary(null!));
+		Assert.Throws<NotSupportedException>(() => ChromaWhereDocumentOperator.Not(ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = "abc" })));
+	}
+
 	// A filter that get rejects, a condition on the documents joined with |, fails the task as before: the check leaves it to the get, on
 	// Chroma Cloud as on a single server.
 	[TestCase(Cloud)]
@@ -177,13 +238,18 @@ public class DocumentFiltersTests
 	sealed class Server : HttpMessageHandler
 	{
 		public List<string> Paths { get; } = [];
+		public List<string?> Bodies { get; } = [];
 		public (int Usage, int Limit)? RegexQuota { get; init; }
+
+		// The body of the last request whose path ends with the segment.
+		public string? Body(string last) => Bodies[Paths.LastIndexOf(last)];
 
 		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			var path = request.RequestUri!.AbsolutePath;
 			var last = path[(path.LastIndexOf('/') + 1)..];
 			Paths.Add(last);
+			Bodies.Add(request.Content?.ReadAsStringAsync().GetAwaiter().GetResult());
 			if (RegexQuota is var (usage, limit) && last is "get" or "query" or "search" or "delete")
 			{
 				var action = char.ToUpperInvariant(last[0]) + last[1..];
