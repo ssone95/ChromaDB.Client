@@ -1622,6 +1622,14 @@ public class ChromaCollectionClient
 		};
 	}
 
+	// A text of a filter: a string, or a JSON string.
+	private static string? Text(object? value) => value switch
+	{
+		string text => text,
+		System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String } json => json.GetString(),
+		_ => null,
+	};
+
 	// The trigrams of the index of the documents of Chroma Cloud: a text of fewer characters has none.
 	private const int MinContainsCharacters = 3;
 
@@ -1640,13 +1648,22 @@ public class ChromaCollectionClient
 	}
 
 	// The $regex, $not_regex, $contains and $not_contains on the documents in a filter, also inside $and and $or.
+	// The values of a filter given as a dictionary from JSON are JsonElement: objects, arrays and strings are read as the others.
 	private static IEnumerable<(string Operator, string Value)> DocumentFilters(object? node, bool document)
 	{
+		if (node is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Object } json)
+		{
+			node = json.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value);
+		}
+		else if (node is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Array } array)
+		{
+			node = array.EnumerateArray().Select(item => (object)item).ToList();
+		}
 		if (node is IDictionary<string, object> map)
 		{
 			foreach (var pair in map)
 			{
-				if (document && pair.Key is "$regex" or "$not_regex" or "$contains" or "$not_contains" && pair.Value is string value)
+				if (document && pair.Key is "$regex" or "$not_regex" or "$contains" or "$not_contains" && Text(pair.Value) is { } value)
 				{
 					yield return (pair.Key, value);
 				}

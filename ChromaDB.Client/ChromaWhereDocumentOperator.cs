@@ -244,9 +244,14 @@ internal sealed class ChromaWhereDocumentDictionaryOperator(IReadOnlyDictionary<
 	internal override ChromaWhereDocumentOperator Negate()
 		=> throw new NotSupportedException("Not cannot negate a filter on the documents given as a dictionary: Chroma has no $not.");
 
-	// {"$and"|"$or": [filters]} keeps its operator, and {"$contains"|"$not_contains"|"$regex"|"$not_regex": text} goes on #document.
+	// {"$and"|"$or": [filters]} keeps its operator, and {"$contains"|"$not_contains"|"$regex"|"$not_regex": text} goes on #document. A
+	// dictionary from JSON has JsonElement values: objects, arrays and strings are read as the others.
 	private static Dictionary<string, object> ToSearchWhere(object? node)
 	{
+		if (node is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Object } json)
+		{
+			node = json.EnumerateObject().Select(property => new KeyValuePair<string, object>(property.Name, property.Value)).ToList();
+		}
 		if (node is not IEnumerable<KeyValuePair<string, object>> filter)
 		{
 			throw Unwritable("has a filter that is not a dictionary");
@@ -257,11 +262,17 @@ internal sealed class ChromaWhereDocumentDictionaryOperator(IReadOnlyDictionary<
 			throw Unwritable($"has a filter with {(pairs.Count == 0 ? "no operator" : "more than one operator")}: Chroma takes one in each");
 		}
 		var pair = pairs[0];
+		var value = pair.Value switch
+		{
+			System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Array } array => array.EnumerateArray().Select(item => (object)item).ToList(),
+			System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String } text => text.GetString()!,
+			_ => pair.Value,
+		};
 		return pair.Key switch
 		{
-			"$and" or "$or" when pair.Value is System.Collections.IEnumerable list and not string and not IEnumerable<KeyValuePair<string, object>>
+			"$and" or "$or" when value is System.Collections.IEnumerable list and not string and not IEnumerable<KeyValuePair<string, object>>
 				=> new() { { pair.Key, list.Cast<object?>().Select(x => (object)ToSearchWhere(x)).ToArray() } },
-			"$contains" or "$not_contains" or "$regex" or "$not_regex" when pair.Value is string text
+			"$contains" or "$not_contains" or "$regex" or "$not_regex" when value is string text
 				=> new() { { ChromaSearchKeys.Document, new Dictionary<string, object> { { pair.Key, text } } } },
 			"$and" or "$or" => throw Unwritable($"has {pair.Key} with a value that is not a list of filters"),
 			"$contains" or "$not_contains" or "$regex" or "$not_regex" => throw Unwritable($"has {pair.Key} with a value that is not a text"),

@@ -54,7 +54,12 @@ public class DocumentFiltersTests
 		// The same checks for a filter given as a dictionary.
 		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$regex"] = "^$" });
 		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$and"] = new object[] { new Dictionary<string, object> { ["$contains"] = "abc" }, new Dictionary<string, object> { ["$contains"] = "ab" } } });
+		// And for one from JSON, whose values are JsonElement.
+		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$regex":"^$"}"""));
+		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$or":[{"$regex":"x"},{"$not_contains":"ab"}]}]}"""));
 	}
+
+	static Dictionary<string, object> FromJson(string json) => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
 
 	static IEnumerable<ChromaWhereDocumentOperator> RightOnChromaCloud()
 	{
@@ -80,6 +85,7 @@ public class DocumentFiltersTests
 		yield return ChromaWhereDocumentOperator.Contains("😀😀😀");
 		yield return ChromaWhereDocumentOperator.Contains("abc") & ChromaWhereDocumentOperator.Regex("x");
 		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = "abc" });
+		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$regex":"x"}]}"""));
 	}
 
 	[Test]
@@ -164,14 +170,57 @@ public class DocumentFiltersTests
 			},
 		});
 		var operators = ChromaWhereDocumentOperator.Contains("abc") | (ChromaWhereDocumentOperator.Regex("x+") & ChromaWhereDocumentOperator.NotContains("zzz"));
+		var json = ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$or":[{"$contains":"abc"},{"$and":[{"$regex":"x+"},{"$not_contains":"zzz"}]}]}"""));
 		var last = operation.Split(' ')[0];
-		var fromDictionary = new Server();
-		await Run(Client(fromDictionary, Local), operation, dictionary);
 		var fromOperators = new Server();
 		await Run(Client(fromOperators, Local), operation, operators);
-		Assert.That(fromDictionary.Body(last), Is.Not.Null.And.EqualTo(fromOperators.Body(last)));
-		Assert.That(dictionary.ToString(), Is.EqualTo(operators.ToString()));
+		foreach (var filter in new[] { dictionary, json })
+		{
+			var server = new Server();
+			await Run(Client(server, Local), operation, filter);
+			Assert.That(server.Body(last), Is.Not.Null.And.EqualTo(fromOperators.Body(last)));
+			Assert.That(filter.ToString(), Is.EqualTo(operators.ToString()));
+		}
 	}
+
+	// ChromaWhereOperator.FromDictionary with #document in the where clause of the Search API: Chroma Cloud checks its texts too, also from
+	// JSON, before the search; a single server takes it.
+	[TestCase("""{"#document":{"$regex":"^$"}}""", true)]
+	[TestCase("""{"$and":[{"k":{"$eq":1}},{"#document":{"$contains":"ab"}}]}""", true)]
+	[TestCase("""{"#document":{"$contains":"abc"}}""", false)]
+	public async Task WhereFromDictionaryOnDocumentInTheSearch(string json, bool wrongOnChromaCloud)
+	{
+		foreach (var where in new[] { ChromaWhereOperator.FromDictionary(FromJson(json)), ChromaWhereOperator.FromDictionary(FromClr(System.Text.Json.JsonDocument.Parse(json).RootElement)) })
+		{
+			var cloud = new Server();
+			var search = new ChromaSearch { Where = where, Limit = 5 };
+			if (wrongOnChromaCloud)
+			{
+				Assert.ThrowsAsync<ArgumentException>(() => Client(cloud, Cloud).SearchAsync(search));
+				Assert.That(cloud.Paths, Is.Empty);
+			}
+			else
+			{
+				await Client(cloud, Cloud).SearchAsync(search);
+				Assert.That(cloud.Paths, Does.Contain("search"));
+			}
+			var local = new Server();
+			await Client(local, Local).SearchAsync(search);
+			Assert.That(local.Paths, Does.Contain("search"));
+		}
+	}
+
+	// The same dictionary with .NET values: objects as Dictionary<string, object>, arrays as object[], and the scalars as they are.
+	static Dictionary<string, object> FromClr(System.Text.Json.JsonElement element)
+		=> element.EnumerateObject().ToDictionary(property => property.Name, property => Clr(property.Value));
+
+	static object Clr(System.Text.Json.JsonElement element) => element.ValueKind switch
+	{
+		System.Text.Json.JsonValueKind.Object => FromClr(element),
+		System.Text.Json.JsonValueKind.Array => element.EnumerateArray().Select(Clr).ToArray(),
+		System.Text.Json.JsonValueKind.String => element.GetString()!,
+		_ => element.GetInt64(),
+	};
 
 	static IEnumerable<IReadOnlyDictionary<string, object>> NotForTheSearch()
 	{
