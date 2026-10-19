@@ -387,7 +387,16 @@ public class ChromaCollectionClient
 			|| ids is { } few && few.Count <= size || ids is null && limit <= size)
 		{
 			// With ids, no more records than the ids: a limit beyond them, like 1000, goes over the quota of 300 of Chroma Cloud.
-			return await GetPage(ids, where, whereDocument, ids is { Count: > 0 } && limit > ids.Count ? ids.Count : limit, offset, include, cancellationToken);
+			var single = ids is { Count: > 0 } && limit > ids.Count ? ids.Count : limit;
+			try
+			{
+				return await GetPage(ids, where, whereDocument, single, offset, include, cancellationToken);
+			}
+			catch (ChromaException ex) when (_httpClient.BatchSplitting && ids is null && LimitQuota(ex) is { } quota && quota < single)
+			{
+				_httpClient.LearnRecordsLimit(quota);
+				return await GetEntries(ids, where, whereDocument, limit, offset, include, cancellationToken);
+			}
 		}
 		var entries = new List<ChromaCollectionEntry>();
 		if (ids is not null)
@@ -404,7 +413,17 @@ public class ChromaCollectionClient
 		while (limit is null || entries.Count < limit)
 		{
 			var take = limit is { } total ? Math.Min(size, total - entries.Count) : size;
-			var page = await GetPage(null, where, whereDocument, take, start, include, cancellationToken);
+			List<ChromaCollectionEntry> page;
+			try
+			{
+				page = await GetPage(null, where, whereDocument, take, start, include, cancellationToken);
+			}
+			catch (ChromaException ex) when (LimitQuota(ex) is { } quota && quota < take)
+			{
+				_httpClient.LearnRecordsLimit(quota);
+				size = quota;
+				continue;
+			}
 			entries.AddRange(page);
 			if (page.Count < take)
 			{
@@ -442,7 +461,17 @@ public class ChromaCollectionClient
 		{
 			while (true)
 			{
-				var ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
+				List<string> ids;
+				try
+				{
+					ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
+				}
+				catch (ChromaException ex) when (LimitQuota(ex) is { } quota && quota < size)
+				{
+					_httpClient.LearnRecordsLimit(quota);
+					size = quota;
+					continue;
+				}
 				if (ids.Count == 0)
 				{
 					return count;
@@ -1222,6 +1251,17 @@ public class ChromaCollectionClient
 
 	private static int? RecordsQuota(ChromaException exception)
 		=> RecordsQuotaMessage.Match(exception.Message) is { Success: true } match
+			&& int.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var limit) && limit > 0
+			? limit
+			: null;
+
+	// The quota of the records of a read, as Chroma Cloud rejects a get with a larger limit, before it reads anything:
+	// "Quota exceeded: 'Limit value' exceeded quota limit for action 'Get': current usage of 1000 exceeds limit of 300". The client keeps
+	// it as the quota of records, with the one of the writes, and reads that page again with it.
+	private static readonly System.Text.RegularExpressions.Regex LimitQuotaMessage = new("'Limit value' exceeded quota limit .* exceeds limit of ([0-9]+)");
+
+	private static int? LimitQuota(ChromaException exception)
+		=> LimitQuotaMessage.Match(exception.Message) is { Success: true } match
 			&& int.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var limit) && limit > 0
 			? limit
 			: null;

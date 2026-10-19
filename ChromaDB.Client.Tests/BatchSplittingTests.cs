@@ -37,6 +37,24 @@ public class BatchSplittingTests : ChromaTestsBase
 		Assert.That(await collectionClient.DeleteAllAsync(), Is.EqualTo(0));
 	}
 
+	// Chroma Cloud answers at most 300 records per read and rejects a larger limit: a fresh client with WithBatchSplitting(1000), on a
+	// collection another client filled, learns it from the first get, reads all the records and deletes them all.
+	[Test]
+	public async Task QuotaOfTheReadsOfChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 300 records per read.");
+		var filler = new ChromaClient(BaseConfigurationOptions, HttpClient);
+		var collection = await filler.CreateCollectionAsync($"collection{Random.Shared.Next()}");
+		var ids = Enumerable.Range(0, 350).Select(i => $"r{i}").ToList();
+		await filler.GetCollectionClient(collection).AddAsync(new ChromaRecords(ids) { Embeddings = Enumerable.Repeat(new ReadOnlyMemory<float>([0.5f, 0.5f]), 350).ToList() });
+
+		var reader = new ChromaClient(BaseConfigurationOptions.WithBatchSplitting(1000), NewHttpClient()).GetCollectionClient(collection);
+		Assert.That((await reader.GetAsync(include: ChromaGetInclude.None)).Count, Is.EqualTo(350));
+		var deleter = new ChromaClient(BaseConfigurationOptions.WithBatchSplitting(1000), NewHttpClient()).GetCollectionClient(collection);
+		Assert.That(await deleter.DeleteAllAsync(), Is.EqualTo(350));
+		Assert.That(await filler.GetCollectionClient(collection).CountAsync(), Is.EqualTo(0));
+	}
+
 	// Get in pages of the batch size: all the records, a limit and an offset across pages, and ids beyond the batch size.
 	[Test]
 	public async Task GetBeyondTheBatchSize()
