@@ -15,7 +15,8 @@ public class ChromaRecords
 	/// </summary>
 	public IReadOnlyList<ReadOnlyMemory<float>>? Embeddings { get; init; }
 	/// <summary>
-	/// The metadatas of the records, in the order of the ids; null for a record without metadata. In <c>UpdateAsync</c> and
+	/// The metadatas of the records, in the order of the ids; null for a record without metadata. An empty metadata is sent as no
+	/// metadata, null: every tested Chroma, 0.4.10 to 1.5.9 and Chroma Cloud, treats the two the same. In <c>UpdateAsync</c> and
 	/// <c>UpsertAsync</c> a null value, written <c>null!</c> as the type does not allow it, or an empty list deletes the key, and the
 	/// sparse vectors the client computes from its text; the keys the metadata does not have stay. <c>AddAsync</c> rejects both.
 	/// <c>ChromaMetadataConvert.ToMetadata</c> builds a metadata with null values from .NET values.

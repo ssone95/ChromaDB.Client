@@ -620,6 +620,7 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	public virtual Task AddAsync(ChromaRecords records, CancellationToken cancellationToken = default)
 	{
+		records = WithoutEmptyMetadatas(records);
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
@@ -680,6 +681,7 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	public virtual Task UpdateAsync(ChromaRecords records, CancellationToken cancellationToken = default)
 	{
+		records = WithoutEmptyMetadatas(records);
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
@@ -748,6 +750,7 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	public virtual Task UpsertAsync(ChromaRecords records, CancellationToken cancellationToken = default)
 	{
+		records = WithoutEmptyMetadatas(records);
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
@@ -786,6 +789,18 @@ public class ChromaCollectionClient
 	// The copy of each document under the document copy key, when the server takes it: Chroma Cloud takes a metadata value of at most
 	// 8,182 bytes. In an update or an upsert, a document without its copy, as one too long or one deleted, deletes the stored copy with
 	// a null, which WithDeletions sends along; a null document that stays keeps its copy.
+	// An empty metadata goes as no metadata, null: in add, update and upsert, also in batches with other metadatas, every tested Chroma,
+	// 0.4.10 to 1.5.9 and Chroma Cloud, treats the two the same. A new record has no metadata, and a stored one keeps its own.
+	private static ChromaRecords WithoutEmptyMetadatas(ChromaRecords records)
+		=> records.Metadatas is not { } metadatas || !metadatas.Any(metadata => metadata is { Count: 0 }) ? records : new ChromaRecords(records.Ids)
+		{
+			Embeddings = records.Embeddings,
+			Metadatas = metadatas.Select(metadata => metadata is { Count: 0 } ? null : metadata).ToList(),
+			Documents = records.Documents,
+			Uris = records.Uris,
+			NullDocumentsDelete = records.NullDocumentsDelete,
+		};
+
 	private ChromaRecords WithDocumentCopies(ChromaRecords records, bool update)
 	{
 		if (_documentCopyKey is not { } key || records.Documents is not { } documents)

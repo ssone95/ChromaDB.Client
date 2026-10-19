@@ -110,6 +110,23 @@ public class BatchesAndFiltersTests
 		Assert.That(handler.Bodies.Single().GetProperty("where_document").GetRawText(), Is.EqualTo(whereDocument.ToString()));
 	}
 
+	// An empty metadata goes as null in add, upsert and update: every tested Chroma treats the two the same.
+	[Test]
+	public async Task EmptyMetadataGoesAsNull()
+	{
+		var records = new ChromaRecords(["a", "b"])
+		{
+			Embeddings = [Embedding, Embedding],
+			Metadatas = [new Dictionary<string, object>(), new Dictionary<string, object> { ["k"] = 1 }],
+		};
+		foreach (var write in new Func<ChromaCollectionClient, Task>[] { x => x.AddAsync(records), x => x.UpsertAsync(records), x => x.UpdateAsync(records) })
+		{
+			var handler = new Handler("""{"max_batch_size":10}""");
+			await write(Client(Options, handler));
+			Assert.That(handler.Bodies.Single().GetProperty("metadatas").GetRawText(), Is.EqualTo("""[null,{"k":1}]"""));
+		}
+	}
+
 	// A filter given as a dictionary goes in the request as it is.
 	[Test]
 	public async Task FilterFromDictionaryAsItIs()
