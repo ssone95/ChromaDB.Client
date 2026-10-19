@@ -110,6 +110,25 @@ public class BatchesAndFiltersTests
 		Assert.That(handler.Bodies.Single().GetProperty("where_document").GetRawText(), Is.EqualTo(whereDocument.ToString()));
 	}
 
+	// A filter given as a dictionary goes in the request as it is.
+	[Test]
+	public async Task FilterFromDictionaryAsItIs()
+	{
+		var where = ChromaWhereOperator.FromDictionary(new Dictionary<string, object>
+		{
+			["$and"] = new object[]
+			{
+				new Dictionary<string, object> { ["k"] = new Dictionary<string, object> { ["$eq"] = 1 } },
+				new Dictionary<string, object> { ["t"] = new Dictionary<string, object> { ["$in"] = new object[] { "a", "b" } } },
+			},
+		});
+
+		var handler = new Handler("""{"ids":[]}""");
+		await Client(Options, handler).GetAsync(where: where);
+		Assert.That(handler.Bodies.Single().GetProperty("where").GetRawText(), Is.EqualTo("""{"$and":[{"k":{"$eq":1}},{"t":{"$in":["a","b"]}}]}"""));
+		Assert.Throws<ArgumentNullException>(() => ChromaWhereOperator.FromDictionary(null!));
+	}
+
 	// A chain of the same operator goes as one list, as the Python client writes it: nested, a chain of 32 filters went beyond the
 	// 64 levels of System.Text.Json.
 	[Test]
