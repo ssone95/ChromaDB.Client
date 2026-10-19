@@ -64,3 +64,4 @@ ChromaDB.Client.ChromaReadRetries.MaxAttempts.get -> int
 ChromaDB.Client.ChromaReadRetries.MaxDelay.get -> System.TimeSpan
 static ChromaDB.Client.ChromaReadRetries.Default.get -> ChromaDB.Client.ChromaReadRetries!
 static ChromaDB.Client.ChromaReadRetries.None.get -> ChromaDB.Client.ChromaReadRetries!
+virtual ChromaDB.Client.ChromaCollectionClient.DeleteAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!

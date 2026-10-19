@@ -23,6 +23,20 @@ public class BatchSplittingTests : ChromaTestsBase
 		Assert.That(await collectionClient.CountAsync(), Is.EqualTo(0));
 	}
 
+	// DeleteAllAsync deletes a page of the batch size at a time, until none is left.
+	[Test]
+	public async Task DeleteAllInPages()
+	{
+		var client = new ChromaClient(BaseConfigurationOptions.WithBatchSplitting(1000), HttpClient);
+		var collectionClient = client.GetCollectionClient(await client.CreateCollectionAsync($"collection{Random.Shared.Next()}"));
+		var ids = Enumerable.Range(0, 3000).Select(i => $"r{i}").ToList();
+		await collectionClient.AddAsync(new ChromaRecords(ids) { Embeddings = Enumerable.Repeat(new ReadOnlyMemory<float>([0.5f, 0.5f]), 3000).ToList() });
+
+		Assert.That(await collectionClient.DeleteAllAsync(), Is.EqualTo(3000));
+		Assert.That(await collectionClient.CountAsync(), Is.EqualTo(0));
+		Assert.That(await collectionClient.DeleteAllAsync(), Is.EqualTo(0));
+	}
+
 	// Get in pages of the batch size: all the records, a limit and an offset across pages, and ids beyond the batch size.
 	[Test]
 	public async Task GetBeyondTheBatchSize()

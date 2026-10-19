@@ -415,9 +415,20 @@ public class ChromaCollectionClient
 		return entries;
 	}
 
-	// Deletes the records a page of ids at a time, a batch each, until none is left: ChromaClient does it before it deletes the
-	// collection. A page that comes back the same was not deleted, and stops it: what is left goes with the collection.
-	internal async Task DeleteAllRecords(CancellationToken cancellationToken)
+	/// <summary>
+	/// Deletes every record of the collection, and returns how many it deleted. Chroma rejects a delete without ids or filters, so the
+	/// client reads a page of ids from the start, as many as the batch size of the server and of Chroma Cloud, deletes them, and goes on
+	/// until none is left. The collection stays. If the server returns the records of a page after their delete, the client throws a
+	/// <c>ChromaException</c>.
+	/// </summary>
+	/// <param name="cancellationToken">The token that cancels the operation.</param>
+	/// <returns>How many records it deleted.</returns>
+	public virtual Task<int> DeleteAllAsync(CancellationToken cancellationToken = default)
+		=> Operation("delete", cancellationToken, () => DeleteAllRecords(cancellationToken));
+
+	// Deletes the records a page of ids at a time, a batch each, until none is left, and counts them: DeleteAllAsync, and ChromaClient
+	// before it deletes the collection. A page that comes back the same was not deleted, and stops it.
+	internal async Task<int> DeleteAllRecords(CancellationToken cancellationToken)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", _tenant)
@@ -425,18 +436,20 @@ public class ChromaCollectionClient
 			.Insert("{collection_id}", _collection.Id);
 		var size = await BatchSize(cancellationToken);
 		List<string> deleted = [];
+		var count = 0;
 		while (true)
 		{
 			var ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
 			if (ids.Count == 0)
 			{
-				return;
+				return count;
 			}
 			if (ids.SequenceEqual(deleted))
 			{
 				throw new ChromaException($"The records were not deleted: the server returns them after their delete, like {ids[0]}. The collection stays with them.");
 			}
 			await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
+			count += ids.Count;
 			deleted = ids;
 		}
 	}
