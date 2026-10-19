@@ -86,6 +86,17 @@ public abstract class ChromaWhereOperator
 		=> new ChromaWhereDocumentFilter(filter ?? throw new ArgumentNullException(nameof(filter)));
 
 	/// <summary>
+	/// A filter written as the dictionary of the <c>where</c> of the Chroma API, as the Python client takes it, like
+	/// <c>{"year": {"$gte": 2020}}</c> or <c>{"$and": [...]}</c>: nested filters as <c>Dictionary&lt;string, object&gt;</c>, lists as
+	/// arrays. The client sends it as it is, with very long <c>$and</c> and <c>$or</c> lists split as for the other filters, and does not
+	/// check it: the server does. <c>&amp;</c> and <c>|</c> join it to other filters; <c>Not</c> throws a <c>NotSupportedException</c>.
+	/// </summary>
+	/// <param name="where">The filter, as a dictionary.</param>
+	/// <returns>The filter.</returns>
+	public static ChromaWhereOperator FromDictionary(IReadOnlyDictionary<string, object> where)
+		=> new ChromaWhereDictionaryOperator(where ?? throw new ArgumentNullException(nameof(where)));
+
+	/// <summary>
 	/// The filter that matches every record: the client sends no <c>where</c>, which Chroma has no value for. It is a single instance,
 	/// which <c>&amp;</c>, <c>|</c> and <c>Not</c> return when the filter they make matches every record.
 	/// </summary>
@@ -371,4 +382,13 @@ internal sealed class ChromaWhereDocumentFilter(ChromaWhereDocumentOperator filt
 	internal override bool HasSearchOnlyCondition => true;
 
 	internal override ChromaWhereDocumentOperator? AsDocumentFilter() => filter;
+}
+
+// A filter given as the dictionary of the where of the Chroma API, sent as it is.
+internal sealed class ChromaWhereDictionaryOperator(IReadOnlyDictionary<string, object> where) : ChromaWhereOperator("dictionary")
+{
+	internal override Dictionary<string, object> ToWhere() => where.ToDictionary(x => x.Key, x => x.Value);
+
+	internal override ChromaWhereOperator Negate()
+		=> throw new NotSupportedException("Not cannot negate a filter given as a dictionary: Chroma has no $not.");
 }
