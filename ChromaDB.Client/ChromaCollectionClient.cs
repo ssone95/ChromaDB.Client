@@ -405,9 +405,20 @@ public class ChromaCollectionClient
 		{
 			// An id given twice would come back twice, from two batches: one request gives it once.
 			var unique = ids.Distinct().ToList();
-			for (var i = 0; i < unique.Count; i += size)
+			for (var i = 0; i < unique.Count;)
 			{
-				entries.AddRange(await GetPage(unique.Skip(i).Take(size).ToList(), where, whereDocument, null, null, include, cancellationToken));
+				var batch = unique.Skip(i).Take(size).ToList();
+				try
+				{
+					entries.AddRange(await GetPage(batch, where, whereDocument, null, null, include, cancellationToken));
+					i += batch.Count;
+				}
+				// A batch beyond the quota of Chroma Cloud: the client keeps the limit and reads that batch again, smaller; the batches read stay.
+				catch (ChromaException ex) when ((LimitQuota(ex) ?? RecordsQuota(ex)) is { } quota && quota < batch.Count)
+				{
+					_httpClient.LearnRecordsLimit(quota);
+					size = quota;
+				}
 			}
 			return entries.Skip(offset ?? 0).Take(limit ?? int.MaxValue).ToList();
 		}

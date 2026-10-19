@@ -71,6 +71,20 @@ public class BatchSplittingTests : ChromaTestsBase
 		Assert.That((await reader.GetAsync(ids, limit: limit, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EquivalentTo(ids));
 	}
 
+	// More ids than the batch size of the caller: its batches go beyond the quota of Chroma Cloud, and the client reads them again smaller.
+	[Test]
+	public async Task QuotaOfReadsByIdsInBatchesOfChromaCloud()
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of 300 records per read.");
+		var filler = new ChromaClient(BaseConfigurationOptions, HttpClient);
+		var collection = await filler.CreateCollectionAsync($"collection{Random.Shared.Next()}");
+		var ids = Enumerable.Range(0, 1001).Select(i => $"r{i}").ToList();
+		await filler.GetCollectionClient(collection).AddAsync(new ChromaRecords(ids) { Embeddings = Enumerable.Repeat(new ReadOnlyMemory<float>([0.5f, 0.5f]), 1001).ToList() });
+
+		var reader = new ChromaClient(BaseConfigurationOptions.WithBatchSplitting(1000), NewHttpClient()).GetCollectionClient(collection);
+		Assert.That((await reader.GetAsync(ids, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EquivalentTo(ids));
+	}
+
 	// Get in pages of the batch size: all the records, a limit and an offset across pages, and ids beyond the batch size.
 	[Test]
 	public async Task GetBeyondTheBatchSize()

@@ -160,6 +160,18 @@ public class DeleteRecordsFirstTests
 		Assert.That(server.IdCounts, Is.EqualTo(new[] { 350, 300, 50 }));
 	}
 
+	// More ids than the batch size go in batches; the first, beyond the quota of Chroma Cloud, gets 422: the client learns the quota and
+	// reads that batch again, smaller, keeping the batches read.
+	[Test]
+	public async Task TheQuotaOfAReadByIdsInBatches()
+	{
+		var server = new QuotaServer(1001);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		var ids = Enumerable.Range(0, 1001).Select(i => $"r{i}").ToList();
+		Assert.That((await client.GetAsync(ids, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(ids));
+		Assert.That(server.IdCounts, Is.EqualTo(new[] { 1000, 300, 300, 300, 101 }));
+	}
+
 	// A tenant of Chroma Cloud whose quota of the reads is higher than the one of the deletes: the delete of a page beyond it gets 422 and
 	// deletes nothing, and the client reads a smaller page. Every record goes, each id once.
 	[Test]
