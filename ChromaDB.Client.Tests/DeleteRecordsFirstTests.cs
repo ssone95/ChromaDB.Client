@@ -147,6 +147,19 @@ public class DeleteRecordsFirstTests
 		Assert.That(server.Deleted, Is.EqualTo(Enumerable.Range(0, 350).Select(i => $"r{i}")));
 	}
 
+	// Chroma Cloud rejects a get of more ids than its quota: with a limit beyond it, "'Limit value'", and without a limit, "'Number of
+	// records'". A client with WithBatchSplitting(1000) learns it and reads the ids in batches.
+	[TestCase(350)]
+	[TestCase(null)]
+	public async Task TheQuotaOfAReadByIds(int? limit)
+	{
+		var server = new QuotaServer(350);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		var ids = Enumerable.Range(0, 350).Select(i => $"r{i}").ToList();
+		Assert.That((await client.GetAsync(ids, limit: limit, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(ids));
+		Assert.That(server.IdCounts, Is.EqualTo(new[] { 350, 300, 50 }));
+	}
+
 	// A tenant of Chroma Cloud whose quota of the reads is higher than the one of the deletes: the delete of a page beyond it gets 422 and
 	// deletes nothing, and the client reads a smaller page. Every record goes, each id once.
 	[Test]
@@ -166,6 +179,7 @@ public class DeleteRecordsFirstTests
 		readonly List<string> _ids = Enumerable.Range(0, count).Select(i => $"r{i}").ToList();
 
 		public List<int> Limits { get; } = [];
+		public List<int> IdCounts { get; } = [];
 		public List<string> Deleted { get; } = [];
 
 		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -178,14 +192,27 @@ public class DeleteRecordsFirstTests
 			}
 			if (path.EndsWith("/get"))
 			{
-				var limit = body.GetProperty("limit").GetInt32();
+				int? limit = body.TryGetProperty("limit", out var asked) && asked.ValueKind == JsonValueKind.Number ? asked.GetInt32() : null;
 				var offset = body.TryGetProperty("offset", out var start) && start.ValueKind == JsonValueKind.Number ? start.GetInt32() : 0;
-				Limits.Add(limit);
+				var requested = body.TryGetProperty("ids", out var given) && given.ValueKind == JsonValueKind.Array ? given.EnumerateArray().Select(x => x.GetString()!).ToList() : null;
+				if (limit is { } value)
+				{
+					Limits.Add(value);
+				}
+				if (requested is not null)
+				{
+					IdCounts.Add(requested.Count);
+				}
 				if (limit > readQuota)
 				{
 					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Limit value' exceeded quota limit for action 'Get': current usage of {{limit}} exceeds limit of {{readQuota}}. https://trychroma.com/request-quota-increase"}""");
 				}
-				return Answer(HttpStatusCode.OK, JsonSerializer.Serialize(new { ids = _ids.Skip(offset).Take(limit).ToList() }));
+				if (requested is not null && limit is null && requested.Count > readQuota)
+				{
+					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Number of records' exceeded quota limit for action 'Get': current usage of {{requested.Count}} exceeds limit of {{readQuota}}. https://trychroma.com/request-quota-increase"}""");
+				}
+				var found = requested is null ? _ids : _ids.Where(requested.Contains).ToList();
+				return Answer(HttpStatusCode.OK, JsonSerializer.Serialize(new { ids = found.Skip(offset).Take(limit ?? int.MaxValue).ToList() }));
 			}
 			if (path.EndsWith("/delete"))
 			{

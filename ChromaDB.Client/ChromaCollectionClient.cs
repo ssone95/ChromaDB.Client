@@ -392,7 +392,9 @@ public class ChromaCollectionClient
 			{
 				return await GetPage(ids, where, whereDocument, single, offset, include, cancellationToken);
 			}
-			catch (ChromaException ex) when (_httpClient.BatchSplitting && ids is null && LimitQuota(ex) is { } quota && quota < single)
+			// Chroma Cloud rejects a get beyond its quota, "'Limit value'" for the limit and, with ids and no limit, "'Number of records'"
+			// for them: the client keeps the limit and reads in pages, or the ids in batches.
+			catch (ChromaException ex) when (_httpClient.BatchSplitting && (LimitQuota(ex) ?? RecordsQuota(ex)) is { } quota && quota < (single ?? ids?.Count))
 			{
 				_httpClient.LearnRecordsLimit(quota);
 				return await GetEntries(ids, where, whereDocument, limit, offset, include, cancellationToken);
