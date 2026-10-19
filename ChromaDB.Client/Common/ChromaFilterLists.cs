@@ -41,8 +41,8 @@ internal static class ChromaFilterLists
 		return new Dictionary<string, object> { [@operator] = groups.ToArray() };
 	}
 
-	// A list of $and or $or: in a dictionary, also one given as it is, whose list can be an array, another list or a JSON array, and in
-	// a JSON object, as a dictionary from JSON has them.
+	// A list of $and or $or: an array in a dictionary, as the operators write it, or a JSON array in a dictionary or a JSON object, as a
+	// filter given as a dictionary has it.
 	private static (string Operator, object[] Filters)? List(object filter)
 		=> filter switch
 		{
@@ -54,26 +54,17 @@ internal static class ChromaFilterLists
 			_ => null,
 		};
 
-	// A filter given as a dictionary, copied once when the client gets it: a list that is not an array becomes an array, read once, and a
-	// dictionary a copy of the same kind; JSON values and the other values stay as they are, so the JSON that goes is the same.
-	public static Dictionary<string, object> Copy(IEnumerable<KeyValuePair<string, object>> filter)
-		=> filter.ToDictionary(pair => pair.Key, pair => CopyValue(pair.Value));
-
-	private static object CopyValue(object value) => value switch
-	{
-		null or string or byte[] or System.Text.Json.JsonElement => value!,
-		object[] array => array.Select(CopyValue).ToArray(),
-		IEnumerable<KeyValuePair<string, object>> dictionary => Copy(dictionary),
-		System.Collections.IDictionary => value,
-		System.Collections.IEnumerable list => list.Cast<object>().Select(CopyValue).ToArray(),
-		_ => value,
-	};
+	// A filter given as a dictionary, written to JSON once when the client gets it, with the serializer, the options and the converters
+	// of the requests, and kept as that JSON: the JSON that goes, which the checks of Chroma Cloud, the split of the long lists and the
+	// Search API read whatever the types of the values. A value the client cannot write throws here.
+	public static Dictionary<string, object> ToJson(IReadOnlyDictionary<string, object> filter)
+		=> System.Text.Json.JsonSerializer.SerializeToElement(filter.ToDictionary(pair => pair.Key, pair => pair.Value), HttpClientHelpers.PostJsonSerializerOptions.TypeInfo<Dictionary<string, object>>())
+			.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value);
 
 	private static object[]? Filters(object value) => value switch
 	{
 		object[] filters => filters,
 		System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Array } json => json.EnumerateArray().Select(item => (object)item).ToArray(),
-		System.Collections.IEnumerable list and not string and not IEnumerable<KeyValuePair<string, object>> => list.Cast<object>().ToArray(),
 		_ => null,
 	};
 }

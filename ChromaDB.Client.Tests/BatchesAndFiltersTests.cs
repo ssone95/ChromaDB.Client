@@ -214,6 +214,35 @@ public class BatchesAndFiltersTests
 		_ => element.GetInt64(),
 	};
 
+	// FromDictionary writes the dictionary as the request writes it: a JsonNode, a typed dictionary and a JsonArray go as their JSON.
+	[Test]
+	public async Task FromDictionaryWithValuesOfOtherTypes()
+	{
+		var where = ChromaWhereOperator.FromDictionary(new Dictionary<string, object>
+		{
+			["$and"] = new object[]
+			{
+				new Dictionary<string, object> { ["year"] = System.Text.Json.Nodes.JsonNode.Parse("""{"$gte":2020}""")! },
+				new Dictionary<string, object> { ["lang"] = new Dictionary<string, string> { ["$eq"] = "en" } },
+				new Dictionary<string, object> { ["n"] = new Dictionary<string, object> { ["$in"] = System.Text.Json.Nodes.JsonNode.Parse("[1,2]")! } },
+			},
+		});
+		var expected = """{"$and":[{"year":{"$gte":2020}},{"lang":{"$eq":"en"}},{"n":{"$in":[1,2]}}]}""";
+		Assert.That(where.ToString(), Is.EqualTo(expected));
+		var handler = new Handler("""{"ids":[]}""");
+		await Client(Options, handler).GetAsync(where: where);
+		Assert.That(handler.Bodies.Single().GetProperty("where").GetRawText(), Is.EqualTo(expected));
+	}
+
+	// A value that the client cannot write throws when FromDictionary gets it, not when the filter goes.
+	[Test]
+	public void FromDictionaryWithAValueThatCannotBeWritten()
+	{
+		Action value = () => { };
+		Assert.Throws<NotSupportedException>(() => ChromaWhereOperator.FromDictionary(new Dictionary<string, object> { ["k"] = value }));
+		Assert.Throws<NotSupportedException>(() => ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = value }));
+	}
+
 	// A filter given as a dictionary goes in the request as it is.
 	[Test]
 	public async Task FilterFromDictionaryAsItIs()

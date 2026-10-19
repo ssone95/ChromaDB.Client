@@ -57,6 +57,9 @@ public class DocumentFiltersTests
 		// And for one from JSON, whose values are JsonElement.
 		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$regex":"^$"}"""));
 		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$or":[{"$regex":"x"},{"$not_contains":"ab"}]}]}"""));
+		// And for values of other types that the client writes: a typed dictionary, a JsonNode.
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$or"] = new object[] { new Dictionary<string, string> { ["$regex"] = "^$" }, new Dictionary<string, object> { ["$contains"] = "abc" } } });
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$or"] = new object[] { System.Text.Json.Nodes.JsonNode.Parse("""{"$regex":"^$"}""")!, new Dictionary<string, object> { ["$contains"] = "abc" } } });
 	}
 
 	static Dictionary<string, object> FromJson(string json) => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
