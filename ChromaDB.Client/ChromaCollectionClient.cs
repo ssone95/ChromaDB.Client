@@ -361,7 +361,7 @@ public class ChromaCollectionClient
 			throw new ArgumentOutOfRangeException(limit < 0 ? nameof(limit) : nameof(offset), "The limit and the offset of a get cannot be negative.");
 		}
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
-		return Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
 		{
 			// Works around KD-13 (docs/COMPATIBILITY.md)
 			// No get for a limit of 0, after a client made by name has read its collection, as with None: one that does not exist throws.
@@ -371,7 +371,7 @@ public class ChromaCollectionClient
 			}
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
 			return await GetEntries(split.Ids, split.Where, split.WhereDocument, limit, offset, include, cancellationToken);
-		});
+		}));
 	}
 
 	private async Task<List<ChromaCollectionEntry>> GetEntries(IReadOnlyList<string>? ids, ChromaWhereOperator? where, ChromaWhereDocumentOperator? whereDocument, int? limit, int? offset, ChromaGetInclude? include, CancellationToken cancellationToken)
@@ -387,16 +387,38 @@ public class ChromaCollectionClient
 			|| ids is { } few && few.Count <= size || ids is null && limit <= size)
 		{
 			// With ids, no more records than the ids: a limit beyond them, like 1000, goes over the quota of 300 of Chroma Cloud.
-			return await GetPage(ids, where, whereDocument, ids is { Count: > 0 } && limit > ids.Count ? ids.Count : limit, offset, include, cancellationToken);
+			var single = ids is { Count: > 0 } && limit > ids.Count ? ids.Count : limit;
+			try
+			{
+				return await GetPage(ids, where, whereDocument, single, offset, include, cancellationToken);
+			}
+			// Chroma Cloud rejects a get beyond its quota, "'Limit value'" for the limit and, with ids and no limit, "'Number of records'"
+			// for them: the client keeps the limit and reads in pages, or the ids in batches.
+			catch (ChromaException ex) when (_httpClient.BatchSplitting && (LimitQuota(ex) ?? RecordsQuota(ex)) is { } quota && quota < (single ?? ids?.Count))
+			{
+				_httpClient.LearnRecordsLimit(quota);
+				return await GetEntries(ids, where, whereDocument, limit, offset, include, cancellationToken);
+			}
 		}
 		var entries = new List<ChromaCollectionEntry>();
 		if (ids is not null)
 		{
 			// An id given twice would come back twice, from two batches: one request gives it once.
 			var unique = ids.Distinct().ToList();
-			for (var i = 0; i < unique.Count; i += size)
+			for (var i = 0; i < unique.Count;)
 			{
-				entries.AddRange(await GetPage(unique.Skip(i).Take(size).ToList(), where, whereDocument, null, null, include, cancellationToken));
+				var batch = unique.Skip(i).Take(size).ToList();
+				try
+				{
+					entries.AddRange(await GetPage(batch, where, whereDocument, null, null, include, cancellationToken));
+					i += batch.Count;
+				}
+				// A batch beyond the quota of Chroma Cloud: the client keeps the limit and reads that batch again, smaller; the batches read stay.
+				catch (ChromaException ex) when ((LimitQuota(ex) ?? RecordsQuota(ex)) is { } quota && quota < batch.Count)
+				{
+					_httpClient.LearnRecordsLimit(quota);
+					size = quota;
+				}
 			}
 			return entries.Skip(offset ?? 0).Take(limit ?? int.MaxValue).ToList();
 		}
@@ -404,7 +426,17 @@ public class ChromaCollectionClient
 		while (limit is null || entries.Count < limit)
 		{
 			var take = limit is { } total ? Math.Min(size, total - entries.Count) : size;
-			var page = await GetPage(null, where, whereDocument, take, start, include, cancellationToken);
+			List<ChromaCollectionEntry> page;
+			try
+			{
+				page = await GetPage(null, where, whereDocument, take, start, include, cancellationToken);
+			}
+			catch (ChromaException ex) when (LimitQuota(ex) is { } quota && quota < take)
+			{
+				_httpClient.LearnRecordsLimit(quota);
+				size = quota;
+				continue;
+			}
 			entries.AddRange(page);
 			if (page.Count < take)
 			{
@@ -415,9 +447,21 @@ public class ChromaCollectionClient
 		return entries;
 	}
 
-	// Deletes the records a page of ids at a time, a batch each, until none is left: ChromaClient does it before it deletes the
-	// collection. A page that comes back the same was not deleted, and stops it: what is left goes with the collection.
-	internal async Task DeleteAllRecords(CancellationToken cancellationToken)
+	/// <summary>
+	/// Deletes every record of the collection, and returns how many it deleted. Chroma rejects a delete without ids or filters, so the
+	/// client reads a page of ids from the start, as many as the batch size of the server and of Chroma Cloud, deletes them, and goes on
+	/// until none is left. The collection stays. If the server returns the records of a page after their delete, the client throws a
+	/// <c>ChromaException</c>.
+	/// </summary>
+	/// <param name="cancellationToken">The token that cancels the operation.</param>
+	/// <returns>How many records it deleted.</returns>
+	public virtual Task<int> DeleteAllAsync(CancellationToken cancellationToken = default)
+		=> Operation("delete", cancellationToken, () => DeleteAllRecords(cancellationToken));
+
+	// Deletes the records a page of ids at a time, a batch each, until none is left, and counts them: DeleteAllAsync, and ChromaClient
+	// before it deletes the collection. A page that comes back the same was not deleted, and stops it. An error after a page that went
+	// says so, and a collection client made by name does not run it again on a collection created again under the name.
+	internal async Task<int> DeleteAllRecords(CancellationToken cancellationToken)
 	{
 		var requestParams = new RequestQueryParams()
 			.Insert("{tenant}", _tenant)
@@ -425,19 +469,54 @@ public class ChromaCollectionClient
 			.Insert("{collection_id}", _collection.Id);
 		var size = await BatchSize(cancellationToken);
 		List<string> deleted = [];
-		while (true)
+		var count = 0;
+		try
 		{
-			var ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
-			if (ids.Count == 0)
+			while (true)
 			{
-				return;
+				List<string> ids;
+				try
+				{
+					ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
+				}
+				catch (ChromaException ex) when (LimitQuota(ex) is { } quota && quota < size)
+				{
+					_httpClient.LearnRecordsLimit(quota);
+					size = quota;
+					continue;
+				}
+				if (ids.Count == 0)
+				{
+					return count;
+				}
+				if (ids.SequenceEqual(deleted))
+				{
+					throw new ChromaException($"The records were not deleted: the server returns them after their delete, like {ids[0]}. The collection stays with them.");
+				}
+				// Chroma Cloud rejects a delete beyond its quota of records, which can be lower than the one of the reads, before it deletes
+				// any of them: the client keeps that limit and reads a smaller page.
+				try
+				{
+					await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
+				}
+				catch (ChromaException ex) when (RecordsQuota(ex) is { } quota && quota < ids.Count)
+				{
+					_httpClient.LearnRecordsLimit(quota);
+					size = quota;
+					continue;
+				}
+				count += ids.Count;
+				deleted = ids;
 			}
-			if (ids.SequenceEqual(deleted))
+		}
+		catch (ChromaException ex) when (count > 0)
+		{
+			throw new ChromaException($"{count} {(count == 1 ? "record was" : "records were")} deleted before the error: {ex.Message}", ex)
 			{
-				throw new ChromaException($"The records were not deleted: the server returns them after their delete, like {ids[0]}. The collection stays with them.");
-			}
-			await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
-			deleted = ids;
+				StatusCode = ex.StatusCode,
+				ErrorType = ex.ErrorType,
+				PartlyDone = true,
+			};
 		}
 	}
 
@@ -505,7 +584,7 @@ public class ChromaCollectionClient
 	public virtual Task<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>> QueryAsync(ChromaQuery query, CancellationToken cancellationToken = default)
 	{
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(query));
-		return Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
 		{
 			var requestParams = new RequestQueryParams()
 				.Insert("{tenant}", _tenant)
@@ -582,7 +661,7 @@ public class ChromaCollectionClient
 				}
 			}
 			return query.Offset == 0 ? result : result.Select(entries => (IReadOnlyList<ChromaCollectionQueryEntry>)entries.Skip(query.Offset).ToList()).ToList();
-		});
+		}));
 	}
 
 	/// <summary>
@@ -607,6 +686,7 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	public virtual Task AddAsync(ChromaRecords records, CancellationToken cancellationToken = default)
 	{
+		records = WithoutEmptyMetadatas(records);
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
@@ -667,6 +747,7 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	public virtual Task UpdateAsync(ChromaRecords records, CancellationToken cancellationToken = default)
 	{
+		records = WithoutEmptyMetadatas(records);
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
@@ -735,6 +816,7 @@ public class ChromaCollectionClient
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
 	public virtual Task UpsertAsync(ChromaRecords records, CancellationToken cancellationToken = default)
 	{
+		records = WithoutEmptyMetadatas(records);
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
@@ -773,6 +855,18 @@ public class ChromaCollectionClient
 	// The copy of each document under the document copy key, when the server takes it: Chroma Cloud takes a metadata value of at most
 	// 8,182 bytes. In an update or an upsert, a document without its copy, as one too long or one deleted, deletes the stored copy with
 	// a null, which WithDeletions sends along; a null document that stays keeps its copy.
+	// An empty metadata goes as no metadata, null: in add, update and upsert, also in batches with other metadatas, every tested Chroma,
+	// 0.4.10 to 1.5.9 and Chroma Cloud, treats the two the same. A new record has no metadata, and a stored one keeps its own.
+	private static ChromaRecords WithoutEmptyMetadatas(ChromaRecords records)
+		=> records.Metadatas is not { } metadatas || !metadatas.Any(metadata => metadata is { Count: 0 }) ? records : new ChromaRecords(records.Ids)
+		{
+			Embeddings = records.Embeddings,
+			Metadatas = metadatas.Select(metadata => metadata is { Count: 0 } ? null : metadata).ToList(),
+			Documents = records.Documents,
+			Uris = records.Uris,
+			NullDocumentsDelete = records.NullDocumentsDelete,
+		};
+
 	private ChromaRecords WithDocumentCopies(ChromaRecords records, bool update)
 	{
 		if (_documentCopyKey is not { } key || records.Documents is not { } documents)
@@ -1185,6 +1279,17 @@ public class ChromaCollectionClient
 			? limit
 			: null;
 
+	// The quota of the records of a read, as Chroma Cloud rejects a get with a larger limit, before it reads anything:
+	// "Quota exceeded: 'Limit value' exceeded quota limit for action 'Get': current usage of 1000 exceeds limit of 300". The client keeps
+	// it as the quota of records, with the one of the writes, and reads that page again with it.
+	private static readonly System.Text.RegularExpressions.Regex LimitQuotaMessage = new("'Limit value' exceeded quota limit .* exceeds limit of ([0-9]+)");
+
+	private static int? LimitQuota(ChromaException exception)
+		=> LimitQuotaMessage.Match(exception.Message) is { Success: true } match
+			&& int.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var limit) && limit > 0
+			? limit
+			: null;
+
 	// Works around KD-45 (docs/COMPATIBILITY.md)
 	// The smallest of the limit of the caller, 300 on Chroma Cloud when not given, the max_batch_size the server declares, and the
 	// quota of records the server enforced.
@@ -1231,7 +1336,7 @@ public class ChromaCollectionClient
 			throw new ArgumentException("The ids of a delete without filters cannot be empty: there is nothing to delete.", nameof(ids));
 		}
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
-		return Operation("delete", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation("delete", cancellationToken, async () =>
 		{
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
 			if (split.Where == ChromaWhereOperator.None)
@@ -1252,7 +1357,7 @@ public class ChromaCollectionClient
 				};
 				await _httpClient.Post(_httpClient.Routes.Collection + "/delete", request, requestParams, cancellationToken);
 			}, cancellationToken);
-		});
+		}));
 	}
 
 	/// <summary>
@@ -1266,7 +1371,7 @@ public class ChromaCollectionClient
 	public virtual Task<int?> DeleteAsync(ChromaDelete delete, CancellationToken cancellationToken = default)
 	{
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(delete));
-		return Operation("delete", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation("delete", cancellationToken, async () =>
 		{
 			// The rules of Chroma and of its Python client, checked before any request. All is no filter.
 			if (delete.Ids is [])
@@ -1335,7 +1440,7 @@ public class ChromaCollectionClient
 				await InBatches(new ChromaRecords(ids), batch => Send(batch.Ids), cancellationToken);
 			}
 			return deleted;
-		});
+		}));
 	}
 
 	/// <summary>
@@ -1397,7 +1502,11 @@ public class ChromaCollectionClient
 			CheckDocumentFilters(() => search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All ? ChromaWhereOperator.ToRequestWhere(where) : null, document: false, nameof(searches));
 			CheckDocumentFilters(() => search.WhereDocument?.ToRequestWhereDocument(), document: true, nameof(searches));
 		}
-		return Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
+		return WithRegexQuota(() => (searches ?? []).SelectMany(search => new (Dictionary<string, object>?, bool)[]
+		{
+			(search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All ? ChromaWhereOperator.ToRequestWhere(where) : null, false),
+			(search.WhereDocument?.ToRequestWhereDocument(), true),
+		}), Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
 		{
 			if (searches is not { Count: > 0 })
 			{
@@ -1459,7 +1568,7 @@ public class ChromaCollectionClient
 			}
 			var next = 0;
 			return searches.Select(search => search.Where == ChromaWhereOperator.None ? [] : results[next++]).ToList();
-		});
+		}));
 	}
 
 	// The keys a search selects, and with the documents the copy key or the deletion key, which tells a deleted document from an empty one.
@@ -1519,6 +1628,72 @@ public class ChromaCollectionClient
 		}
 	}
 
+	// Chroma Cloud rejects a pattern of $regex or $not_regex beyond the quota of the tenant, 256 bytes in UTF-8 by default, in every get,
+	// query, delete and search, with 422 "Quota exceeded: 'Length of regex pattern' exceeded quota limit for action 'Get': current usage of
+	// 257 exceeds limit of 256. https://trychroma.com/request-quota-increase?...". A tenant can have a higher quota, so the client sends the
+	// pattern, and on that answer throws a ChromaException that names the patterns beyond the limit of the answer.
+	private static readonly System.Text.RegularExpressions.Regex RegexQuotaMessage = new("'Length of regex pattern' exceeded quota limit for action '([^']*)': current usage of ([0-9]+) exceeds limit of ([0-9]+)\\.(?:\\s+(https?://\\S+))?");
+
+	private static async Task<T> WithRegexQuota<T>(Func<IEnumerable<(Dictionary<string, object>? Filter, bool Document)>> filters, Task<T> operation)
+	{
+		try
+		{
+			return await operation;
+		}
+		catch (ChromaException ex) when (RegexQuotaMessage.Match(ex.Message) is { Success: true } match)
+		{
+			throw RegexQuotaError(ex, match, filters);
+		}
+	}
+
+	private static async Task WithRegexQuota(Func<IEnumerable<(Dictionary<string, object>? Filter, bool Document)>> filters, Task operation)
+	{
+		try
+		{
+			await operation;
+		}
+		catch (ChromaException ex) when (RegexQuotaMessage.Match(ex.Message) is { Success: true } match)
+		{
+			throw RegexQuotaError(ex, match, filters);
+		}
+	}
+
+	private static ChromaException RegexQuotaError(ChromaException ex, System.Text.RegularExpressions.Match match, Func<IEnumerable<(Dictionary<string, object>? Filter, bool Document)>> filters)
+	{
+		var limit = int.Parse(match.Groups[3].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);
+		List<(string Operator, string Pattern, int Bytes)> patterns;
+		try
+		{
+			patterns = filters().SelectMany(x => DocumentFilters(x.Filter, x.Document))
+				.Where(x => x.Operator is "$regex" or "$not_regex")
+				.Select(x => (x.Operator, Pattern: x.Value, Bytes: System.Text.Encoding.UTF8.GetByteCount(x.Value)))
+				.Where(x => x.Bytes > limit)
+				.Distinct()
+				.ToList();
+		}
+		catch (Exception e) when (e is NotSupportedException or InvalidOperationException or ArgumentException)
+		{
+			patterns = [];
+		}
+		var rejected = patterns.Count > 0
+			? string.Join(" and ", patterns.Select(x => $"the pattern \"{x.Pattern}\" of {x.Operator}, of {x.Bytes} bytes in UTF-8"))
+			: $"a pattern of {match.Groups[2].Value} bytes in UTF-8";
+		var increase = match.Groups[4].Success ? $": {match.Groups[4].Value}" : "";
+		return new ChromaException($"Chroma Cloud rejects {rejected}: the quota of the tenant for a regex pattern is {limit} bytes, in '{match.Groups[1].Value}'. A tenant can ask for a higher quota{increase}", ex)
+		{
+			StatusCode = ex.StatusCode,
+			ErrorType = ex.ErrorType,
+		};
+	}
+
+	// A text of a filter: a string, or a JSON string.
+	private static string? Text(object? value) => value switch
+	{
+		string text => text,
+		System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String } json => json.GetString(),
+		_ => null,
+	};
+
 	// The trigrams of the index of the documents of Chroma Cloud: a text of fewer characters has none.
 	private const int MinContainsCharacters = 3;
 
@@ -1537,13 +1712,22 @@ public class ChromaCollectionClient
 	}
 
 	// The $regex, $not_regex, $contains and $not_contains on the documents in a filter, also inside $and and $or.
+	// The values of a filter given as a dictionary from JSON are JsonElement: objects, arrays and strings are read as the others.
 	private static IEnumerable<(string Operator, string Value)> DocumentFilters(object? node, bool document)
 	{
+		if (node is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Object } json)
+		{
+			node = json.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value);
+		}
+		else if (node is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Array } array)
+		{
+			node = array.EnumerateArray().Select(item => (object)item).ToList();
+		}
 		if (node is IDictionary<string, object> map)
 		{
 			foreach (var pair in map)
 			{
-				if (document && pair.Key is "$regex" or "$not_regex" or "$contains" or "$not_contains" && pair.Value is string value)
+				if (document && pair.Key is "$regex" or "$not_regex" or "$contains" or "$not_contains" && Text(pair.Value) is { } value)
 				{
 					yield return (pair.Key, value);
 				}

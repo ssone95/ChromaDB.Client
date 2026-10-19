@@ -35,6 +35,7 @@ virtual ChromaDB.Client.ChromaCollectionClient.WithEmptyDocumentDeletions() -> C
 ChromaDB.Client.Models.ChromaQuery.ExpectedSpace.get -> ChromaDB.Client.ChromaSpace?
 ChromaDB.Client.Models.ChromaQuery.ExpectedSpace.init -> void
 static ChromaDB.Client.ChromaWhereOperator.Document(ChromaDB.Client.ChromaWhereDocumentOperator! filter) -> ChromaDB.Client.ChromaWhereOperator!
+static ChromaDB.Client.ChromaWhereDocumentOperator.FromDictionary(System.Collections.Generic.IReadOnlyDictionary<string!, object!>! whereDocument) -> ChromaDB.Client.ChromaWhereDocumentOperator!
 static ChromaDB.Client.ChromaWhereOperator.FromDictionary(System.Collections.Generic.IReadOnlyDictionary<string!, object!>! where) -> ChromaDB.Client.ChromaWhereOperator!
 *REMOVED*ChromaDB.Client.Models.ChromaRecords.Documents.get -> System.Collections.Generic.IReadOnlyList<string!>?
 *REMOVED*ChromaDB.Client.Models.ChromaRecords.Metadatas.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyDictionary<string!, object!>!>?
@@ -64,3 +65,4 @@ ChromaDB.Client.ChromaReadRetries.MaxAttempts.get -> int
 ChromaDB.Client.ChromaReadRetries.MaxDelay.get -> System.TimeSpan
 static ChromaDB.Client.ChromaReadRetries.Default.get -> ChromaDB.Client.ChromaReadRetries!
 static ChromaDB.Client.ChromaReadRetries.None.get -> ChromaDB.Client.ChromaReadRetries!
+virtual ChromaDB.Client.ChromaCollectionClient.DeleteAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!

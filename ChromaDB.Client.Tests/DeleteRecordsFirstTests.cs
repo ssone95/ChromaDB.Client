@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using ChromaDB.Client.Models;
 using NUnit.Framework;
 
 namespace ChromaDB.Client.Tests;
@@ -117,6 +118,131 @@ public class DeleteRecordsFirstTests
 		Assert.That(server.Requests.Select(x => x.Request), Is.EqualTo(new[] { "GET version", "DELETE tenants/default_tenant/databases/d" }));
 	}
 
+	// A collection client made by name whose collection is created again under the name after the first page: the error says how many
+	// records went, and no delete reaches the new collection.
+	[Test]
+	public async Task DeleteAllStopsOnACollectionCreatedAgain()
+	{
+		var server = new RecreatedServer();
+		var collectionClient = Client(server).GetCollectionClient("c");
+		await collectionClient.CountAsync();
+		await Assert.ThatAsync(() => collectionClient.DeleteAllAsync(), Throws.InstanceOf<ChromaException>().With.Message.StartsWith("2 records were deleted before the error"));
+		Assert.That(server.Requests.Where(x => x.EndsWith("/delete")), Is.EqualTo(new[] { $"POST tenants/default_tenant/databases/default_database/collections/{Id}/delete" }));
+	}
+
+	// Chroma Cloud rejects a get with a limit beyond its quota of 300, "'Limit value'": a client with WithBatchSplitting(1000) learns it and
+	// reads that page again, in GetAsync and in DeleteAllAsync, and no delete goes twice.
+	[Test]
+	public async Task TheQuotaOfTheReads()
+	{
+		var server = new QuotaServer(350);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		Assert.That((await client.GetAsync(include: ChromaGetInclude.None)).Count, Is.EqualTo(350));
+		Assert.That(server.Limits, Is.EqualTo(new[] { 1000, 300, 300 }));
+
+		var fresh = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		server.Limits.Clear();
+		Assert.That(await fresh.DeleteAllAsync(), Is.EqualTo(350));
+		Assert.That(server.Limits, Is.EqualTo(new[] { 1000, 300, 300, 300 }));
+		Assert.That(server.Deleted, Is.EqualTo(Enumerable.Range(0, 350).Select(i => $"r{i}")));
+	}
+
+	// Chroma Cloud rejects a get of more ids than its quota: with a limit beyond it, "'Limit value'", and without a limit, "'Number of
+	// records'". A client with WithBatchSplitting(1000) learns it and reads the ids in batches.
+	[TestCase(350)]
+	[TestCase(null)]
+	public async Task TheQuotaOfAReadByIds(int? limit)
+	{
+		var server = new QuotaServer(350);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		var ids = Enumerable.Range(0, 350).Select(i => $"r{i}").ToList();
+		Assert.That((await client.GetAsync(ids, limit: limit, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(ids));
+		Assert.That(server.IdCounts, Is.EqualTo(new[] { 350, 300, 50 }));
+	}
+
+	// More ids than the batch size go in batches; the first, beyond the quota of Chroma Cloud, gets 422: the client learns the quota and
+	// reads that batch again, smaller, keeping the batches read.
+	[Test]
+	public async Task TheQuotaOfAReadByIdsInBatches()
+	{
+		var server = new QuotaServer(1001);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		var ids = Enumerable.Range(0, 1001).Select(i => $"r{i}").ToList();
+		Assert.That((await client.GetAsync(ids, include: ChromaGetInclude.None)).Select(x => x.Id), Is.EqualTo(ids));
+		Assert.That(server.IdCounts, Is.EqualTo(new[] { 1000, 300, 300, 300, 101 }));
+	}
+
+	// A tenant of Chroma Cloud whose quota of the reads is higher than the one of the deletes: the delete of a page beyond it gets 422 and
+	// deletes nothing, and the client reads a smaller page. Every record goes, each id once.
+	[Test]
+	public async Task TheQuotaOfTheDeletes()
+	{
+		var server = new QuotaServer(350, readQuota: 1000, deleteQuota: 300);
+		var client = new ChromaCollectionClient(new ChromaCollection("c") { Id = Guid.Parse(Id) }, new ChromaConfigurationOptions("https://api.trychroma.com").WithBatchSplitting(1000), new HttpClient(server));
+		Assert.That(await client.DeleteAllAsync(), Is.EqualTo(350));
+		Assert.That(server.Limits, Is.EqualTo(new[] { 1000, 300, 300, 300 }));
+		Assert.That(server.Deleted, Is.EqualTo(Enumerable.Range(0, 350).Select(i => $"r{i}")));
+	}
+
+	// Holds the records r0 to r{count - 1}, answers a get with a limit beyond the quota of the reads, and a delete of more ids than the
+	// quota of the deletes, with the 422 of Chroma Cloud, and records the limits asked and the ids deleted.
+	sealed class QuotaServer(int count, int readQuota = 300, int deleteQuota = 300) : HttpMessageHandler
+	{
+		readonly List<string> _ids = Enumerable.Range(0, count).Select(i => $"r{i}").ToList();
+
+		public List<int> Limits { get; } = [];
+		public List<int> IdCounts { get; } = [];
+		public List<string> Deleted { get; } = [];
+
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			var path = request.RequestUri!.AbsolutePath;
+			var body = request.Content is null ? default : JsonDocument.Parse(await request.Content.ReadAsStringAsync(cancellationToken)).RootElement.Clone();
+			if (path.EndsWith("/pre-flight-checks"))
+			{
+				return Answer(HttpStatusCode.OK, """{"max_batch_size":1000}""");
+			}
+			if (path.EndsWith("/get"))
+			{
+				int? limit = body.TryGetProperty("limit", out var asked) && asked.ValueKind == JsonValueKind.Number ? asked.GetInt32() : null;
+				var offset = body.TryGetProperty("offset", out var start) && start.ValueKind == JsonValueKind.Number ? start.GetInt32() : 0;
+				var requested = body.TryGetProperty("ids", out var given) && given.ValueKind == JsonValueKind.Array ? given.EnumerateArray().Select(x => x.GetString()!).ToList() : null;
+				if (limit is { } value)
+				{
+					Limits.Add(value);
+				}
+				if (requested is not null)
+				{
+					IdCounts.Add(requested.Count);
+				}
+				if (limit > readQuota)
+				{
+					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Limit value' exceeded quota limit for action 'Get': current usage of {{limit}} exceeds limit of {{readQuota}}. https://trychroma.com/request-quota-increase"}""");
+				}
+				if (requested is not null && limit is null && requested.Count > readQuota)
+				{
+					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Number of records' exceeded quota limit for action 'Get': current usage of {{requested.Count}} exceeds limit of {{readQuota}}. https://trychroma.com/request-quota-increase"}""");
+				}
+				var found = requested is null ? _ids : _ids.Where(requested.Contains).ToList();
+				return Answer(HttpStatusCode.OK, JsonSerializer.Serialize(new { ids = found.Skip(offset).Take(limit ?? int.MaxValue).ToList() }));
+			}
+			if (path.EndsWith("/delete"))
+			{
+				var ids = Ids(body).Select(x => x!).ToList();
+				if (ids.Count > deleteQuota)
+				{
+					return Answer((HttpStatusCode)422, $$"""{"error":"ChromaError","message":"Quota exceeded: 'Number of records' exceeded quota limit for action 'Delete': current usage of {{ids.Count}} exceeds limit of {{deleteQuota}}. https://trychroma.com/request-quota-increase"}""");
+				}
+				Deleted.AddRange(ids);
+				_ids.RemoveAll(ids.Contains);
+				return Answer(HttpStatusCode.OK, "{}");
+			}
+			return Answer(HttpStatusCode.OK, "\"1.5.9\"");
+		}
+
+		static HttpResponseMessage Answer(HttpStatusCode status, string body) => new(status) { Content = new StringContent(body) };
+	}
+
 	static ChromaClient Client(HttpMessageHandler handler, string uri = "http://localhost:8000")
 		=> new(new ChromaConfigurationOptions(uri), new HttpClient(handler));
 
@@ -124,6 +250,39 @@ public class DeleteRecordsFirstTests
 
 	// Answers the version, the collection or the collections with found, pre-flight-checks with a batch size of 2, and each get with
 	// the next page of ids; records the requests, without the prefix of the API.
+	// The collection c has the id Id until its second page, which answers 404: from then on c is a new collection, with OtherId.
+	sealed class RecreatedServer : HttpMessageHandler
+	{
+		bool _recreated;
+		int _pages;
+
+		public List<string> Requests { get; } = [];
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			var path = request.RequestUri!.AbsolutePath.Substring("/api/v2/".Length);
+			Requests.Add($"{request.Method} {path}");
+			var (status, answer) = path switch
+			{
+				"version" => (HttpStatusCode.OK, "\"1.0.0\""),
+				"pre-flight-checks" => (HttpStatusCode.OK, """{"max_batch_size":2}"""),
+				_ when path.EndsWith("/count") => (HttpStatusCode.OK, "4"),
+				_ when path.EndsWith("/delete") => (HttpStatusCode.OK, "{}"),
+				_ when path.EndsWith("/get") && path.Contains(OtherId) => (HttpStatusCode.OK, """{"ids":["x","y"]}"""),
+				_ when path.EndsWith("/get") && _pages++ == 0 => (HttpStatusCode.OK, """{"ids":["a","b"]}"""),
+				_ when path.EndsWith("/get") => Recreate(),
+				_ => (HttpStatusCode.OK, $$"""{"id":"{{(_recreated ? OtherId : Id)}}","name":"c"}"""),
+			};
+			return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(answer) });
+		}
+
+		(HttpStatusCode, string) Recreate()
+		{
+			_recreated = true;
+			return (HttpStatusCode.NotFound, """{"error":"NotFoundError","message":"Collection does not exist."}""");
+		}
+	}
+
 	sealed class FakeServer(string version, string found, params string[] pages) : HttpMessageHandler
 	{
 		int _page;

@@ -8,6 +8,21 @@ namespace ChromaDB.Client.Tests;
 [TestFixture]
 public class ApiV2CompleteTests : ChromaTestsBase
 {
+	// Chroma Cloud rejects a regex pattern beyond 256 bytes in UTF-8, the default quota of a tenant: the client says it with the pattern,
+	// its bytes and the limit.
+	[TestCase("a", 257, 257)]
+	[TestCase("é", 129, 258)]
+	public async Task RegexPatternQuotaOfChromaCloud(string character, int count, int bytes)
+	{
+		Assume.That(ChromaCloud, Is.True, "Only Chroma Cloud has the quota of regex patterns.");
+		var client = new ChromaClient(BaseConfigurationOptions, HttpClient);
+		var collectionClient = client.GetCollectionClient(await client.CreateCollectionAsync($"collection{Random.Shared.Next()}"));
+		var pattern = string.Concat(Enumerable.Repeat(character, count));
+		var ex = Assert.ThrowsAsync<ChromaException>(() => collectionClient.GetAsync(whereDocument: ChromaWhereDocumentOperator.Regex(pattern)));
+		Assert.That(ex!.Message, Does.StartWith($"Chroma Cloud rejects the pattern \"{pattern}\" of $regex, of {bytes} bytes in UTF-8: the quota of the tenant for a regex pattern is 256 bytes"));
+		Assert.That(ex.StatusCode, Is.EqualTo(HttpStatusCode.UnprocessableEntity));
+	}
+
 	[Test]
 	public async Task Healthcheck()
 	{

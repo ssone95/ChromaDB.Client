@@ -63,7 +63,7 @@ public class InputChecksTests
 		Assert.That(get.GetProperty("ids").EnumerateArray().Select(x => x.GetString()), Is.EqualTo(new[] { "a", "b" }));
 	}
 
-	// The Python client takes a list of values of one type only, and an empty metadata never: rejected before the request.
+	// The Python client takes a list of values of one type only: rejected before the request. An empty metadata goes as null.
 	[Test]
 	public void MetadataThatChromaCannotTake()
 	{
@@ -72,10 +72,6 @@ public class InputChecksTests
 		Assert.That(() => collection.AddAsync(["a"], [Embedding], [mixed]), Throws.ArgumentException.With.Message.Contains("\"mixed\""));
 		Assert.That(() => collection.UpsertAsync(["a"], [Embedding], [new Dictionary<string, object> { ["n"] = new object[] { 1, 2.5 } }]), Throws.ArgumentException);
 		Assert.That(() => collection.UpdateAsync(["a"], metadatas: [new Dictionary<string, object> { ["n"] = new object[] { true, 1 } }]), Throws.ArgumentException);
-		var empty = new Dictionary<string, object>();
-		Assert.That(() => collection.AddAsync(["a"], [Embedding], [empty]), Throws.ArgumentException);
-		Assert.That(() => collection.UpsertAsync(["a"], [Embedding], [empty]), Throws.ArgumentException);
-		Assert.That(() => collection.UpdateAsync(["a"], metadatas: [empty]), Throws.ArgumentException);
 	}
 
 	// A record without keys comes back with an empty metadata when the metadatas are read, and with none when they are not.

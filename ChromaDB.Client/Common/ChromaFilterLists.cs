@@ -41,8 +41,30 @@ internal static class ChromaFilterLists
 		return new Dictionary<string, object> { [@operator] = groups.ToArray() };
 	}
 
+	// A list of $and or $or: an array in a dictionary, as the operators write it, or a JSON array in a dictionary or a JSON object, as a
+	// filter given as a dictionary has it.
 	private static (string Operator, object[] Filters)? List(object filter)
-		=> filter is Dictionary<string, object> { Count: 1 } dictionary && dictionary.First() is { Key: "$and" or "$or" } pair && pair.Value is object[] filters
-			? (pair.Key, filters)
-			: null;
+		=> filter switch
+		{
+			IReadOnlyDictionary<string, object> { Count: 1 } dictionary when dictionary.First() is { Key: "$and" or "$or" } pair && Filters(pair.Value) is { } filters
+				=> (pair.Key, filters),
+			System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Object } json
+				when json.EnumerateObject().Take(2).ToList() is [{ Name: "$and" or "$or" } property] && Filters(property.Value) is { } filters
+				=> (property.Name, filters),
+			_ => null,
+		};
+
+	// A filter given as a dictionary, written to JSON once when the client gets it, with the serializer, the options and the converters
+	// of the requests, and kept as that JSON: the JSON that goes, which the checks of Chroma Cloud, the split of the long lists and the
+	// Search API read whatever the types of the values. A value the client cannot write throws here.
+	public static Dictionary<string, object> ToJson(IReadOnlyDictionary<string, object> filter)
+		=> System.Text.Json.JsonSerializer.SerializeToElement(filter.ToDictionary(pair => pair.Key, pair => pair.Value), HttpClientHelpers.PostJsonSerializerOptions.TypeInfo<Dictionary<string, object>>())
+			.EnumerateObject().ToDictionary(property => property.Name, property => (object)property.Value);
+
+	private static object[]? Filters(object value) => value switch
+	{
+		object[] filters => filters,
+		System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Array } json => json.EnumerateArray().Select(item => (object)item).ToArray(),
+		_ => null,
+	};
 }

@@ -34,6 +34,7 @@ var deleted = await collectionClient.DeleteAsync(new ChromaDelete { WhereDocumen
 `ChromaDelete` holds the ids, the filters and the limit of a delete.
 
 - Without ids it deletes by the filters only. Without ids and filters it throws an `ArgumentException`, since it would select every record.
+- `DeleteAllAsync()` deletes every record of the collection, which stays, and returns how many it deleted: a page of ids at a time, as many as the batch size of the server and of Chroma Cloud, read from the start.
 - As in Chroma and its Python client, the ids cannot be an empty list, and the limit needs a `where` or `where_document` filter and cannot be negative.
 - Chroma 1.5.3 and later apply `Limit` and answer a count, which `DeleteAsync` returns: for a delete by ids it is the number of ids given, also those without a record. On earlier servers it returns null.
 - Earlier servers ignore the limit and would delete every matching record. So before a delete with a limit, the client reads the OpenAPI description of the server once, and throws a `ChromaException` without sending the delete if the limit is not declared there.

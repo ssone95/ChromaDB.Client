@@ -110,6 +110,139 @@ public class BatchesAndFiltersTests
 		Assert.That(handler.Bodies.Single().GetProperty("where_document").GetRawText(), Is.EqualTo(whereDocument.ToString()));
 	}
 
+	// An empty metadata goes as null in add, upsert and update: every tested Chroma treats the two the same.
+	[Test]
+	public async Task EmptyMetadataGoesAsNull()
+	{
+		var records = new ChromaRecords(["a", "b"])
+		{
+			Embeddings = [Embedding, Embedding],
+			Metadatas = [new Dictionary<string, object>(), new Dictionary<string, object> { ["k"] = 1 }],
+		};
+		foreach (var write in new Func<ChromaCollectionClient, Task>[] { x => x.AddAsync(records), x => x.UpsertAsync(records), x => x.UpdateAsync(records) })
+		{
+			var handler = new Handler("""{"max_batch_size":10}""");
+			await write(Client(Options, handler));
+			Assert.That(handler.Bodies.Single().GetProperty("metadatas").GetRawText(), Is.EqualTo("""[null,{"k":1}]"""));
+		}
+	}
+
+	// A long $and or $or given as a dictionary, with an array, another list or from JSON, goes split as the same filter written with the
+	// operators (KD-4), in where and where_document, also nested; a short one goes as it is.
+	[Test]
+	public async Task LongListsFromDictionaries()
+	{
+		static string Contains(int i) => $$"""{"$contains":"w{{i:D4}}"}""";
+		static string NotEqual(int i) => "{\"k\":{\"$ne\":" + i + "}}";
+		var documents = "{\"$or\":[{\"$and\":[" + string.Join(",", Enumerable.Range(0, 1000).Select(Contains)) + "]},{\"$contains\":\"xyz\"}]}";
+		var where = "{\"$and\":[" + string.Join(",", Enumerable.Range(0, 1000).Select(NotEqual)) + "]}";
+		var documentsWithOperators = Enumerable.Range(0, 1000).Select(i => ChromaWhereDocumentOperator.Contains($"w{i:D4}")).Aggregate((a, b) => a & b) | ChromaWhereDocumentOperator.Contains("xyz");
+		var whereWithOperators = Enumerable.Range(0, 1000).Select(i => ChromaWhereOperator.NotEqual("k", i)).Aggregate((a, b) => a & b);
+
+		var expected = await Sent(whereWithOperators, documentsWithOperators);
+		Assert.That(JsonDocument.Parse(expected.WhereDocument).RootElement.GetProperty("$or")[0].GetProperty("$and").GetArrayLength(), Is.EqualTo(32));
+		foreach (var (whereFilter, documentFilter) in new[]
+		{
+			(ChromaWhereOperator.FromDictionary(FromJson(where)), ChromaWhereDocumentOperator.FromDictionary(FromJson(documents))),
+			(ChromaWhereOperator.FromDictionary(AsLists(FromJson(where))), ChromaWhereDocumentOperator.FromDictionary(AsLists(FromJson(documents)))),
+		})
+		{
+			var sent = await Sent(whereFilter, documentFilter);
+			Assert.That(sent.Where, Is.EqualTo(expected.Where));
+			Assert.That(sent.WhereDocument, Is.EqualTo(expected.WhereDocument));
+		}
+		var shortList = ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$contains":"def"}]}"""));
+		Assert.That((await Sent(null, shortList)).WhereDocument, Is.EqualTo("""{"$and":[{"$contains":"abc"},{"$contains":"def"}]}"""));
+	}
+
+	// Operands that can be read only once: the client copies the dictionary when it gets it and reads each list once, so the request has
+	// them all, short or long, in where and where_document; later changes to the dictionary do not change the filter.
+	[TestCase(2)]
+	[TestCase(1000)]
+	public async Task OperandsThatCanBeReadOnce(int count)
+	{
+		var documents = ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$and"] = new Once(Enumerable.Range(0, count).Select(i => (object)new Dictionary<string, object> { ["$contains"] = $"w{i:D4}" })) });
+		var whereDictionary = new Dictionary<string, object> { ["$and"] = new Once(Enumerable.Range(0, count).Select(i => (object)new Dictionary<string, object> { ["k"] = new Dictionary<string, object> { ["$ne"] = i } })) };
+		var where = ChromaWhereOperator.FromDictionary(whereDictionary);
+		whereDictionary["$or"] = "changed";
+		var expected = await Sent(
+			Enumerable.Range(0, count).Select(i => ChromaWhereOperator.NotEqual("k", i)).Aggregate((a, b) => a & b),
+			Enumerable.Range(0, count).Select(i => ChromaWhereDocumentOperator.Contains($"w{i:D4}")).Aggregate((a, b) => a & b));
+		var sent = await Sent(where, documents);
+		Assert.That(sent.Where, Is.EqualTo(expected.Where));
+		Assert.That(sent.WhereDocument, Is.EqualTo(expected.WhereDocument));
+		Assert.That(where.ToString(), Is.EqualTo(expected.Where));
+	}
+
+	static async Task<(string Where, string WhereDocument)> Sent(ChromaWhereOperator? where, ChromaWhereDocumentOperator whereDocument)
+	{
+		var handler = new Handler("""{"ids":[]}""");
+		await Client(Options, handler).GetAsync(where: where, whereDocument: whereDocument);
+		var body = handler.Bodies.Single();
+		return (where is null ? "" : body.GetProperty("where").GetRawText(), body.GetProperty("where_document").GetRawText());
+	}
+
+	// A sequence that can be enumerated only once.
+	sealed class Once(IEnumerable<object> items) : IEnumerable<object>
+	{
+		bool _read;
+
+		public IEnumerator<object> GetEnumerator()
+		{
+			if (_read)
+			{
+				throw new InvalidOperationException("The sequence was read twice.");
+			}
+			_read = true;
+			return items.GetEnumerator();
+		}
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+	}
+
+	static Dictionary<string, object> FromJson(string json) => JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
+
+	// The same filter with .NET values, its lists as List<object> instead of arrays.
+	static Dictionary<string, object> AsLists(Dictionary<string, object> filter)
+		=> filter.ToDictionary(pair => pair.Key, pair => Clr((JsonElement)pair.Value));
+
+	static object Clr(JsonElement element) => element.ValueKind switch
+	{
+		JsonValueKind.Object => element.EnumerateObject().ToDictionary(property => property.Name, property => Clr(property.Value)),
+		JsonValueKind.Array => element.EnumerateArray().Select(Clr).ToList(),
+		JsonValueKind.String => element.GetString()!,
+		_ => element.GetInt64(),
+	};
+
+	// FromDictionary writes the dictionary as the request writes it: a JsonNode, a typed dictionary and a JsonArray go as their JSON.
+	[Test]
+	public async Task FromDictionaryWithValuesOfOtherTypes()
+	{
+		var where = ChromaWhereOperator.FromDictionary(new Dictionary<string, object>
+		{
+			["$and"] = new object[]
+			{
+				new Dictionary<string, object> { ["year"] = System.Text.Json.Nodes.JsonNode.Parse("""{"$gte":2020}""")! },
+				new Dictionary<string, object> { ["lang"] = new Dictionary<string, string> { ["$eq"] = "en" } },
+				new Dictionary<string, object> { ["n"] = new Dictionary<string, object> { ["$in"] = System.Text.Json.Nodes.JsonNode.Parse("[1,2]")! } },
+			},
+		});
+		var expected = """{"$and":[{"year":{"$gte":2020}},{"lang":{"$eq":"en"}},{"n":{"$in":[1,2]}}]}""";
+		Assert.That(where.ToString(), Is.EqualTo(expected));
+		var handler = new Handler("""{"ids":[]}""");
+		await Client(Options, handler).GetAsync(where: where);
+		Assert.That(handler.Bodies.Single().GetProperty("where").GetRawText(), Is.EqualTo(expected));
+	}
+
+	// A value that the client cannot write throws when FromDictionary gets it, not when the filter goes.
+	[Test]
+	public void FromDictionaryWithAValueThatCannotBeWritten()
+	{
+		Action value = () => { };
+		Assert.Throws<NotSupportedException>(() => ChromaWhereOperator.FromDictionary(new Dictionary<string, object> { ["k"] = value }));
+		Assert.Throws<NotSupportedException>(() => ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = value }));
+	}
+
 	// A filter given as a dictionary goes in the request as it is.
 	[Test]
 	public async Task FilterFromDictionaryAsItIs()

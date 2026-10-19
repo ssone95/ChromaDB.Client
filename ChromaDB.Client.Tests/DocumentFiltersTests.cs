@@ -51,7 +51,18 @@ public class DocumentFiltersTests
 		yield return ChromaWhereDocumentOperator.Contains("  ");
 		yield return ChromaWhereDocumentOperator.Contains("abc") & ChromaWhereDocumentOperator.NotContains("x");
 		yield return ChromaWhereDocumentOperator.Not(ChromaWhereDocumentOperator.Contains("ab") | ChromaWhereDocumentOperator.Regex("xyz"));
+		// The same checks for a filter given as a dictionary.
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$regex"] = "^$" });
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$and"] = new object[] { new Dictionary<string, object> { ["$contains"] = "abc" }, new Dictionary<string, object> { ["$contains"] = "ab" } } });
+		// And for one from JSON, whose values are JsonElement.
+		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$regex":"^$"}"""));
+		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$or":[{"$regex":"x"},{"$not_contains":"ab"}]}]}"""));
+		// And for values of other types that the client writes: a typed dictionary, a JsonNode.
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$or"] = new object[] { new Dictionary<string, string> { ["$regex"] = "^$" }, new Dictionary<string, object> { ["$contains"] = "abc" } } });
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$or"] = new object[] { System.Text.Json.Nodes.JsonNode.Parse("""{"$regex":"^$"}""")!, new Dictionary<string, object> { ["$contains"] = "abc" } } });
 	}
+
+	static Dictionary<string, object> FromJson(string json) => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
 
 	static IEnumerable<ChromaWhereDocumentOperator> RightOnChromaCloud()
 	{
@@ -76,6 +87,8 @@ public class DocumentFiltersTests
 		yield return ChromaWhereDocumentOperator.Contains("αβγ");
 		yield return ChromaWhereDocumentOperator.Contains("😀😀😀");
 		yield return ChromaWhereDocumentOperator.Contains("abc") & ChromaWhereDocumentOperator.Regex("x");
+		yield return ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = "abc" });
+		yield return ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$regex":"x"}]}"""));
 	}
 
 	[Test]
@@ -120,6 +133,132 @@ public class DocumentFiltersTests
 		Assert.That(ex!.Message, Does.Contain("the text \"ab\" of $not_contains").And.Contain("fewer than 3 characters").And.Contain("$regex"));
 	}
 
+	// Chroma Cloud rejects a regex pattern beyond the quota of the tenant, in bytes of UTF-8: the client sends it, as the quota can be
+	// higher, and on the 422 throws a ChromaException that names the pattern, its bytes and the limit of the answer.
+	[Test]
+	public void TheQuotaOfARegexPattern([ValueSource(nameof(Operations))] string operation)
+	{
+		var pattern = new string('a', 257);
+		var server = new Server { RegexQuota = (257, 256) };
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Run(Client(server, Cloud), operation, ChromaWhereDocumentOperator.Regex(pattern)));
+		Assert.That(server.Paths, Does.Contain(operation.Split(' ')[0]));
+		Assert.That(ex!.Message, Does.StartWith($"Chroma Cloud rejects the pattern \"{pattern}\" of $regex, of 257 bytes in UTF-8: the quota of the tenant for a regex pattern is 256 bytes").And.Contain("A tenant can ask for a higher quota: https://trychroma.com/request-quota-increase"));
+		Assert.That(ex.StatusCode, Is.EqualTo(HttpStatusCode.UnprocessableEntity));
+		Assert.That(ex.ErrorType, Is.EqualTo("ChromaError"));
+		Assert.That(ex.InnerException, Is.InstanceOf<ChromaException>());
+	}
+
+	// The bytes in UTF-8, and the limit of the answer, so a tenant with another quota reads its own.
+	[TestCase("é", 129, 256, 258)]
+	[TestCase("é", 128, 200, 256)]
+	[TestCase("😀", 65, 256, 260)]
+	public void TheQuotaOfARegexPatternInBytes(string character, int count, int limit, int bytes)
+	{
+		var pattern = string.Concat(Enumerable.Repeat(character, count));
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Client(new Server { RegexQuota = (bytes, limit) }, Cloud).GetAsync(whereDocument: ChromaWhereDocumentOperator.NotRegex(pattern)));
+		Assert.That(ex!.Message, Does.StartWith($"Chroma Cloud rejects the pattern \"{pattern}\" of $not_regex, of {bytes} bytes in UTF-8: the quota of the tenant for a regex pattern is {limit} bytes"));
+	}
+
+	// A filter given as a dictionary goes in every operation as the same filter written with the operators: get, query and delete send it as
+	// it is, and the Search API gets it on #document, also nested.
+	[Test]
+	public async Task FromDictionaryAsTheOperators([ValueSource(nameof(Operations))] string operation)
+	{
+		var dictionary = ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object>
+		{
+			["$or"] = new object[]
+			{
+				new Dictionary<string, object> { ["$contains"] = "abc" },
+				new Dictionary<string, object> { ["$and"] = new object[] { new Dictionary<string, object> { ["$regex"] = "x+" }, new Dictionary<string, object> { ["$not_contains"] = "zzz" } } },
+			},
+		});
+		var operators = ChromaWhereDocumentOperator.Contains("abc") | (ChromaWhereDocumentOperator.Regex("x+") & ChromaWhereDocumentOperator.NotContains("zzz"));
+		var json = ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$or":[{"$contains":"abc"},{"$and":[{"$regex":"x+"},{"$not_contains":"zzz"}]}]}"""));
+		var last = operation.Split(' ')[0];
+		var fromOperators = new Server();
+		await Run(Client(fromOperators, Local), operation, operators);
+		foreach (var filter in new[] { dictionary, json })
+		{
+			var server = new Server();
+			await Run(Client(server, Local), operation, filter);
+			Assert.That(server.Body(last), Is.Not.Null.And.EqualTo(fromOperators.Body(last)));
+			Assert.That(filter.ToString(), Is.EqualTo(operators.ToString()));
+		}
+	}
+
+	// ChromaWhereOperator.FromDictionary with #document in the where clause of the Search API: Chroma Cloud checks its texts too, also from
+	// JSON, before the search; a single server takes it.
+	[TestCase("""{"#document":{"$regex":"^$"}}""", true)]
+	[TestCase("""{"$and":[{"k":{"$eq":1}},{"#document":{"$contains":"ab"}}]}""", true)]
+	[TestCase("""{"#document":{"$contains":"abc"}}""", false)]
+	public async Task WhereFromDictionaryOnDocumentInTheSearch(string json, bool wrongOnChromaCloud)
+	{
+		foreach (var where in new[] { ChromaWhereOperator.FromDictionary(FromJson(json)), ChromaWhereOperator.FromDictionary(FromClr(System.Text.Json.JsonDocument.Parse(json).RootElement)) })
+		{
+			var cloud = new Server();
+			var search = new ChromaSearch { Where = where, Limit = 5 };
+			if (wrongOnChromaCloud)
+			{
+				Assert.ThrowsAsync<ArgumentException>(() => Client(cloud, Cloud).SearchAsync(search));
+				Assert.That(cloud.Paths, Is.Empty);
+			}
+			else
+			{
+				await Client(cloud, Cloud).SearchAsync(search);
+				Assert.That(cloud.Paths, Does.Contain("search"));
+			}
+			var local = new Server();
+			await Client(local, Local).SearchAsync(search);
+			Assert.That(local.Paths, Does.Contain("search"));
+		}
+	}
+
+	// The same dictionary with .NET values: objects as Dictionary<string, object>, arrays as object[], and the scalars as they are.
+	static Dictionary<string, object> FromClr(System.Text.Json.JsonElement element)
+		=> element.EnumerateObject().ToDictionary(property => property.Name, property => Clr(property.Value));
+
+	static object Clr(System.Text.Json.JsonElement element) => element.ValueKind switch
+	{
+		System.Text.Json.JsonValueKind.Object => FromClr(element),
+		System.Text.Json.JsonValueKind.Array => element.EnumerateArray().Select(Clr).ToArray(),
+		System.Text.Json.JsonValueKind.String => element.GetString()!,
+		_ => element.GetInt64(),
+	};
+
+	static IEnumerable<IReadOnlyDictionary<string, object>> NotForTheSearch()
+	{
+		yield return new Dictionary<string, object> { ["$foo"] = "x" };
+		yield return new Dictionary<string, object> { ["#document"] = new Dictionary<string, object> { ["$contains"] = "abc" } };
+		yield return new Dictionary<string, object> { ["$contains"] = "abc", ["$regex"] = "x" };
+		yield return new Dictionary<string, object>();
+		yield return new Dictionary<string, object> { ["$contains"] = 3 };
+		yield return new Dictionary<string, object> { ["$and"] = "abc" };
+		yield return new Dictionary<string, object> { ["$or"] = new object[] { new Dictionary<string, object> { ["$contains"] = "abc" }, new Dictionary<string, object> { ["$bar"] = "x" } } };
+	}
+
+	// What the client cannot write for the Search API throws there without a search, and a get sends it as it is.
+	[Test]
+	public async Task FromDictionaryThatTheSearchCannotWrite([ValueSource(nameof(NotForTheSearch))] IReadOnlyDictionary<string, object> filter)
+	{
+		foreach (var operation in new[] { "search", "search with where document" })
+		{
+			var server = new Server();
+			var ex = Assert.ThrowsAsync<NotSupportedException>(() => Run(Client(server, Local), operation, ChromaWhereDocumentOperator.FromDictionary(filter)));
+			Assert.That(ex!.Message, Does.StartWith("The filter on the documents given as a dictionary "));
+			Assert.That(server.Paths, Does.Not.Contain("search"));
+		}
+		var get = new Server();
+		await Client(get, Local).GetAsync(whereDocument: ChromaWhereDocumentOperator.FromDictionary(filter));
+		Assert.That(System.Text.Json.JsonDocument.Parse(get.Body("get")!).RootElement.GetProperty("where_document").GetRawText(), Is.EqualTo(System.Text.Json.JsonSerializer.Serialize(filter)));
+	}
+
+	[Test]
+	public void FromDictionaryNullAndNot()
+	{
+		Assert.Throws<ArgumentNullException>(() => ChromaWhereDocumentOperator.FromDictionary(null!));
+		Assert.Throws<NotSupportedException>(() => ChromaWhereDocumentOperator.Not(ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$contains"] = "abc" })));
+	}
+
 	// A filter that get rejects, a condition on the documents joined with |, fails the task as before: the check leaves it to the get, on
 	// Chroma Cloud as on a single server.
 	[TestCase(Cloud)]
@@ -146,16 +285,29 @@ public class DocumentFiltersTests
 	static ChromaCollectionClient Client(HttpMessageHandler handler, string uri)
 		=> new(new ChromaCollection("c") { Id = Guid.NewGuid() }, new ChromaConfigurationOptions(uri), new HttpClient(handler));
 
-	// Answers each request with an empty result, and records the last segment of its path.
+	// Answers each request with an empty result, and records the last segment of its path. With RegexQuota, a get, query, search or
+	// delete gets the 422 of Chroma Cloud for a regex pattern beyond its quota.
 	sealed class Server : HttpMessageHandler
 	{
 		public List<string> Paths { get; } = [];
+		public List<string?> Bodies { get; } = [];
+		public (int Usage, int Limit)? RegexQuota { get; init; }
+
+		// The body of the last request whose path ends with the segment.
+		public string? Body(string last) => Bodies[Paths.LastIndexOf(last)];
 
 		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			var path = request.RequestUri!.AbsolutePath;
 			var last = path[(path.LastIndexOf('/') + 1)..];
 			Paths.Add(last);
+			Bodies.Add(request.Content?.ReadAsStringAsync().GetAwaiter().GetResult());
+			if (RegexQuota is var (usage, limit) && last is "get" or "query" or "search" or "delete")
+			{
+				var action = char.ToUpperInvariant(last[0]) + last[1..];
+				var message = $"Quota exceeded: 'Length of regex pattern' exceeded quota limit for action '{action}': current usage of {usage} exceeds limit of {limit}. https://trychroma.com/request-quota-increase?tenant=t&action={action}&quota=RegexPatternLength&current={limit}&request={usage}";
+				return Task.FromResult(new HttpResponseMessage(HttpStatusCode.UnprocessableEntity) { Content = new StringContent($$"""{"error":"ChromaError","message":"{{message}}"}""") });
+			}
 			var answer = last switch
 			{
 				"version" => "\"1.5.9\"",

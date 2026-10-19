@@ -123,17 +123,12 @@ internal static class ChromaRequestChecks
 		}
 	}
 
-	// What the Python client checks too: a metadata has at least one key, and a list holds values of one type, strings, integers,
-	// floating-point numbers or Booleans. The server answers either with an error that does not say what is wrong, or stores no metadata.
-	// A list that can be read once is not read here.
+	// What the Python client checks too: a list holds values of one type, strings, integers, floating-point numbers or Booleans. The
+	// server answers with an error that does not say what is wrong. A list that can be read once is not read here.
 	public static void MetadataValues(IReadOnlyList<IReadOnlyDictionary<string, object>?>? metadatas, string paramName)
 	{
 		foreach (var metadata in metadatas ?? [])
 		{
-			if (metadata is { Count: 0 })
-			{
-				throw new ArgumentException("A metadata is empty: Chroma takes at least one key, as the Python client checks; null is a record without metadata.", paramName);
-			}
 			foreach (var pair in metadata ?? Enumerable.Empty<KeyValuePair<string, object>>())
 			{
 				if (IsList(pair.Value) && pair.Value is JsonElement or ICollection && Kinds(pair.Value).Distinct().Skip(1).Any())
