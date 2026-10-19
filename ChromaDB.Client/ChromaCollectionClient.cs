@@ -361,7 +361,7 @@ public class ChromaCollectionClient
 			throw new ArgumentOutOfRangeException(limit < 0 ? nameof(limit) : nameof(offset), "The limit and the offset of a get cannot be negative.");
 		}
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
-		return Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation<IReadOnlyList<ChromaCollectionEntry>>("get", cancellationToken, async () =>
 		{
 			// Works around KD-13 (docs/COMPATIBILITY.md)
 			// No get for a limit of 0, after a client made by name has read its collection, as with None: one that does not exist throws.
@@ -371,7 +371,7 @@ public class ChromaCollectionClient
 			}
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
 			return await GetEntries(split.Ids, split.Where, split.WhereDocument, limit, offset, include, cancellationToken);
-		});
+		}));
 	}
 
 	private async Task<List<ChromaCollectionEntry>> GetEntries(IReadOnlyList<string>? ids, ChromaWhereOperator? where, ChromaWhereDocumentOperator? whereDocument, int? limit, int? offset, ChromaGetInclude? include, CancellationToken cancellationToken)
@@ -531,7 +531,7 @@ public class ChromaCollectionClient
 	public virtual Task<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>> QueryAsync(ChromaQuery query, CancellationToken cancellationToken = default)
 	{
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(query));
-		return Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(query.Where, query.WhereDocument, query.Ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>>("query", cancellationToken, async () =>
 		{
 			var requestParams = new RequestQueryParams()
 				.Insert("{tenant}", _tenant)
@@ -608,7 +608,7 @@ public class ChromaCollectionClient
 				}
 			}
 			return query.Offset == 0 ? result : result.Select(entries => (IReadOnlyList<ChromaCollectionQueryEntry>)entries.Skip(query.Offset).ToList()).ToList();
-		});
+		}));
 	}
 
 	/// <summary>
@@ -1272,7 +1272,7 @@ public class ChromaCollectionClient
 			throw new ArgumentException("The ids of a delete without filters cannot be empty: there is nothing to delete.", nameof(ids));
 		}
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(whereDocument));
-		return Operation("delete", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(where, whereDocument, ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation("delete", cancellationToken, async () =>
 		{
 			var split = ChromaWhereOperator.Split(where, whereDocument, ids);
 			if (split.Where == ChromaWhereOperator.None)
@@ -1293,7 +1293,7 @@ public class ChromaCollectionClient
 				};
 				await _httpClient.Post(_httpClient.Routes.Collection + "/delete", request, requestParams, cancellationToken);
 			}, cancellationToken);
-		});
+		}));
 	}
 
 	/// <summary>
@@ -1307,7 +1307,7 @@ public class ChromaCollectionClient
 	public virtual Task<int?> DeleteAsync(ChromaDelete delete, CancellationToken cancellationToken = default)
 	{
 		CheckDocumentFilters(() => ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), document: true, nameof(delete));
-		return Operation("delete", cancellationToken, async () =>
+		return WithRegexQuota(() => [(ChromaWhereOperator.Split(delete.Where, delete.WhereDocument, delete.Ids).WhereDocument?.ToRequestWhereDocument(), true)], Operation("delete", cancellationToken, async () =>
 		{
 			// The rules of Chroma and of its Python client, checked before any request. All is no filter.
 			if (delete.Ids is [])
@@ -1376,7 +1376,7 @@ public class ChromaCollectionClient
 				await InBatches(new ChromaRecords(ids), batch => Send(batch.Ids), cancellationToken);
 			}
 			return deleted;
-		});
+		}));
 	}
 
 	/// <summary>
@@ -1438,7 +1438,11 @@ public class ChromaCollectionClient
 			CheckDocumentFilters(() => search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All ? ChromaWhereOperator.ToRequestWhere(where) : null, document: false, nameof(searches));
 			CheckDocumentFilters(() => search.WhereDocument?.ToRequestWhereDocument(), document: true, nameof(searches));
 		}
-		return Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
+		return WithRegexQuota(() => (searches ?? []).SelectMany(search => new (Dictionary<string, object>?, bool)[]
+		{
+			(search.Where is { } where && where != ChromaWhereOperator.None && where != ChromaWhereOperator.All ? ChromaWhereOperator.ToRequestWhere(where) : null, false),
+			(search.WhereDocument?.ToRequestWhereDocument(), true),
+		}), Operation<IReadOnlyList<IReadOnlyList<ChromaSearchEntry>>>("search", cancellationToken, async () =>
 		{
 			if (searches is not { Count: > 0 })
 			{
@@ -1500,7 +1504,7 @@ public class ChromaCollectionClient
 			}
 			var next = 0;
 			return searches.Select(search => search.Where == ChromaWhereOperator.None ? [] : results[next++]).ToList();
-		});
+		}));
 	}
 
 	// The keys a search selects, and with the documents the copy key or the deletion key, which tells a deleted document from an empty one.
@@ -1558,6 +1562,64 @@ public class ChromaCollectionClient
 				throw new ArgumentException($"On Chroma Cloud the text \"{value}\" of {@operator} gives the wrong records: once Chroma Cloud has indexed the records, with fewer than {MinContainsCharacters} characters $contains finds no record and $not_contains every record, also in a delete. The text as the pattern of a $regex or $not_regex, its special characters escaped, is right, and Regex(\"(?s).\") finds the records with a document that is not empty.", paramName);
 			}
 		}
+	}
+
+	// Chroma Cloud rejects a pattern of $regex or $not_regex beyond the quota of the tenant, 256 bytes in UTF-8 by default, in every get,
+	// query, delete and search, with 422 "Quota exceeded: 'Length of regex pattern' exceeded quota limit for action 'Get': current usage of
+	// 257 exceeds limit of 256. https://trychroma.com/request-quota-increase?...". A tenant can have a higher quota, so the client sends the
+	// pattern, and on that answer throws a ChromaException that names the patterns beyond the limit of the answer.
+	private static readonly System.Text.RegularExpressions.Regex RegexQuotaMessage = new("'Length of regex pattern' exceeded quota limit for action '([^']*)': current usage of ([0-9]+) exceeds limit of ([0-9]+)\\.(?:\\s+(https?://\\S+))?");
+
+	private static async Task<T> WithRegexQuota<T>(Func<IEnumerable<(Dictionary<string, object>? Filter, bool Document)>> filters, Task<T> operation)
+	{
+		try
+		{
+			return await operation;
+		}
+		catch (ChromaException ex) when (RegexQuotaMessage.Match(ex.Message) is { Success: true } match)
+		{
+			throw RegexQuotaError(ex, match, filters);
+		}
+	}
+
+	private static async Task WithRegexQuota(Func<IEnumerable<(Dictionary<string, object>? Filter, bool Document)>> filters, Task operation)
+	{
+		try
+		{
+			await operation;
+		}
+		catch (ChromaException ex) when (RegexQuotaMessage.Match(ex.Message) is { Success: true } match)
+		{
+			throw RegexQuotaError(ex, match, filters);
+		}
+	}
+
+	private static ChromaException RegexQuotaError(ChromaException ex, System.Text.RegularExpressions.Match match, Func<IEnumerable<(Dictionary<string, object>? Filter, bool Document)>> filters)
+	{
+		var limit = int.Parse(match.Groups[3].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture);
+		List<(string Operator, string Pattern, int Bytes)> patterns;
+		try
+		{
+			patterns = filters().SelectMany(x => DocumentFilters(x.Filter, x.Document))
+				.Where(x => x.Operator is "$regex" or "$not_regex")
+				.Select(x => (x.Operator, Pattern: x.Value, Bytes: System.Text.Encoding.UTF8.GetByteCount(x.Value)))
+				.Where(x => x.Bytes > limit)
+				.Distinct()
+				.ToList();
+		}
+		catch (Exception e) when (e is NotSupportedException or InvalidOperationException or ArgumentException)
+		{
+			patterns = [];
+		}
+		var rejected = patterns.Count > 0
+			? string.Join(" and ", patterns.Select(x => $"the pattern \"{x.Pattern}\" of {x.Operator}, of {x.Bytes} bytes in UTF-8"))
+			: $"a pattern of {match.Groups[2].Value} bytes in UTF-8";
+		var increase = match.Groups[4].Success ? $": {match.Groups[4].Value}" : "";
+		return new ChromaException($"Chroma Cloud rejects {rejected}: the quota of the tenant for a regex pattern is {limit} bytes, in '{match.Groups[1].Value}'. A tenant can ask for a higher quota{increase}", ex)
+		{
+			StatusCode = ex.StatusCode,
+			ErrorType = ex.ErrorType,
+		};
 	}
 
 	// The trigrams of the index of the documents of Chroma Cloud: a text of fewer characters has none.

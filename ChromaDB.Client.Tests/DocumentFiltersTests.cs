@@ -120,6 +120,32 @@ public class DocumentFiltersTests
 		Assert.That(ex!.Message, Does.Contain("the text \"ab\" of $not_contains").And.Contain("fewer than 3 characters").And.Contain("$regex"));
 	}
 
+	// Chroma Cloud rejects a regex pattern beyond the quota of the tenant, in bytes of UTF-8: the client sends it, as the quota can be
+	// higher, and on the 422 throws a ChromaException that names the pattern, its bytes and the limit of the answer.
+	[Test]
+	public void TheQuotaOfARegexPattern([ValueSource(nameof(Operations))] string operation)
+	{
+		var pattern = new string('a', 257);
+		var server = new Server { RegexQuota = (257, 256) };
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Run(Client(server, Cloud), operation, ChromaWhereDocumentOperator.Regex(pattern)));
+		Assert.That(server.Paths, Does.Contain(operation.Split(' ')[0]));
+		Assert.That(ex!.Message, Does.StartWith($"Chroma Cloud rejects the pattern \"{pattern}\" of $regex, of 257 bytes in UTF-8: the quota of the tenant for a regex pattern is 256 bytes").And.Contain("A tenant can ask for a higher quota: https://trychroma.com/request-quota-increase"));
+		Assert.That(ex.StatusCode, Is.EqualTo(HttpStatusCode.UnprocessableEntity));
+		Assert.That(ex.ErrorType, Is.EqualTo("ChromaError"));
+		Assert.That(ex.InnerException, Is.InstanceOf<ChromaException>());
+	}
+
+	// The bytes in UTF-8, and the limit of the answer, so a tenant with another quota reads its own.
+	[TestCase("é", 129, 256, 258)]
+	[TestCase("é", 128, 200, 256)]
+	[TestCase("😀", 65, 256, 260)]
+	public void TheQuotaOfARegexPatternInBytes(string character, int count, int limit, int bytes)
+	{
+		var pattern = string.Concat(Enumerable.Repeat(character, count));
+		var ex = Assert.ThrowsAsync<ChromaException>(() => Client(new Server { RegexQuota = (bytes, limit) }, Cloud).GetAsync(whereDocument: ChromaWhereDocumentOperator.NotRegex(pattern)));
+		Assert.That(ex!.Message, Does.StartWith($"Chroma Cloud rejects the pattern \"{pattern}\" of $not_regex, of {bytes} bytes in UTF-8: the quota of the tenant for a regex pattern is {limit} bytes"));
+	}
+
 	// A filter that get rejects, a condition on the documents joined with |, fails the task as before: the check leaves it to the get, on
 	// Chroma Cloud as on a single server.
 	[TestCase(Cloud)]
@@ -146,16 +172,24 @@ public class DocumentFiltersTests
 	static ChromaCollectionClient Client(HttpMessageHandler handler, string uri)
 		=> new(new ChromaCollection("c") { Id = Guid.NewGuid() }, new ChromaConfigurationOptions(uri), new HttpClient(handler));
 
-	// Answers each request with an empty result, and records the last segment of its path.
+	// Answers each request with an empty result, and records the last segment of its path. With RegexQuota, a get, query, search or
+	// delete gets the 422 of Chroma Cloud for a regex pattern beyond its quota.
 	sealed class Server : HttpMessageHandler
 	{
 		public List<string> Paths { get; } = [];
+		public (int Usage, int Limit)? RegexQuota { get; init; }
 
 		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			var path = request.RequestUri!.AbsolutePath;
 			var last = path[(path.LastIndexOf('/') + 1)..];
 			Paths.Add(last);
+			if (RegexQuota is var (usage, limit) && last is "get" or "query" or "search" or "delete")
+			{
+				var action = char.ToUpperInvariant(last[0]) + last[1..];
+				var message = $"Quota exceeded: 'Length of regex pattern' exceeded quota limit for action '{action}': current usage of {usage} exceeds limit of {limit}. https://trychroma.com/request-quota-increase?tenant=t&action={action}&quota=RegexPatternLength&current={limit}&request={usage}";
+				return Task.FromResult(new HttpResponseMessage(HttpStatusCode.UnprocessableEntity) { Content = new StringContent($$"""{"error":"ChromaError","message":"{{message}}"}""") });
+			}
 			var answer = last switch
 			{
 				"version" => "\"1.5.9\"",
