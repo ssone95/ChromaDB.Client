@@ -27,7 +27,8 @@ public abstract class ChromaWhereDocumentOperator
 	/// <summary>
 	/// A filter written as the dictionary of the <c>where_document</c> of the Chroma API, as the Python client takes it, like
 	/// <c>{"$contains": "text"}</c> or <c>{"$and": [...]}</c>: nested filters as <c>Dictionary&lt;string, object&gt;</c>, lists as arrays.
-	/// Get, query and delete send it as it is, and the server checks it. The Search API takes the filters on the documents in its where
+	/// Get, query and delete send it as it is, with very long <c>$and</c> and <c>$or</c> lists split as for the other filters, and the
+	/// server checks it. The Search API takes the filters on the documents in its where
 	/// clause, on <c>#document</c>: there the client writes it as it writes the other filters, and for what it cannot write, like an
 	/// operator other than <c>$contains</c>, <c>$not_contains</c>, <c>$regex</c>, <c>$not_regex</c>, <c>$and</c> and <c>$or</c>, throws a
 	/// <c>NotSupportedException</c> without sending the search. <c>&amp;</c> and <c>|</c> join it to other filters; <c>Not</c> throws a

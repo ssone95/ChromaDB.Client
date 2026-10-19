@@ -127,6 +127,56 @@ public class BatchesAndFiltersTests
 		}
 	}
 
+	// A long $and or $or given as a dictionary, with an array, another list or from JSON, goes split as the same filter written with the
+	// operators (KD-4), in where and where_document, also nested; a short one goes as it is.
+	[Test]
+	public async Task LongListsFromDictionaries()
+	{
+		static string Contains(int i) => $$"""{"$contains":"w{{i:D4}}"}""";
+		static string NotEqual(int i) => "{\"k\":{\"$ne\":" + i + "}}";
+		var documents = "{\"$or\":[{\"$and\":[" + string.Join(",", Enumerable.Range(0, 1000).Select(Contains)) + "]},{\"$contains\":\"xyz\"}]}";
+		var where = "{\"$and\":[" + string.Join(",", Enumerable.Range(0, 1000).Select(NotEqual)) + "]}";
+		var documentsWithOperators = Enumerable.Range(0, 1000).Select(i => ChromaWhereDocumentOperator.Contains($"w{i:D4}")).Aggregate((a, b) => a & b) | ChromaWhereDocumentOperator.Contains("xyz");
+		var whereWithOperators = Enumerable.Range(0, 1000).Select(i => ChromaWhereOperator.NotEqual("k", i)).Aggregate((a, b) => a & b);
+
+		var expected = await Sent(whereWithOperators, documentsWithOperators);
+		Assert.That(JsonDocument.Parse(expected.WhereDocument).RootElement.GetProperty("$or")[0].GetProperty("$and").GetArrayLength(), Is.EqualTo(32));
+		foreach (var (whereFilter, documentFilter) in new[]
+		{
+			(ChromaWhereOperator.FromDictionary(FromJson(where)), ChromaWhereDocumentOperator.FromDictionary(FromJson(documents))),
+			(ChromaWhereOperator.FromDictionary(AsLists(FromJson(where))), ChromaWhereDocumentOperator.FromDictionary(AsLists(FromJson(documents)))),
+		})
+		{
+			var sent = await Sent(whereFilter, documentFilter);
+			Assert.That(sent.Where, Is.EqualTo(expected.Where));
+			Assert.That(sent.WhereDocument, Is.EqualTo(expected.WhereDocument));
+		}
+		var shortList = ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$contains":"def"}]}"""));
+		Assert.That((await Sent(null, shortList)).WhereDocument, Is.EqualTo("""{"$and":[{"$contains":"abc"},{"$contains":"def"}]}"""));
+
+		static async Task<(string Where, string WhereDocument)> Sent(ChromaWhereOperator? where, ChromaWhereDocumentOperator whereDocument)
+		{
+			var handler = new Handler("""{"ids":[]}""");
+			await Client(Options, handler).GetAsync(where: where, whereDocument: whereDocument);
+			var body = handler.Bodies.Single();
+			return (where is null ? "" : body.GetProperty("where").GetRawText(), body.GetProperty("where_document").GetRawText());
+		}
+	}
+
+	static Dictionary<string, object> FromJson(string json) => JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;
+
+	// The same filter with .NET values, its lists as List<object> instead of arrays.
+	static Dictionary<string, object> AsLists(Dictionary<string, object> filter)
+		=> filter.ToDictionary(pair => pair.Key, pair => Clr((JsonElement)pair.Value));
+
+	static object Clr(JsonElement element) => element.ValueKind switch
+	{
+		JsonValueKind.Object => element.EnumerateObject().ToDictionary(property => property.Name, property => Clr(property.Value)),
+		JsonValueKind.Array => element.EnumerateArray().Select(Clr).ToList(),
+		JsonValueKind.String => element.GetString()!,
+		_ => element.GetInt64(),
+	};
+
 	// A filter given as a dictionary goes in the request as it is.
 	[Test]
 	public async Task FilterFromDictionaryAsItIs()

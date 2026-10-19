@@ -41,8 +41,24 @@ internal static class ChromaFilterLists
 		return new Dictionary<string, object> { [@operator] = groups.ToArray() };
 	}
 
+	// A list of $and or $or: in a dictionary, also one given as it is, whose list can be an array, another list or a JSON array, and in
+	// a JSON object, as a dictionary from JSON has them.
 	private static (string Operator, object[] Filters)? List(object filter)
-		=> filter is Dictionary<string, object> { Count: 1 } dictionary && dictionary.First() is { Key: "$and" or "$or" } pair && pair.Value is object[] filters
-			? (pair.Key, filters)
-			: null;
+		=> filter switch
+		{
+			IReadOnlyDictionary<string, object> { Count: 1 } dictionary when dictionary.First() is { Key: "$and" or "$or" } pair && Filters(pair.Value) is { } filters
+				=> (pair.Key, filters),
+			System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Object } json
+				when json.EnumerateObject().Take(2).ToList() is [{ Name: "$and" or "$or" } property] && Filters(property.Value) is { } filters
+				=> (property.Name, filters),
+			_ => null,
+		};
+
+	private static object[]? Filters(object value) => value switch
+	{
+		object[] filters => filters,
+		System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.Array } json => json.EnumerateArray().Select(item => (object)item).ToArray(),
+		System.Collections.IEnumerable list and not string and not IEnumerable<KeyValuePair<string, object>> => list.Cast<object>().ToArray(),
+		_ => null,
+	};
 }
