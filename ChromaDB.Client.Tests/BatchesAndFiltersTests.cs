@@ -153,14 +153,51 @@ public class BatchesAndFiltersTests
 		}
 		var shortList = ChromaWhereDocumentOperator.FromDictionary(FromJson("""{"$and":[{"$contains":"abc"},{"$contains":"def"}]}"""));
 		Assert.That((await Sent(null, shortList)).WhereDocument, Is.EqualTo("""{"$and":[{"$contains":"abc"},{"$contains":"def"}]}"""));
+	}
 
-		static async Task<(string Where, string WhereDocument)> Sent(ChromaWhereOperator? where, ChromaWhereDocumentOperator whereDocument)
+	// Operands that can be read only once: the client copies the dictionary when it gets it and reads each list once, so the request has
+	// them all, short or long, in where and where_document; later changes to the dictionary do not change the filter.
+	[TestCase(2)]
+	[TestCase(1000)]
+	public async Task OperandsThatCanBeReadOnce(int count)
+	{
+		var documents = ChromaWhereDocumentOperator.FromDictionary(new Dictionary<string, object> { ["$and"] = new Once(Enumerable.Range(0, count).Select(i => (object)new Dictionary<string, object> { ["$contains"] = $"w{i:D4}" })) });
+		var whereDictionary = new Dictionary<string, object> { ["$and"] = new Once(Enumerable.Range(0, count).Select(i => (object)new Dictionary<string, object> { ["k"] = new Dictionary<string, object> { ["$ne"] = i } })) };
+		var where = ChromaWhereOperator.FromDictionary(whereDictionary);
+		whereDictionary["$or"] = "changed";
+		var expected = await Sent(
+			Enumerable.Range(0, count).Select(i => ChromaWhereOperator.NotEqual("k", i)).Aggregate((a, b) => a & b),
+			Enumerable.Range(0, count).Select(i => ChromaWhereDocumentOperator.Contains($"w{i:D4}")).Aggregate((a, b) => a & b));
+		var sent = await Sent(where, documents);
+		Assert.That(sent.Where, Is.EqualTo(expected.Where));
+		Assert.That(sent.WhereDocument, Is.EqualTo(expected.WhereDocument));
+		Assert.That(where.ToString(), Is.EqualTo(expected.Where));
+	}
+
+	static async Task<(string Where, string WhereDocument)> Sent(ChromaWhereOperator? where, ChromaWhereDocumentOperator whereDocument)
+	{
+		var handler = new Handler("""{"ids":[]}""");
+		await Client(Options, handler).GetAsync(where: where, whereDocument: whereDocument);
+		var body = handler.Bodies.Single();
+		return (where is null ? "" : body.GetProperty("where").GetRawText(), body.GetProperty("where_document").GetRawText());
+	}
+
+	// A sequence that can be enumerated only once.
+	sealed class Once(IEnumerable<object> items) : IEnumerable<object>
+	{
+		bool _read;
+
+		public IEnumerator<object> GetEnumerator()
 		{
-			var handler = new Handler("""{"ids":[]}""");
-			await Client(Options, handler).GetAsync(where: where, whereDocument: whereDocument);
-			var body = handler.Bodies.Single();
-			return (where is null ? "" : body.GetProperty("where").GetRawText(), body.GetProperty("where_document").GetRawText());
+			if (_read)
+			{
+				throw new InvalidOperationException("The sequence was read twice.");
+			}
+			_read = true;
+			return items.GetEnumerator();
 		}
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 	}
 
 	static Dictionary<string, object> FromJson(string json) => JsonSerializer.Deserialize<Dictionary<string, object>>(json)!;

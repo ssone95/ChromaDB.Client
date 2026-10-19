@@ -32,12 +32,13 @@ public abstract class ChromaWhereDocumentOperator
 	/// clause, on <c>#document</c>: there the client writes it as it writes the other filters, and for what it cannot write, like an
 	/// operator other than <c>$contains</c>, <c>$not_contains</c>, <c>$regex</c>, <c>$not_regex</c>, <c>$and</c> and <c>$or</c>, throws a
 	/// <c>NotSupportedException</c> without sending the search. <c>&amp;</c> and <c>|</c> join it to other filters; <c>Not</c> throws a
-	/// <c>NotSupportedException</c>.
+	/// <c>NotSupportedException</c>. The client copies the dictionary, so later changes to it do not change the filter; it reads each
+	/// list once.
 	/// </summary>
 	/// <param name="whereDocument">The filter, as a dictionary.</param>
 	/// <returns>The filter.</returns>
 	public static ChromaWhereDocumentOperator FromDictionary(IReadOnlyDictionary<string, object> whereDocument)
-		=> new ChromaWhereDocumentDictionaryOperator(whereDocument ?? throw new ArgumentNullException(nameof(whereDocument)));
+		=> new ChromaWhereDocumentDictionaryOperator(Common.ChromaFilterLists.Copy(whereDocument ?? throw new ArgumentNullException(nameof(whereDocument))));
 
 	/// <summary>
 	/// The documents that the filter does not match: Chroma has no <c>$not</c>, so the negation goes into the operators,

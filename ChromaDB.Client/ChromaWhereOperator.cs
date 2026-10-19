@@ -90,11 +90,12 @@ public abstract class ChromaWhereOperator
 	/// <c>{"year": {"$gte": 2020}}</c> or <c>{"$and": [...]}</c>: nested filters as <c>Dictionary&lt;string, object&gt;</c>, lists as
 	/// arrays. The client sends it as it is, with very long <c>$and</c> and <c>$or</c> lists split as for the other filters, and does not
 	/// check it: the server does. <c>&amp;</c> and <c>|</c> join it to other filters; <c>Not</c> throws a <c>NotSupportedException</c>.
+	/// The client copies the dictionary, so later changes to it do not change the filter; it reads each list once.
 	/// </summary>
 	/// <param name="where">The filter, as a dictionary.</param>
 	/// <returns>The filter.</returns>
 	public static ChromaWhereOperator FromDictionary(IReadOnlyDictionary<string, object> where)
-		=> new ChromaWhereDictionaryOperator(where ?? throw new ArgumentNullException(nameof(where)));
+		=> new ChromaWhereDictionaryOperator(Common.ChromaFilterLists.Copy(where ?? throw new ArgumentNullException(nameof(where))));
 
 	/// <summary>
 	/// The filter that matches every record: the client sends no <c>where</c>, which Chroma has no value for. It is a single instance,

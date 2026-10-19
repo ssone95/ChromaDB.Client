@@ -54,6 +54,21 @@ internal static class ChromaFilterLists
 			_ => null,
 		};
 
+	// A filter given as a dictionary, copied once when the client gets it: a list that is not an array becomes an array, read once, and a
+	// dictionary a copy of the same kind; JSON values and the other values stay as they are, so the JSON that goes is the same.
+	public static Dictionary<string, object> Copy(IEnumerable<KeyValuePair<string, object>> filter)
+		=> filter.ToDictionary(pair => pair.Key, pair => CopyValue(pair.Value));
+
+	private static object CopyValue(object value) => value switch
+	{
+		null or string or byte[] or System.Text.Json.JsonElement => value!,
+		object[] array => array.Select(CopyValue).ToArray(),
+		IEnumerable<KeyValuePair<string, object>> dictionary => Copy(dictionary),
+		System.Collections.IDictionary => value,
+		System.Collections.IEnumerable list => list.Cast<object>().Select(CopyValue).ToArray(),
+		_ => value,
+	};
+
 	private static object[]? Filters(object value) => value switch
 	{
 		object[] filters => filters,
