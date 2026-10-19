@@ -117,6 +117,18 @@ public class DeleteRecordsFirstTests
 		Assert.That(server.Requests.Select(x => x.Request), Is.EqualTo(new[] { "GET version", "DELETE tenants/default_tenant/databases/d" }));
 	}
 
+	// A collection client made by name whose collection is created again under the name after the first page: the error says how many
+	// records went, and no delete reaches the new collection.
+	[Test]
+	public async Task DeleteAllStopsOnACollectionCreatedAgain()
+	{
+		var server = new RecreatedServer();
+		var collectionClient = Client(server).GetCollectionClient("c");
+		await collectionClient.CountAsync();
+		await Assert.ThatAsync(() => collectionClient.DeleteAllAsync(), Throws.InstanceOf<ChromaException>().With.Message.StartsWith("2 records were deleted before the error"));
+		Assert.That(server.Requests.Where(x => x.EndsWith("/delete")), Is.EqualTo(new[] { $"POST tenants/default_tenant/databases/default_database/collections/{Id}/delete" }));
+	}
+
 	static ChromaClient Client(HttpMessageHandler handler, string uri = "http://localhost:8000")
 		=> new(new ChromaConfigurationOptions(uri), new HttpClient(handler));
 
@@ -124,6 +136,39 @@ public class DeleteRecordsFirstTests
 
 	// Answers the version, the collection or the collections with found, pre-flight-checks with a batch size of 2, and each get with
 	// the next page of ids; records the requests, without the prefix of the API.
+	// The collection c has the id Id until its second page, which answers 404: from then on c is a new collection, with OtherId.
+	sealed class RecreatedServer : HttpMessageHandler
+	{
+		bool _recreated;
+		int _pages;
+
+		public List<string> Requests { get; } = [];
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			var path = request.RequestUri!.AbsolutePath.Substring("/api/v2/".Length);
+			Requests.Add($"{request.Method} {path}");
+			var (status, answer) = path switch
+			{
+				"version" => (HttpStatusCode.OK, "\"1.0.0\""),
+				"pre-flight-checks" => (HttpStatusCode.OK, """{"max_batch_size":2}"""),
+				_ when path.EndsWith("/count") => (HttpStatusCode.OK, "4"),
+				_ when path.EndsWith("/delete") => (HttpStatusCode.OK, "{}"),
+				_ when path.EndsWith("/get") && path.Contains(OtherId) => (HttpStatusCode.OK, """{"ids":["x","y"]}"""),
+				_ when path.EndsWith("/get") && _pages++ == 0 => (HttpStatusCode.OK, """{"ids":["a","b"]}"""),
+				_ when path.EndsWith("/get") => Recreate(),
+				_ => (HttpStatusCode.OK, $$"""{"id":"{{(_recreated ? OtherId : Id)}}","name":"c"}"""),
+			};
+			return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(answer) });
+		}
+
+		(HttpStatusCode, string) Recreate()
+		{
+			_recreated = true;
+			return (HttpStatusCode.NotFound, """{"error":"NotFoundError","message":"Collection does not exist."}""");
+		}
+	}
+
 	sealed class FakeServer(string version, string found, params string[] pages) : HttpMessageHandler
 	{
 		int _page;

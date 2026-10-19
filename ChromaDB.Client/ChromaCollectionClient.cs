@@ -427,7 +427,8 @@ public class ChromaCollectionClient
 		=> Operation("delete", cancellationToken, () => DeleteAllRecords(cancellationToken));
 
 	// Deletes the records a page of ids at a time, a batch each, until none is left, and counts them: DeleteAllAsync, and ChromaClient
-	// before it deletes the collection. A page that comes back the same was not deleted, and stops it.
+	// before it deletes the collection. A page that comes back the same was not deleted, and stops it. An error after a page that went
+	// says so, and a collection client made by name does not run it again on a collection created again under the name.
 	internal async Task<int> DeleteAllRecords(CancellationToken cancellationToken)
 	{
 		var requestParams = new RequestQueryParams()
@@ -437,20 +438,32 @@ public class ChromaCollectionClient
 		var size = await BatchSize(cancellationToken);
 		List<string> deleted = [];
 		var count = 0;
-		while (true)
+		try
 		{
-			var ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
-			if (ids.Count == 0)
+			while (true)
 			{
-				return count;
+				var ids = (await GetPage(null, null, null, size, null, ChromaGetInclude.None, cancellationToken)).Select(entry => entry.Id).ToList();
+				if (ids.Count == 0)
+				{
+					return count;
+				}
+				if (ids.SequenceEqual(deleted))
+				{
+					throw new ChromaException($"The records were not deleted: the server returns them after their delete, like {ids[0]}. The collection stays with them.");
+				}
+				await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
+				count += ids.Count;
+				deleted = ids;
 			}
-			if (ids.SequenceEqual(deleted))
+		}
+		catch (ChromaException ex) when (count > 0)
+		{
+			throw new ChromaException($"{count} {(count == 1 ? "record was" : "records were")} deleted before the error: {ex.Message}", ex)
 			{
-				throw new ChromaException($"The records were not deleted: the server returns them after their delete, like {ids[0]}. The collection stays with them.");
-			}
-			await _httpClient.Post(_httpClient.Routes.Collection + "/delete", new CollectionDeleteRequest() { Ids = ids }, requestParams, cancellationToken);
-			count += ids.Count;
-			deleted = ids;
+				StatusCode = ex.StatusCode,
+				ErrorType = ex.ErrorType,
+				PartlyDone = true,
+			};
 		}
 	}
 
