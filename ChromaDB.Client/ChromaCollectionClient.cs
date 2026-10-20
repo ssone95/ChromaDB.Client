@@ -2,6 +2,9 @@
 using ChromaDB.Client.Models;
 using ChromaDB.Client.Models.Requests;
 using ChromaDB.Client.Models.Responses;
+#if !NETSTANDARD2_0
+using Microsoft.Extensions.AI;
+#endif
 
 namespace ChromaDB.Client;
 
@@ -22,6 +25,9 @@ public class ChromaCollectionClient
 	private readonly string? _documentCopyKey;
 	private readonly string? _documentDeletionKey;
 	private readonly bool _emptyDocumentDeletions;
+#if !NETSTANDARD2_0
+	private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
+#endif
 
 	/// <summary>
 	/// Creates a client for the records of the collection, which sends its requests with the options and the
@@ -71,7 +77,19 @@ public class ChromaCollectionClient
 		_documentCopyKey = documentCopyKey;
 		_documentDeletionKey = documentDeletionKey;
 		_emptyDocumentDeletions = emptyDocumentDeletions;
+#if !NETSTANDARD2_0
+		_embeddingGenerator = client._embeddingGenerator;
+#endif
 	}
+
+#if !NETSTANDARD2_0
+	// The same client with the embedding generator.
+	private ChromaCollectionClient(ChromaCollectionClient client, IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator)
+		: this(client, client._httpClient, client._documentCopyKey, client._documentDeletionKey, client._emptyDocumentDeletions)
+	{
+		_embeddingGenerator = embeddingGenerator;
+	}
+#endif
 
 	/// <summary>
 	/// Creates a client without getting the collection first: the requests on a collection need only its id, and the
@@ -314,6 +332,30 @@ public class ChromaCollectionClient
 	/// <returns>The client of the same collection, reading metadata values that way.</returns>
 	public virtual ChromaCollectionClient WithMetadataValues(ChromaMetadataValues metadataValues)
 		=> new(this, _httpClient.WithMetadataValues(metadataValues), _documentCopyKey, _documentDeletionKey, _emptyDocumentDeletions);
+
+#if !NETSTANDARD2_0
+	/// <summary>
+	/// A client of the same collection that computes the embeddings with the generator, as an embedding function does in the Python client
+	/// of Chroma. <c>AddAsync</c>, <c>UpdateAsync</c> and <c>UpsertAsync</c> compute the embeddings of records given without them from
+	/// their documents, and <c>QueryAsync</c> with a text and <c>QueryTextsAsync</c> compute those of the query texts. Records given with
+	/// embeddings keep them. The builds for .NET 8 and .NET Framework have this method; the one for .NET Standard 2.0 does not.
+	/// </summary>
+	/// <param name="embeddingGenerator">The generator of the embeddings; the client does not dispose it.</param>
+	/// <returns>The client of the same collection, with the generator.</returns>
+	public virtual ChromaCollectionClient WithEmbeddingGenerator(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator)
+	{
+		if (embeddingGenerator is null)
+		{
+			throw new ArgumentNullException(nameof(embeddingGenerator));
+		}
+		return new(this, embeddingGenerator);
+	}
+
+	/// <summary>
+	/// The generator of the embeddings of the client, from <c>WithEmbeddingGenerator</c>, or null for none.
+	/// </summary>
+	public virtual IEmbeddingGenerator<string, Embedding<float>>? EmbeddingGenerator => _embeddingGenerator;
+#endif
 
 	// The metadata key that tells a deleted document from an empty one: the document copy key, or the document deletion key.
 	private string? DocumentReadKey => _documentCopyKey ?? _documentDeletionKey;
@@ -572,6 +614,60 @@ public class ChromaCollectionClient
 	public virtual Task<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>> QueryAsync(IReadOnlyList<ReadOnlyMemory<float>> queryEmbeddings, int nResults = 10, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, ChromaQueryInclude? include = null, IReadOnlyList<string>? ids = null, CancellationToken cancellationToken = default)
 		=> QueryAsync(new ChromaQuery(queryEmbeddings) { NResults = nResults, Where = where, WhereDocument = whereDocument, Include = include, Ids = ids }, cancellationToken);
 
+#if !NETSTANDARD2_0
+	/// <summary>
+	/// Searches the <c>nResults</c> records nearest to the query text, with the embedding that the generator of
+	/// <c>WithEmbeddingGenerator</c> computes from it, as <c>query_texts</c> in the Python client of Chroma. Without a generator it throws an
+	/// <c>InvalidOperationException</c>. Without <c>include</c>, the metadatas, the documents and the distances are included.
+	/// </summary>
+	/// <param name="queryText">The query text.</param>
+	/// <param name="nResults">How many nearest records the query returns.</param>
+	/// <param name="where">The filter on the metadata, or null for none.</param>
+	/// <param name="whereDocument">The filter on the documents, or null for none.</param>
+	/// <param name="include">What the results include, or null for the default.</param>
+	/// <param name="ids">The ids of the records to search among, or null for all.</param>
+	/// <param name="cancellationToken">The token that cancels the operation.</param>
+	/// <returns>The nearest records, nearest first.</returns>
+	public virtual async Task<IReadOnlyList<ChromaCollectionQueryEntry>> QueryAsync(string queryText, int nResults = 10, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, ChromaQueryInclude? include = null, IReadOnlyList<string>? ids = null, CancellationToken cancellationToken = default)
+	{
+		if (queryText is null)
+		{
+			throw new ArgumentNullException(nameof(queryText));
+		}
+		return (await QueryTextsAsync([queryText], nResults: nResults, where: where, whereDocument: whereDocument, include: include, ids: ids, cancellationToken: cancellationToken)).FirstOrDefault() ?? [];
+	}
+
+	// Another name than QueryAsync: an overload with a list of texts would make QueryAsync([]) ambiguous, which compiles today.
+	/// <summary>
+	/// Searches the <c>nResults</c> records nearest to each query text, with the embeddings that the generator of
+	/// <c>WithEmbeddingGenerator</c> computes from them, as <c>query_texts</c> in the Python client of Chroma, and returns one list of results
+	/// per text. Without a generator it throws an <c>InvalidOperationException</c>. Without <c>include</c>, the metadatas, the documents and
+	/// the distances are included.
+	/// </summary>
+	/// <param name="queryTexts">The query texts: the results are one list for each.</param>
+	/// <param name="nResults">How many nearest records each query text returns.</param>
+	/// <param name="where">The filter on the metadata, or null for none.</param>
+	/// <param name="whereDocument">The filter on the documents, or null for none.</param>
+	/// <param name="include">What the results include, or null for the default.</param>
+	/// <param name="ids">The ids of the records to search among, or null for all.</param>
+	/// <param name="cancellationToken">The token that cancels the operation.</param>
+	/// <returns>For each query text, its nearest records, nearest first.</returns>
+	public virtual async Task<IReadOnlyList<IReadOnlyList<ChromaCollectionQueryEntry>>> QueryTextsAsync(IReadOnlyList<string> queryTexts, int nResults = 10, ChromaWhereOperator? where = null, ChromaWhereDocumentOperator? whereDocument = null, ChromaQueryInclude? include = null, IReadOnlyList<string>? ids = null, CancellationToken cancellationToken = default)
+	{
+		if (queryTexts is null)
+		{
+			throw new ArgumentNullException(nameof(queryTexts));
+		}
+		if (queryTexts.Any(text => text is null))
+		{
+			throw new ArgumentException("A query text cannot be null.", nameof(queryTexts));
+		}
+		var generator = _embeddingGenerator ?? throw new InvalidOperationException("The client has no embedding generator to compute the embeddings of the query texts: use WithEmbeddingGenerator, or query with embeddings.");
+		var embeddings = await Embed(generator, queryTexts, cancellationToken);
+		return await QueryAsync(new ChromaQuery(embeddings) { NResults = nResults, Where = where, WhereDocument = whereDocument, Include = include, Ids = ids }, cancellationToken);
+	}
+#endif
+
 	/// <summary>
 	/// Runs the query and returns one list of results per query embedding. The ids of the query without a record are left
 	/// out, as Chroma Cloud does: Chroma 1.x fails on them, so the query goes again with the ids that have one. When the query
@@ -666,7 +762,7 @@ public class ChromaCollectionClient
 
 	/// <summary>
 	/// Adds the records with the ids, embeddings, metadatas and documents. Since Chroma 1.0.16 the server requires the
-	/// embeddings: the client does not compute them.
+	/// embeddings: the client computes them from the documents with a generator from <c>WithEmbeddingGenerator</c>.
 	/// </summary>
 	/// <param name="ids">The ids of the records.</param>
 	/// <param name="embeddings">The embeddings, one for each id, or null for none.</param>
@@ -678,7 +774,8 @@ public class ChromaCollectionClient
 
 	/// <summary>
 	/// Adds the records; by default, unless <c>WithBatchSplitting(false)</c>, they go in batches of the <c>max_batch_size</c> of
-	/// the server. Since Chroma 1.0.16 the server requires the embeddings: the client does not compute them. It computes the sparse
+	/// the server. Since Chroma 1.0.16 the server requires the embeddings: the client computes them from the documents with a generator
+	/// from <c>WithEmbeddingGenerator</c>, and then every record needs a document. It computes the sparse
 	/// vectors of the <c>chroma_bm25</c> indexes of the schema that have a source key, as the Python client of Chroma does.
 	/// A null value in the metadata throws an <c>ArgumentException</c>: Chroma 0.x would drop the key, and 1.x rejects the request.
 	/// </summary>
@@ -690,11 +787,15 @@ public class ChromaCollectionClient
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
+		CheckDocumentsToEmbed(records);
+		// The embeddings are computed once: a client made by name that runs the operation again on another collection keeps them.
+		Task<ChromaRecords>? withEmbeddings = null;
 		return Operation("add", cancellationToken, async () =>
 		{
+			var embedded = await (withEmbeddings ??= WithEmbeddings(records, cancellationToken));
 			ChromaRequestChecks.NoNullValues(records.Metadatas, nameof(records));
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
-			var prepared = WithSparseVectors(WithDocumentCopies(records, update: false));
+			var prepared = WithSparseVectors(WithDocumentCopies(embedded, update: false));
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -717,7 +818,8 @@ public class ChromaCollectionClient
 	}
 
 	/// <summary>
-	/// Updates the embeddings, metadatas and documents of the records with the ids.
+	/// Updates the embeddings, metadatas and documents of the records with the ids. With a generator from
+	/// <c>WithEmbeddingGenerator</c>, documents given without embeddings get theirs.
 	/// </summary>
 	/// <param name="ids">The ids of the records.</param>
 	/// <param name="embeddings">The embeddings, one for each id, or null for none.</param>
@@ -742,6 +844,8 @@ public class ChromaCollectionClient
 	/// before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads the record first and
 	/// sends only the nulls of its keys, and a write that lands between that read and the write can keep what it wrote there. A record
 	/// with more than 32 values and no null goes, and Chroma Cloud rejects it.
+	/// With a generator from <c>WithEmbeddingGenerator</c>, records given with documents and without embeddings get the embeddings of
+	/// their documents, and then every record needs a document.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -752,11 +856,15 @@ public class ChromaCollectionClient
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
 		CheckDocumentDeletions(records);
+		CheckDocumentsToEmbed(records);
+		// The embeddings are computed once: a client made by name that runs the operation again on another collection keeps them.
+		Task<ChromaRecords>? withEmbeddings = null;
 		return Operation("update", cancellationToken, async () =>
 		{
+			var embedded = await (withEmbeddings ??= WithEmbeddings(records, cancellationToken));
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
 			// The sparse vectors before the deletions, which count every key that goes against the quota of Chroma Cloud.
-			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(records, update: true))), cancellationToken);
+			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(embedded, update: true))), cancellationToken);
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -785,7 +893,7 @@ public class ChromaCollectionClient
 
 	/// <summary>
 	/// Adds the records with the ids, or updates the ones that already exist. Since Chroma 1.0.16 the server requires
-	/// the embeddings: the client does not compute them.
+	/// the embeddings: the client computes them from the documents with a generator from <c>WithEmbeddingGenerator</c>.
 	/// </summary>
 	/// <param name="ids">The ids of the records.</param>
 	/// <param name="embeddings">The embeddings, one for each id, or null for none.</param>
@@ -799,7 +907,7 @@ public class ChromaCollectionClient
 	/// <summary>
 	/// Adds the records, or updates the ones that already exist; by default, unless <c>WithBatchSplitting(false)</c>, they go in
 	/// batches of the <c>max_batch_size</c> of the server. Since Chroma 1.0.16 the server requires the embeddings: the client does
-	/// not compute them. It computes the sparse vectors of the <c>chroma_bm25</c> indexes of the schema that have a source key, as
+	/// not compute them without a generator. It computes the sparse vectors of the <c>chroma_bm25</c> indexes of the schema that have a source key, as
 	/// the Python client of Chroma does. A null value in the metadata, written <c>null!</c> as the type does not allow it, or an empty
 	/// list deletes the key of a record that exists and the sparse vectors computed from its text, and a new record is added without
 	/// it. A null document keeps the stored one on Chroma 1.x and Chroma Cloud, and the 0.x servers delete it; with
@@ -811,6 +919,8 @@ public class ChromaCollectionClient
 	/// <c>ArgumentException</c> before it goes, without a read; with <c>ChromaConfigurationOptions.ReadsBeyondKeyQuota</c> the client reads
 	/// the record first and sends only the nulls of its keys, and a write that lands between that read and the write can keep what it
 	/// wrote there. A record with more than 32 values and no null goes, and Chroma Cloud rejects it.
+	/// With a generator from <c>WithEmbeddingGenerator</c>, records given with documents and without embeddings get the embeddings of
+	/// their documents, and then every record needs a document.
 	/// </summary>
 	/// <param name="records">The records: ids, and embeddings, metadatas, documents and URIs when given.</param>
 	/// <param name="cancellationToken">The token that cancels the operation.</param>
@@ -821,11 +931,15 @@ public class ChromaCollectionClient
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
 		CheckDocumentDeletions(records);
+		CheckDocumentsToEmbed(records);
+		// The embeddings are computed once: a client made by name that runs the operation again on another collection keeps them.
+		Task<ChromaRecords>? withEmbeddings = null;
 		return Operation("upsert", cancellationToken, async () =>
 		{
+			var embedded = await (withEmbeddings ??= WithEmbeddings(records, cancellationToken));
 			// A local copy: a collection client made by name may run the operation again on another collection, from the records given.
 			// The sparse vectors before the deletions, which count every key that goes against the quota of Chroma Cloud.
-			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(records, update: true))), cancellationToken);
+			var prepared = await WithDeletions(WithSparseVectors(WithDocumentMarks(WithDocumentCopies(embedded, update: true))), cancellationToken);
 			await CheckListsInMetadata(prepared, cancellationToken);
 			var base64 = prepared.Embeddings is not null && await _httpClient.SupportsBase64Embeddings(cancellationToken);
 			var requestParams = new RequestQueryParams()
@@ -851,6 +965,57 @@ public class ChromaCollectionClient
 			}, cancellationToken);
 		});
 	}
+
+	// With a generator, records without embeddings get them from their documents, so each needs a document: a null one, which keeps the
+	// stored document or deletes it, has no text. Before any request, as the other checks of the records.
+	private void CheckDocumentsToEmbed(ChromaRecords records)
+	{
+#if !NETSTANDARD2_0
+		if (_embeddingGenerator is not null && records.Embeddings is null && records.Documents is { } documents && documents.Any(document => document is null))
+		{
+			throw new ArgumentException("The client computes the embeddings from the documents, and a record has a null document: give every record a document, or give the embeddings.", nameof(records));
+		}
+#endif
+	}
+
+	// As an embedding function in the Python client of Chroma: records given without embeddings get the ones the generator computes from
+	// their documents. Without a generator, or without documents, the records go as they are.
+#if !NETSTANDARD2_0
+	private async Task<ChromaRecords> WithEmbeddings(ChromaRecords records, CancellationToken cancellationToken)
+	{
+		if (_embeddingGenerator is not { } generator || records.Embeddings is not null || records.Documents is not { } documents)
+		{
+			return records;
+		}
+		return new ChromaRecords(records.Ids)
+		{
+			// CheckDocumentsToEmbed made sure that none is null.
+			Embeddings = await Embed(generator, documents.Select(document => document!).ToList(), cancellationToken),
+			Metadatas = records.Metadatas,
+			Documents = records.Documents,
+			Uris = records.Uris,
+			NullDocumentsDelete = records.NullDocumentsDelete,
+		};
+	}
+
+	// One embedding for each text, in the order of the texts.
+	private static async Task<IReadOnlyList<ReadOnlyMemory<float>>> Embed(IEmbeddingGenerator<string, Embedding<float>> generator, IReadOnlyList<string> texts, CancellationToken cancellationToken)
+	{
+		if (texts.Count == 0)
+		{
+			return [];
+		}
+		var embeddings = await generator.GenerateAsync(texts, null, cancellationToken);
+		if (embeddings.Count != texts.Count)
+		{
+			throw new InvalidOperationException($"The embedding generator returned {embeddings.Count} embeddings for {texts.Count} texts.");
+		}
+		return embeddings.Select(embedding => embedding.Vector).ToList();
+	}
+#else
+	private static Task<ChromaRecords> WithEmbeddings(ChromaRecords records, CancellationToken cancellationToken)
+		=> Task.FromResult(records);
+#endif
 
 	// The copy of each document under the document copy key, when the server takes it: Chroma Cloud takes a metadata value of at most
 	// 8,182 bytes. In an update or an upsert, a document without its copy, as one too long or one deleted, deletes the stored copy with

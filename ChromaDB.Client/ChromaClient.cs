@@ -141,6 +141,22 @@ public class ChromaClient : IDisposable
 	// The message when the collection the server answers with does not have the settings of the definition: another space, as a
 	// collection that exists keeps its own and Chroma 1.3.0 ignores the one of a schema that turns no index on or off, or an index other
 	// than the one the settings are for. Chroma 1.0.5 and earlier send no configuration to tell it by.
+	// As the Python client of Chroma, a new collection with the generator of the embedding function of Chroma declares it, "default". Chroma
+	// 0.x takes no embedding function: there the collection is created without, as before.
+	private async Task<ChromaCollectionDefinition> WithDeclaredEmbeddingFunction(ChromaCollectionDefinition definition, CancellationToken cancellationToken)
+	{
+#if !NETSTANDARD2_0
+		var declared = definition.WithDeclaredEmbeddingFunction();
+		if (declared != definition && !await _httpClient.IsChroma0(cancellationToken))
+		{
+			return declared;
+		}
+#else
+		await Task.CompletedTask;
+#endif
+		return definition;
+	}
+
 	private static string? SettingsIgnored(ChromaCollectionDefinition definition, ChromaCollection collection)
 	{
 		if (definition.Configuration is not { } settings)
@@ -439,7 +455,7 @@ public class ChromaClient : IDisposable
 				.Insert("{tenant}", tenant)
 				.Insert("{database}", database);
 			definition.Validate();
-			definition = definition.ForServer(_httpClient.IsChromaCloud);
+			definition = await WithDeclaredEmbeddingFunction(definition.ForServer(_httpClient.IsChromaCloud), cancellationToken);
 			CheckKeysOnChromaCloud(definition);
 			// Chroma 0.5.4 to 0.6.3 fail on the configuration of the request, and 0.4.10 to 0.5.3 ignore it.
 			if (definition.SettingsInConfiguration && await _httpClient.IsChroma0(cancellationToken))
@@ -504,7 +520,7 @@ public class ChromaClient : IDisposable
 				.Insert("{tenant}", tenant)
 				.Insert("{database}", database);
 			definition.Validate();
-			definition = definition.ForServer(_httpClient.IsChromaCloud);
+			definition = await WithDeclaredEmbeddingFunction(definition.ForServer(_httpClient.IsChromaCloud), cancellationToken);
 			CheckKeysOnChromaCloud(definition);
 			// Chroma 0.5.4 to 0.6.3 fail on the configuration of the request, and 0.4.10 to 0.5.3 ignore it.
 			if (definition.SettingsInConfiguration && await _httpClient.IsChroma0(cancellationToken))

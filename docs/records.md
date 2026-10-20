@@ -11,7 +11,7 @@ Console.WriteLine(entries[0].Uri);
 
 `ChromaRecords` holds the ids, embeddings, metadata, documents and URIs that `AddAsync`, `UpdateAsync` and `UpsertAsync` write.
 
-The client does not compute embeddings, so pass them yourself.
+Pass the embeddings yourself, or let the client compute them from the documents with an embedding generator: [Embeddings](embeddings.md).
 
 ## Large writes
 
