@@ -1,6 +1,7 @@
 using ChromaDB.Client;
 using ChromaDB.Client.DependencyInjection;
 using ChromaDB.Client.Models;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 // Runs the main calls of the client against the server at args[0], like http://localhost:8000.
@@ -89,6 +90,23 @@ await Check("Query", async () =>
 {
 	var result = await collectionClient.QueryAsync(new ChromaQuery([new([1f, 0.1f, 0f])]) { NResults = 2, Include = ChromaQueryInclude.Distances | ChromaQueryInclude.Documents });
 	return Expect($"{result[0][0].Id} {result[0][0].Distance}", result[0][0].Id == "a", "a first");
+});
+await Check("Embedding generator", async () =>
+{
+	var generator = new LetterGenerator();
+	var collection = await client.CreateCollectionAsync(new ChromaCollectionDefinition(name + "g") { EmbeddingGenerator = generator });
+	try
+	{
+		var records = client.GetCollectionClient(collection).WithEmbeddingGenerator(generator);
+		await records.AddAsync(["a", "b"], documents: ["apple", "banana"]);
+		var nearest = await records.QueryAsync("avocado", nResults: 1);
+		var declared = collection.ConfigurationJson is { } configuration && configuration.TryGetProperty("embedding_function", out var function) ? function.GetProperty("name").GetString() : null;
+		return Expect($"{nearest[0].Id} {declared}", nearest[0].Id == "a" && declared == "default", "a default");
+	}
+	finally
+	{
+		await client.DeleteCollectionAsync(collection.Name);
+	}
 });
 await Check("Exact metadata", async () =>
 {
@@ -200,4 +218,22 @@ static ChromaConfigurationOptions CloudOptions(string host)
 	options = Environment.GetEnvironmentVariable("CHROMA_API_KEY") is { Length: > 0 } key ? options.WithChromaToken(key) : options;
 	options = Environment.GetEnvironmentVariable("CHROMA_TENANT") is { Length: > 0 } tenant ? options.WithTenant(tenant) : options;
 	return Environment.GetEnvironmentVariable("CHROMA_DATABASE") is { Length: > 0 } database ? options.WithDatabase(database) : options;
+}
+
+// One dimension for each letter from a to e, by the first letter of the text, and one for the rest. Its metadata is that of the generator
+// of the default embedding function of Chroma, so that a new collection declares "default".
+sealed class LetterGenerator : IEmbeddingGenerator<string, Embedding<float>>
+{
+	public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(IEnumerable<string> values, EmbeddingGenerationOptions? options = null, CancellationToken cancellationToken = default)
+		=> Task.FromResult(new GeneratedEmbeddings<Embedding<float>>(values.Select(text =>
+		{
+			var embedding = new float[6];
+			embedding[text.Length > 0 && text[0] is >= 'a' and <= 'e' ? text[0] - 'a' : 5] = 1f;
+			return new Embedding<float>(embedding);
+		})));
+
+	public object? GetService(Type serviceType, object? serviceKey = null)
+		=> serviceType == typeof(EmbeddingGeneratorMetadata) ? new EmbeddingGeneratorMetadata("chroma", null, "all-MiniLM-L6-v2", 6) : null;
+
+	public void Dispose() { }
 }

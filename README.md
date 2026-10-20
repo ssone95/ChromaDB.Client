@@ -56,6 +56,8 @@ dotnet add package ChromaDotNet.Client
 
 `ChromaDotNet.Client.DependencyInjection` for `Microsoft.Extensions.DependencyInjection`: [Dependency injection](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/dependency-injection.md).
 
+To run Chroma on your machine without Docker: [ChromaDotNet.Local](https://www.nuget.org/packages/ChromaDotNet.Local).
+
 ## Example
 
 The models, like `ChromaRecords`, `ChromaQuery` and `ChromaCollectionDefinition`, are in `ChromaDB.Client.Models`. `AddChromaClient` is in `ChromaDB.Client.DependencyInjection`.
@@ -102,6 +104,7 @@ The [compatibility table](https://chromadotnet.org/compatibility/) shows every c
 - [Dependency injection](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/dependency-injection.md): `AddChromaClient` and `AddKeyedChromaClient`.
 - [Collections](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/collections.md): collections, tenants and databases, collections by id.
 - [Records](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/records.md): URIs, large writes, deletes and base64 embeddings.
+- [Embeddings](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/embeddings.md): embeddings from an `IEmbeddingGenerator`, query texts and the default embedding function of Chroma.
 - [Metadata values](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/metadata.md): values, lists, deletions in updates and upserts, document copies, conversions.
 - [Queries and filters](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/queries-and-filters.md): queries, `GetAsync` in pages, where and document filters.
 - [Upsert strategies](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/upsert-strategies.md): `Server` and `SkipUnchangedEmbeddings`.

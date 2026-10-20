@@ -7,7 +7,7 @@
 		<IsPackable>true</IsPackable>
 		<!-- The analyzers of trimming and NativeAOT run on the target that has them. -->
 		<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-		<VersionPrefix>2.16.0</VersionPrefix>
+		<VersionPrefix>2.17.0</VersionPrefix>
 		<PackageId>ChromaDB.Client</PackageId>
 		<!-- -p:PackageIdPrefix=Name publishes the package as Name.Client. -->
 		<PackageId Condition="'$(PackageIdPrefix)' != ''">$(PackageIdPrefix).Client</PackageId>
@@ -59,6 +59,15 @@
 	     which OpenTelemetry 1.10 and later bring too. -->
 	<ItemGroup Condition="'$(TargetFramework)'=='net8.0'">
 		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.20" />
+	</ItemGroup>
+	<!-- The embedding generators of Microsoft.Extensions.AI, on .NET 8 and .NET Framework: 9.5.0, the first stable release, brings no
+	     package on .NET 8, and on .NET Framework only System.Text.Json 8.0.5, below the one of the client. The netstandard2.0 build has no
+	     generators, so the applications on .NET 6 and 7 get no new package. -->
+	<ItemGroup Condition="'$(TargetFramework)'=='net8.0' Or '$(TargetFramework)'=='net462'">
+		<PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="9.5.0" />
+		<!-- The API with the generators: the analyzer reads every PublicAPI.Shipped.txt and PublicAPI.Unshipped.txt of the build. -->
+		<AdditionalFiles Include="PublicAPI\EmbeddingGenerators\PublicAPI.Shipped.txt" />
+		<AdditionalFiles Include="PublicAPI\EmbeddingGenerators\PublicAPI.Unshipped.txt" />
 	</ItemGroup>
 	<!-- .NET Framework: the versions OpenTelemetry 1.19 brings, so that the two load without binding redirects. -->
 	<ItemGroup Condition="'$(TargetFramework)'=='net462'">

@@ -1,3 +1,7 @@
+#if !NETSTANDARD2_0
+using Microsoft.Extensions.AI;
+#endif
+
 namespace ChromaDB.Client.Models;
 
 /// <summary>
@@ -43,6 +47,16 @@ public sealed class ChromaEmbeddingFunctionReference
 			["token_max_length"] = tokenMaxLength,
 			["include_tokens"] = includeTokens,
 		});
+
+#if !NETSTANDARD2_0
+	// The generator of the embedding function of Chroma has the provider "chroma" and the model all-MiniLM-L6-v2: the function "default"
+	// of the Python client, which stores it with no settings. The client recognizes it by its metadata, so that it needs no package of
+	// the generator. Another generator declares nothing.
+	internal static ChromaEmbeddingFunctionReference? Declared(IEmbeddingGenerator<string, Embedding<float>>? generator)
+		=> generator?.GetService(typeof(EmbeddingGeneratorMetadata)) is EmbeddingGeneratorMetadata { ProviderName: "chroma", DefaultModelId: "all-MiniLM-L6-v2" }
+			? Known("default")
+			: null;
+#endif
 
 	internal Dictionary<string, object> ToJson()
 		=> new() { ["type"] = "known", ["name"] = _name, ["config"] = _config };
