@@ -91,6 +91,17 @@ public class EmbeddingGeneratorTests
 		Assert.That(() => client.QueryAsync("apple"), Throws.InvalidOperationException);
 	}
 
+	// The computed embeddings must be finite, as the given ones: a write throws before any batch, also with base64 embeddings.
+	[Test]
+	public void FiniteComputedEmbeddings()
+	{
+		var server = new FakeServer(base64: true);
+		var client = Client(server).WithEmbeddingGenerator(new FakeGenerator { Number = float.NaN });
+		Assert.That(() => client.AddAsync(["a"], documents: ["apple"]), Throws.ArgumentException.With.Message.Contains("NaN"));
+		Assert.That(() => client.UpsertAsync(["a"], documents: ["apple"]), Throws.ArgumentException);
+		Assert.That(server.Paths, Is.Empty);
+	}
+
 	// The other With methods keep the generator, and it keeps their settings.
 	[Test]
 	public async Task GeneratorStaysWithTheOtherSettings()
@@ -139,17 +150,18 @@ public class EmbeddingGeneratorTests
 	static ChromaCollectionClient Client(HttpMessageHandler handler)
 		=> new(new ChromaCollection("c") { Id = Guid.NewGuid() }, new ChromaConfigurationOptions("http://localhost:8000"), new HttpClient(handler));
 
-	// The embedding of a text: its length, and 1.
+	// The embedding of a text: its length, and 1 or the number given.
 	sealed class FakeGenerator(string provider = "test", string model = "test") : IEmbeddingGenerator<string, Embedding<float>>
 	{
 		public List<string[]> Calls { get; } = [];
-		public int Extra { get; init; }
+		public int Extra { get; set; }
+		public float Number { get; set; } = 1f;
 
 		public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(IEnumerable<string> values, EmbeddingGenerationOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			var texts = values.ToArray();
 			Calls.Add(texts);
-			var embeddings = texts.Concat(Enumerable.Repeat("", Extra)).Select(text => new Embedding<float>(new[] { (float)text.Length, 1f }));
+			var embeddings = texts.Concat(Enumerable.Repeat("", Extra)).Select(text => new Embedding<float>(new[] { (float)text.Length, Number }));
 			return Task.FromResult(new GeneratedEmbeddings<Embedding<float>>(embeddings));
 		}
 
@@ -161,7 +173,7 @@ public class EmbeddingGeneratorTests
 
 	// Answers the version, pre-flight-checks, a new collection, a query with one record per embedding, and the writes with nothing; records
 	// the path and the body of each request, and the embedding function of the configuration of each new collection.
-	sealed class FakeServer(string version = "1.5.9") : HttpMessageHandler
+	sealed class FakeServer(string version = "1.5.9", bool base64 = false) : HttpMessageHandler
 	{
 		public List<(string Path, JsonElement Body)> Bodies { get; } = [];
 		public List<string?> Configurations { get; } = [];
@@ -183,7 +195,7 @@ public class EmbeddingGeneratorTests
 					&& configuration.TryGetProperty("embedding_function", out var function) ? function.GetRawText() : null);
 			}
 			var answer = path.EndsWith("/version") ? "\"" + version + "\""
-				: path.EndsWith("/pre-flight-checks") ? """{"max_batch_size":100,"supports_base64_encoding":false}"""
+				: path.EndsWith("/pre-flight-checks") ? "{\"max_batch_size\":100,\"supports_base64_encoding\":" + (base64 ? "true" : "false") + "}"
 				: path.EndsWith("/collections") ? """{"id":"11111111-2222-3333-4444-555555555555","name":"c"}"""
 				: path.EndsWith("/query") ? "{\"ids\":[" + string.Join(",", body.GetProperty("query_embeddings").EnumerateArray().Select((_, i) => "[\"r" + i + "\"]")) + "]}"
 				: "{}";

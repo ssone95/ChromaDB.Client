@@ -987,7 +987,7 @@ public class ChromaCollectionClient
 		{
 			return records;
 		}
-		return new ChromaRecords(records.Ids)
+		var embedded = new ChromaRecords(records.Ids)
 		{
 			// CheckDocumentsToEmbed made sure that none is null.
 			Embeddings = await Embed(generator, documents.Select(document => document!).ToList(), cancellationToken),
@@ -996,6 +996,9 @@ public class ChromaCollectionClient
 			Uris = records.Uris,
 			NullDocumentsDelete = records.NullDocumentsDelete,
 		};
+		// The computed embeddings get the check of the given ones, finite numbers, before any batch goes.
+		ChromaRequestChecks.SameLengths(embedded, nameof(records));
+		return embedded;
 	}
 
 	// One embedding for each text, in the order of the texts.
