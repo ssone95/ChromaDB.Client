@@ -37,7 +37,7 @@ nuget.org serves the same packages with its repository signature (`.signature.p7
 To verify a package downloaded from the release, with Cosign 3 or later:
 
 ```
-cosign verify-blob ChromaDotNet.Client.2.11.0.nupkg --bundle ChromaDotNet.Client.2.11.0.nupkg.sigstore.json --certificate-identity-regexp '^https://github.com/ChromaDotNet/ChromaDB.Client/[.]github/workflows/release-assets[.]yml@' --certificate-oidc-issuer https://token.actions.githubusercontent.com
+cosign verify-blob ChromaDotNet.Client.2.11.0.nupkg --bundle ChromaDotNet.Client.2.11.0.nupkg.sigstore.json --certificate-identity-regexp '^https://github[.]com/ChromaDotNet/ChromaDB[.]Client/[.]github/workflows/release-assets[.]yml@' --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 With the GitHub CLI:
