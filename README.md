@@ -58,6 +58,8 @@ dotnet add package ChromaDotNet.Client
 
 To run Chroma on your machine without Docker: [ChromaDotNet.Local](https://www.nuget.org/packages/ChromaDotNet.Local).
 
+To compute the embeddings as the Python client does: [ChromaDotNet.Embeddings](https://www.nuget.org/packages/ChromaDotNet.Embeddings), see [Embeddings](https://github.com/ChromaDotNet/ChromaDB.Client/blob/main/docs/embeddings.md).
+
 ## Example
 
 The models, like `ChromaRecords`, `ChromaQuery` and `ChromaCollectionDefinition`, are in `ChromaDB.Client.Models`. `AddChromaClient` is in `ChromaDB.Client.DependencyInjection`.
