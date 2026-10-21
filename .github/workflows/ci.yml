@@ -83,6 +83,23 @@ jobs:
       if: ${{ matrix.pack }}
       run: dotnet pack -c ${{ env.CONFIGURATION }} --no-build --version-suffix '${{ env.VERSION_SUFFIX }}'
 
+    # The release notes of every package link the GitHub release of its version, so they cannot stay at an older one.
+    - name: Check the release notes of the packages
+      if: ${{ matrix.pack }}
+      run: |
+        status=0
+        for pkg in $(find . -path '*/bin/*' -name '*.nupkg'); do
+          nuspec=$(unzip -p "$pkg" '*.nuspec')
+          version=$(echo "$nuspec" | sed -n 's:.*<version>\([0-9.]*\).*</version>.*:\1:p')
+          if echo "$nuspec" | grep -Eq "<releaseNotes>.*/releases/tag/v$(echo "$version" | sed 's/\./\\./g')([^0-9]|$)"; then
+            echo "$(basename "$pkg"): the release notes link the release v$version"
+          else
+            echo "::error::$(basename "$pkg"): the release notes do not link the release v$version"
+            status=1
+          fi
+        done
+        exit $status
+
     - name: Upload
       if: ${{ matrix.pack && github.event_name != 'schedule' }}
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
