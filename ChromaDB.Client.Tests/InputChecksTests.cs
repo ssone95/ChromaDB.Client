@@ -99,6 +99,28 @@ public class InputChecksTests
 		Assert.That(server.Paths, Is.Empty);
 	}
 
+	// The document copy key and the document deletion key add metadata after the given one is checked: under chroma:document they would
+	// write a null, or true, which Chroma 1.x fails on in the same way. Rejected before the request; a copy of a text goes.
+	[Test]
+	public async Task ChromaDocumentAsTheKeyOfCopiesOrMarks()
+	{
+		var server = new Server();
+		var copies = Collection(server).WithDocumentCopyKey("chroma:document");
+		var marks = Collection(server).WithDocumentDeletionKey("chroma:document");
+		ChromaRecords Deletion() => new(["a"]) { Embeddings = [Embedding], Documents = [null], NullDocumentsDelete = true };
+		ChromaRecords Text() => new(["a"]) { Embeddings = [Embedding], Documents = ["text"] };
+		Assert.That(() => copies.UpdateAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => copies.UpsertAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpdateAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpsertAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpdateAsync(Text()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpsertAsync(Text()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(server.Bodies, Is.Empty);
+		await copies.AddAsync(Text());
+		await copies.UpdateAsync(Text());
+		Assert.That(server.Bodies.Select(x => x.Body.GetProperty("metadatas")[0].GetProperty("chroma:document").GetString()), Is.EqualTo(new[] { "text", "text" }));
+	}
+
 	// What works today goes as it is: chroma:document as a text sets the document, and the other keys with the prefix chroma: go
 	// with any value; Chroma does not return them in reads, filters on them, and reads chroma:uri as the URI of the record.
 	public static IEnumerable<TestCaseData> ReservedKeysThatGo()

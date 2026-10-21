@@ -787,6 +787,7 @@ public class ChromaCollectionClient
 		// Before the collection of a client made by name is read: records that cannot go send no request.
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
+		CheckGeneratedDocumentKey(records, update: false);
 		CheckDocumentsToEmbed(records);
 		// The embeddings are computed once: a client made by name that runs the operation again on another collection keeps them.
 		Task<ChromaRecords>? withEmbeddings = null;
@@ -856,6 +857,7 @@ public class ChromaCollectionClient
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
 		CheckDocumentDeletions(records);
+		CheckGeneratedDocumentKey(records, update: true);
 		CheckDocumentsToEmbed(records);
 		// The embeddings are computed once: a client made by name that runs the operation again on another collection keeps them.
 		Task<ChromaRecords>? withEmbeddings = null;
@@ -931,6 +933,7 @@ public class ChromaCollectionClient
 		ChromaRequestChecks.SameLengths(records, nameof(records));
 		ChromaRequestChecks.MetadataValues(records.Metadatas, nameof(records));
 		CheckDocumentDeletions(records);
+		CheckGeneratedDocumentKey(records, update: true);
 		CheckDocumentsToEmbed(records);
 		// The embeddings are computed once: a client made by name that runs the operation again on another collection keeps them.
 		Task<ChromaRecords>? withEmbeddings = null;
@@ -1096,6 +1099,18 @@ public class ChromaCollectionClient
 			Uris = records.Uris,
 			NullDocumentsDelete = records.NullDocumentsDelete,
 		};
+	}
+
+	// Works around KD-58 (docs/COMPATIBILITY.md)
+	// The copies and the marks are added after the given metadata is checked: under chroma:document a deleted document or a mark would
+	// go as a value that is not a text. Checked before the request, from the same metadata, which needs no request to compute.
+	private void CheckGeneratedDocumentKey(ChromaRecords records, bool update)
+	{
+		if (_documentCopyKey == ChromaRequestChecks.DocumentKey || _documentDeletionKey == ChromaRequestChecks.DocumentKey)
+		{
+			var generated = WithDocumentCopies(records, update);
+			ChromaRequestChecks.GeneratedDocumentKey((update ? WithDocumentMarks(generated) : generated).Metadatas, nameof(records));
+		}
 	}
 
 	// Chroma has no deletion of a document: the client writes an empty one, which only the copy under a document copy key or the mark
