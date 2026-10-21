@@ -129,7 +129,27 @@ internal static class ChromaRequestChecks
 	// here only the values that are not texts, so that what works today keeps working.
 	public const string DocumentKey = "chroma:document";
 
-	public static bool IsText(object? value) => value is string or JsonElement { ValueKind: JsonValueKind.String };
+	// A text is what the client writes as a JSON string: a string, and a Guid, a date or a byte[] in base64 too. A value the client
+	// cannot write goes on, and fails as before when the request is written.
+	public static bool IsText(object? value)
+	{
+		if (value is null)
+		{
+			return false;
+		}
+		if (value is string or JsonElement { ValueKind: JsonValueKind.String })
+		{
+			return true;
+		}
+		try
+		{
+			return JsonSerializer.SerializeToElement(value, HttpClientHelpers.PostJsonSerializerOptions.GetTypeInfo(value.GetType())).ValueKind == JsonValueKind.String;
+		}
+		catch (Exception e) when (e is NotSupportedException or InvalidOperationException or ArgumentException)
+		{
+			return true;
+		}
+	}
 
 	// The metadata a document copy key or a document deletion key adds after the given one is checked: under chroma:document, a
 	// deleted document or a mark would go as a value that is not a text.

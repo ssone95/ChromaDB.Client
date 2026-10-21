@@ -127,6 +127,11 @@ public class InputChecksTests
 	{
 		yield return new TestCaseData("chroma:document", "x", "\"x\"");
 		yield return new TestCaseData("chroma:document", JsonDocument.Parse("\"x\"").RootElement, "\"x\"");
+		// The values the client writes as JSON strings are texts for Chroma too.
+		yield return new TestCaseData("chroma:document", Guid.Empty, "\"00000000-0000-0000-0000-000000000000\"");
+		yield return new TestCaseData("chroma:document", new DateTime(2026, 10, 21, 8, 30, 0, DateTimeKind.Utc), "\"2026-10-21T08:30:00Z\"");
+		yield return new TestCaseData("chroma:document", new DateTimeOffset(2026, 10, 21, 8, 30, 0, TimeSpan.FromHours(2)), "\"2026-10-21T08:30:00+02:00\"");
+		yield return new TestCaseData("chroma:document", new byte[] { 1, 2 }, "\"AQI=\"");
 		yield return new TestCaseData("chroma:foo", 1.5, "1.5");
 		yield return new TestCaseData("chroma:uri", "u", "\"u\"");
 	}
