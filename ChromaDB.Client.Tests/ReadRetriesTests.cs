@@ -137,6 +137,8 @@ public class ReadRetriesTests
 		Assert.That(new ChromaConfigurationOptions(Local).ReadRetries, Is.SameAs(ChromaReadRetries.Default));
 		Assert.That((ChromaReadRetries.Default.MaxAttempts, ChromaReadRetries.Default.BaseDelay, ChromaReadRetries.Default.MaxDelay), Is.EqualTo((4, TimeSpan.FromMilliseconds(50), TimeSpan.FromSeconds(1))));
 		Assert.That((ChromaReadRetries.None.MaxAttempts, ChromaReadRetries.None.BaseDelay, ChromaReadRetries.None.MaxDelay), Is.EqualTo((1, TimeSpan.Zero, TimeSpan.Zero)));
+		Assert.That(ChromaReadRetries.Default.MinDelay, Is.EqualTo(TimeSpan.FromMilliseconds(40)));
+		Assert.That(ChromaReadRetries.None.MinDelay, Is.EqualTo(TimeSpan.Zero));
 	}
 
 	// The setting stays through the other options.
@@ -155,18 +157,38 @@ public class ReadRetriesTests
 		Assert.That(server.Reads, Is.EqualTo(1));
 	}
 
-	// Full jitter: a random time between zero and the smaller of the largest delay and the base times 2 to the attempts before.
-	[TestCase(0, 0.0, 0)]
-	[TestCase(0, 0.5, 50)]
+	// A random time between the smallest delay and the smaller of the largest delay and the base times 2 to the attempts before. Without
+	// a smallest delay, it is 0.8 times the base, here 80 ms.
+	[TestCase(0, 0.0, 80)]
+	[TestCase(0, 0.5, 90)]
 	[TestCase(0, 1.0, 100)]
+	[TestCase(1, 0.0, 80)]
 	[TestCase(1, 1.0, 200)]
 	[TestCase(3, 1.0, 800)]
 	[TestCase(4, 1.0, 1000)]
-	[TestCase(4, 0.5, 500)]
+	[TestCase(4, 0.5, 540)]
 	[TestCase(62, 1.0, 1000)]
+	[TestCase(1000, 0.0, 80)]
 	[TestCase(1000, 1.0, 1000)]
 	public void TheDelay(int retry, double random, int milliseconds)
 		=> Assert.That(new ChromaReadRetries(5, TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(1)).Delay(retry, random), Is.EqualTo(TimeSpan.FromMilliseconds(milliseconds)));
+
+	[TestCase(0, 0.0, 20)]
+	[TestCase(0, 0.5, 60)]
+	[TestCase(0, 1.0, 100)]
+	[TestCase(2, 0.5, 210)]
+	[TestCase(4, 0.0, 20)]
+	public void TheDelayWithASmallestDelay(int retry, double random, int milliseconds)
+		=> Assert.That(new ChromaReadRetries(5, TimeSpan.FromMilliseconds(20), TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(1)).Delay(retry, random), Is.EqualTo(TimeSpan.FromMilliseconds(milliseconds)));
+
+	// The constructor without a smallest delay takes 0.8 times the base, the lower bound of the jitter of Azure.Core: never above the
+	// base, and zero with a base of zero.
+	[TestCase(0, 0)]
+	[TestCase(1, 0.8)]
+	[TestCase(50, 40)]
+	[TestCase(100, 80)]
+	public void TheSmallestDelayOfTheBase(int baseDelay, double minDelay)
+		=> Assert.That(new ChromaReadRetries(2, TimeSpan.FromMilliseconds(baseDelay), TimeSpan.FromSeconds(1)).MinDelay, Is.EqualTo(TimeSpan.FromMilliseconds(minDelay)));
 
 	[TestCase(0, 0, 0)]
 	[TestCase(1, -1, 0)]
@@ -174,6 +196,27 @@ public class ReadRetriesTests
 	[TestCase(1, 10, 5)]
 	public void WrongSettings(int attempts, int baseDelay, int maxDelay)
 		=> Assert.That(() => new ChromaReadRetries(attempts, TimeSpan.FromMilliseconds(baseDelay), TimeSpan.FromMilliseconds(maxDelay)), Throws.InstanceOf<ArgumentOutOfRangeException>());
+
+	// 0 <= minDelay <= baseDelay <= maxDelay, each error named by its parameter.
+	[TestCase(1, -1, 0, 0, "minDelay")]
+	[TestCase(1, 10, 5, 20, "minDelay")]
+	[TestCase(1, 0, -1, 0, "baseDelay")]
+	[TestCase(1, 0, 10, 5, "maxDelay")]
+	[TestCase(0, 0, 0, 0, "maxAttempts")]
+	public void WrongSmallestDelays(int attempts, int minDelay, int baseDelay, int maxDelay, string parameter)
+		=> Assert.That(() => new ChromaReadRetries(attempts, TimeSpan.FromMilliseconds(minDelay), TimeSpan.FromMilliseconds(baseDelay), TimeSpan.FromMilliseconds(maxDelay)),
+			Throws.InstanceOf<ArgumentOutOfRangeException>().With.Property("ParamName").EqualTo(parameter));
+
+	[TestCase(0, 0, 0)]
+	[TestCase(5, 5, 5)]
+	[TestCase(0, 10, 20)]
+	public void SmallestDelaysThatGo(int minDelay, int baseDelay, int maxDelay)
+		=> Assert.That(new ChromaReadRetries(2, TimeSpan.FromMilliseconds(minDelay), TimeSpan.FromMilliseconds(baseDelay), TimeSpan.FromMilliseconds(maxDelay)).MinDelay, Is.EqualTo(TimeSpan.FromMilliseconds(minDelay)));
+
+	// The constructor without a smallest delay names a negative base, as before.
+	[Test]
+	public void ANegativeBaseWithoutASmallestDelay()
+		=> Assert.That(() => new ChromaReadRetries(2, TimeSpan.FromMilliseconds(-1), TimeSpan.Zero), Throws.InstanceOf<ArgumentOutOfRangeException>().With.Property("ParamName").EqualTo("baseDelay"));
 
 	// The longest delay of Task.Delay on every platform of the client, Int32.MaxValue milliseconds, is the largest one: beyond it Task.Delay
 	// would throw in the middle of a read.
@@ -194,17 +237,31 @@ public class ReadRetriesTests
 		Assert.That(() => new ChromaConfigurationOptions(Local).WithReadRetries(null!), Throws.ArgumentNullException.With.Property("ParamName").EqualTo("readRetries"));
 	}
 
-	// A cancellation during the delay after a failed attempt stops the read at once: no other attempt goes.
+	// A cancellation during the delay after a failed attempt stops the read at once: no other attempt goes. The jitter is 1, so the delay
+	// is 10 minutes: with a random one, a delay under the 200 ms of the cancellation would let the second attempt go first.
 	[Test]
 	public void ACancellationBetweenTheAttempts()
 	{
 		using var cancellation = new CancellationTokenSource();
 		var server = new Server(fail: 1, (HttpStatusCode.InternalServerError, FindingId)) { OnFail = () => cancellation.CancelAfter(TimeSpan.FromMilliseconds(200)) };
-		var client = Client(server, Local, new ChromaReadRetries(2, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10)));
+		var client = Client(server, Local, new ChromaReadRetries(2, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10)) { Jitter = () => 1 });
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 		Assert.That(() => client.GetAsync(cancellationToken: cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
 		Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)), "the delay stops at the cancellation");
 		Assert.That(server.Reads, Is.EqualTo(1));
+	}
+
+	// A short delay, the smallest one of 20 ms: the second attempt goes before the cancellation and the read succeeds.
+	[Test]
+	public async Task AShortDelayGoesAgain()
+	{
+		using var cancellation = new CancellationTokenSource();
+		var server = new Server(fail: 1, (HttpStatusCode.InternalServerError, FindingId)) { OnFail = () => cancellation.CancelAfter(TimeSpan.FromSeconds(10)) };
+		var client = Client(server, Local, new ChromaReadRetries(2, TimeSpan.FromMilliseconds(20), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10)) { Jitter = () => 0 });
+		var watch = System.Diagnostics.Stopwatch.StartNew();
+		await client.GetAsync(cancellationToken: cancellation.Token);
+		Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)), "the delay is the smallest one");
+		Assert.That(server.Reads, Is.EqualTo(2));
 	}
 
 	static Task Run(ChromaCollectionClient client, string read) => read switch

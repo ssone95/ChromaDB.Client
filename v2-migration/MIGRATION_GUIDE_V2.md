@@ -43,6 +43,8 @@ var configOptions = new ChromaConfigurationOptions(uri: "http://localhost:8000/a
 var configOptions = new ChromaConfigurationOptions(uri: "http://localhost:8000/api/v2/");
 ```
 
+Just the address of the server works too: `new ChromaConfigurationOptions(uri: "http://localhost:8000")` gets `/api/v2/`. A URI with another path is used as it is.
+
 ### Step 3: update the package reference
 
 Reference the latest `ChromaDotNet.Client`:
@@ -88,13 +90,33 @@ var client = new ChromaClient(configOptions, httpClient);
 
 // The methods end in Async
 var collection = await client.GetOrCreateCollectionAsync("my_collection");
-var collectionClient = new ChromaCollectionClient(collection, configOptions, httpClient);
+// The client of the collection shares the options and the HttpClient of the client
+var collectionClient = client.GetCollectionClient(collection);
 
 await collectionClient.AddAsync(
     ["doc1"], 
     embeddings: [new([1f, 0.5f, 0f, -0.5f, -1f])]
 );
 ```
+
+`new ChromaCollectionClient(collection, configOptions, httpClient)` still works; `client.GetCollectionClient(collection)` gives the same client without repeating the options and the `HttpClient`.
+
+## Workarounds of 1.x to remove
+
+Some applications kept 1.x working on Chroma 1.x with a `DelegatingHandler` that rewrote the routes from `/api/v1/` to `/api/v2/`, added the tenant and the database to the path, or read them from `auth/identity`. 2.x sends the v2 routes itself, with the tenant and the database of the options (`default_tenant` and `default_database` when they are not set), so remove such a handler. To take the tenant and the database from the credentials, as on Chroma Cloud, call `await client.WithTenantAndDatabaseFromIdentityAsync()`: it returns a client with the ones that `auth/identity` gives.
+
+## Dependency injection
+
+`ChromaDotNet.Client.DependencyInjection` registers the client in `Microsoft.Extensions.DependencyInjection`: `services.AddChromaClient(_ => options)`, `AddKeyedChromaClient` for more than one server, tenant or database, and `serviceProvider.CreateChromaClient(options, httpClientName)` for a client kept elsewhere. `AddChromaClientFromServices(serviceProvider => options)` makes the options from the services of the application, like `IConfiguration`, when the client is resolved. The client sends its requests through `IHttpClientFactory`, so a DNS change of the server is seen. See [docs/dependency-injection.md](../docs/dependency-injection.md).
+
+## Behaviors to know
+
+These are not breaking changes, but they differ from 1.x:
+
+- **Reads go again.** After an error that can pass, like `500` or a request that fails on the network, a read goes again, up to 4 attempts by default, with a random delay of 40 ms or more; a write never goes again. `WithReadRetries(ChromaReadRetries.None)` turns it off. See [docs/errors.md](../docs/errors.md#reads-that-go-again).
+- **Distances.** `ChromaCollectionQueryEntry.Distance` is `NaN` where Chroma sends no number, like the distance to an embedding beyond the range of a float on Chroma 1.x.
+- **Empty metadata.** An empty metadata dictionary goes as no metadata, and every tested Chroma treats the two the same.
+- **Embeddings of a query.** `QueryAsync` returns the embeddings only with `ChromaQueryInclude.Embeddings`, as in 1.x: by default it returns the metadata, the documents and the distances.
 
 ## Troubleshooting
 

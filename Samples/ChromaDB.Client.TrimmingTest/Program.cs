@@ -199,9 +199,20 @@ await Check("DependencyInjection", async () =>
 	var services = new ServiceCollection();
 	services.AddChromaClient(_ => options);
 	services.AddKeyedChromaClient("k", _ => options);
+	services.AddKeyedChromaClientFromServices("s", _ => options);
 	using var provider = services.BuildServiceProvider();
 	await provider.GetRequiredKeyedService<ChromaClient>("k").HeartbeatAsync();
+	await provider.GetRequiredKeyedService<ChromaClient>("s").HeartbeatAsync();
 	return (await provider.GetRequiredService<ChromaClient>().HeartbeatAsync()).NanosecondHeartbeat.ToString();
+});
+await Check("Collection created when missing", async () =>
+{
+	var missing = $"{name}m";
+	var created = client.GetCollectionClient(missing, createIfMissing: true);
+	await created.AddAsync(["a"], [new([1f, 0f, 0f])]);
+	var count = await (await client.GetOrCreateCollectionClientAsync(missing)).CountAsync();
+	await client.DeleteCollectionAsync(missing);
+	return Expect(count.ToString(), count == 1, "1");
 });
 // chroma:document takes a text only (KD-58). Without reflection, a list derived from List<int>, which the JSON context does not list,
 // would go as an array: it must be rejected before the request.

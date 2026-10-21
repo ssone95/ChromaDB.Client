@@ -84,6 +84,61 @@ public static class ChromaClientExtensions
 	}
 
 	/// <summary>
+	/// Registers a <c>ChromaClient</c> and its options as singletons, with options that <c>configurationOptions</c> makes from the
+	/// services when the client or the options are first resolved, like from <c>IConfiguration</c> or <c>IOptions</c> of the
+	/// application, also registered after this call. <c>configureHttpClient</c> configures the <c>HttpClient</c> of the client, like a
+	/// resilience handler, a proxy or a timeout. Returns the services, for more registrations.
+	/// </summary>
+	/// <param name="services">The services.</param>
+	/// <param name="configurationOptions">Makes the options of the client from the services.</param>
+	/// <param name="configureHttpClient">Configures the <c>HttpClient</c> of the client; null for none.</param>
+	/// <returns>The services, for more registrations.</returns>
+	public static IServiceCollection AddChromaClientFromServices(this IServiceCollection services, Func<IServiceProvider, ChromaConfigurationOptions> configurationOptions, Action<IHttpClientBuilder>? configureHttpClient = null)
+	{
+		if (configurationOptions is null)
+		{
+			throw new ArgumentNullException(nameof(configurationOptions));
+		}
+		services.AddSingleton(serviceProvider => MadeOptions(configurationOptions, serviceProvider));
+		var httpClientBuilder = services.AddHttpClient(nameof(ChromaClient));
+		configureHttpClient?.Invoke(httpClientBuilder);
+		services.AddSingleton(serviceProvider => serviceProvider.CreateChromaClient(serviceProvider.GetRequiredService<ChromaConfigurationOptions>(), nameof(ChromaClient)));
+		return services;
+	}
+
+	/// <summary>
+	/// As <c>AddChromaClientFromServices</c>, for a client and its options under a key, for an application that talks to more than
+	/// one server, tenant or database. Returns the services, for more registrations.
+	/// </summary>
+	/// <param name="services">The services.</param>
+	/// <param name="serviceKey">The key of the client and of its options.</param>
+	/// <param name="configurationOptions">Makes the options of the client from the services.</param>
+	/// <param name="configureHttpClient">Configures the <c>HttpClient</c> of the client; null for none.</param>
+	/// <returns>The services, for more registrations.</returns>
+	public static IServiceCollection AddKeyedChromaClientFromServices(this IServiceCollection services, object serviceKey, Func<IServiceProvider, ChromaConfigurationOptions> configurationOptions, Action<IHttpClientBuilder>? configureHttpClient = null)
+	{
+		// A null key would register the client without a key, next to the one of AddChromaClient.
+		if (serviceKey is null)
+		{
+			throw new ArgumentNullException(nameof(serviceKey));
+		}
+		if (configurationOptions is null)
+		{
+			throw new ArgumentNullException(nameof(configurationOptions));
+		}
+		// The type with the text, so that keys like 1 and "1" get an HttpClient each, as in AddKeyedChromaClient.
+		var httpClientName = $"{nameof(ChromaClient)}:{serviceKey.GetType().FullName}:{serviceKey}";
+		services.AddKeyedSingleton(serviceKey, (serviceProvider, _) => MadeOptions(configurationOptions, serviceProvider));
+		var httpClientBuilder = services.AddHttpClient(httpClientName);
+		configureHttpClient?.Invoke(httpClientBuilder);
+		services.AddKeyedSingleton(serviceKey, (serviceProvider, key) => serviceProvider.CreateChromaClient(serviceProvider.GetRequiredKeyedService<ChromaConfigurationOptions>(key), httpClientName));
+		return services;
+	}
+
+	private static ChromaConfigurationOptions MadeOptions(Func<IServiceProvider, ChromaConfigurationOptions> configurationOptions, IServiceProvider serviceProvider)
+		=> configurationOptions(serviceProvider) ?? throw new InvalidOperationException("The function of the options of the ChromaClient returned null.");
+
+	/// <summary>
 	/// A <c>ChromaClient</c> to keep, like a singleton of an application or of an integration, that sends each request with the
 	/// current handler of <c>IHttpClientFactory</c> for <c>httpClientName</c>: the factory renews it after its handler lifetime, two
 	/// minutes by default, so a change of the address of the server in the DNS is seen. The settings of that <c>HttpClient</c>, like

@@ -353,6 +353,64 @@ public class ChromaClient : IDisposable
 		=> new(name, _options, _httpClient);
 
 	/// <summary>
+	/// A client for the records of the collection with the name, as <c>GetCollectionClient(name)</c>. With <c>createIfMissing</c>, its first
+	/// operation gets or creates the collection, with one request that the operations that start before it ends share; it keeps the
+	/// collection, and when a request fails because the collection was deleted elsewhere, it gets or creates it again, empty, and runs
+	/// the operation again, once, unless part of a write already went. No request is sent now: an error of the creation comes from the
+	/// first operation, which the next one tries again. <c>GetOrCreateCollectionClientAsync</c> sends it now instead.
+	/// </summary>
+	/// <param name="name">The name of the collection.</param>
+	/// <param name="createIfMissing">Whether the client creates the collection when the name has none; false is <c>GetCollectionClient(name)</c>.</param>
+	/// <returns>The client of the records of the collection with the name.</returns>
+	public virtual ChromaCollectionClient GetCollectionClient(string name, bool createIfMissing)
+		=> GetCollectionClient(new ChromaCollectionDefinition(name), createIfMissing);
+
+	/// <summary>
+	/// As <c>GetCollectionClient(name, createIfMissing)</c>, for the collection of the definition: with <c>createIfMissing</c>, the
+	/// collection is created with its metadata, configuration and schema, as <c>GetOrCreateCollectionAsync(definition)</c> does; without
+	/// it, only the name counts. The client does not take the embedding generator of the definition: give it with
+	/// <c>WithEmbeddingGenerator</c>.
+	/// </summary>
+	/// <param name="definition">The collection to get or create.</param>
+	/// <param name="createIfMissing">Whether the client creates the collection when the name has none.</param>
+	/// <returns>The client of the records of the collection.</returns>
+	public virtual ChromaCollectionClient GetCollectionClient(ChromaCollectionDefinition definition, bool createIfMissing)
+	{
+		if (definition is null)
+		{
+			throw new ArgumentNullException(nameof(definition));
+		}
+		return createIfMissing
+			? new(definition.Name, _options, _httpClient, (httpClient, cancellationToken) => new ChromaClient(_options, httpClient).GetOrCreateCollectionAsync(definition, cancellationToken: cancellationToken))
+			: GetCollectionClient(definition.Name);
+	}
+
+	/// <summary>
+	/// Gets or creates the collection with the name now, and returns its client: an error of the request comes from this call. Then the
+	/// client works as the one of <c>GetCollectionClient(name, createIfMissing: true)</c>, and creates the collection again if it is
+	/// deleted elsewhere.
+	/// </summary>
+	/// <param name="name">The name of the collection.</param>
+	/// <param name="cancellationToken">The token that cancels the operation.</param>
+	/// <returns>The client of the records of the collection.</returns>
+	public virtual Task<ChromaCollectionClient> GetOrCreateCollectionClientAsync(string name, CancellationToken cancellationToken = default)
+		=> GetOrCreateCollectionClientAsync(new ChromaCollectionDefinition(name), cancellationToken);
+
+	/// <summary>
+	/// As <c>GetOrCreateCollectionClientAsync(name)</c>, for the collection of the definition, created with its metadata, configuration
+	/// and schema.
+	/// </summary>
+	/// <param name="definition">The collection to get or create.</param>
+	/// <param name="cancellationToken">The token that cancels the operation.</param>
+	/// <returns>The client of the records of the collection.</returns>
+	public virtual async Task<ChromaCollectionClient> GetOrCreateCollectionClientAsync(ChromaCollectionDefinition definition, CancellationToken cancellationToken = default)
+	{
+		var client = GetCollectionClient(definition, createIfMissing: true);
+		await client.GetCollectionAsync(cancellationToken);
+		return client;
+	}
+
+	/// <summary>
 	/// The same as the overload that takes a <c>ChromaCollection</c>, without getting the collection first: the requests on
 	/// a collection need only its id.
 	/// </summary>

@@ -19,6 +19,24 @@ public class ChromaCollectionClient
 	private readonly ChromaHttpClient _httpClient;
 	private readonly bool _byName;
 	private volatile bool _resolved;
+	// A client of GetCollectionClient(name, createIfMissing: true): gets or creates the collection instead of reading it, with the
+	// ChromaHttpClient of this client, so with its way of reading metadata values.
+	private readonly Func<ChromaHttpClient, CancellationToken, Task<ChromaCollection>>? _getOrCreate;
+	// The first read of a client made by name, which the operations that start before it ends share.
+	private Task? _firstRead;
+	private readonly object _firstReadLock = new();
+
+	// The first read in flight, or null: only the tests read it, to wait for it.
+	internal Task? FirstRead
+	{
+		get
+		{
+			lock (_firstReadLock)
+			{
+				return _firstRead;
+			}
+		}
+	}
 	private readonly string _tenant;
 	private readonly string _database;
 	private readonly Uri _server;
@@ -63,6 +81,13 @@ public class ChromaCollectionClient
 		_byName = true;
 	}
 
+	// The client of the collection with the name, which gets or creates it: ChromaClient.GetCollectionClient(name, createIfMissing: true).
+	internal ChromaCollectionClient(string name, ChromaConfigurationOptions options, ChromaHttpClient httpClient, Func<ChromaHttpClient, CancellationToken, Task<ChromaCollection>> getOrCreate)
+		: this(name, options, httpClient)
+	{
+		_getOrCreate = getOrCreate;
+	}
+
 	// The same client with another way of reading metadata values, a document copy key, a document deletion key or empty document
 	// deletions; a client made by name starts from the collection read last, and reads it again by itself.
 	private ChromaCollectionClient(ChromaCollectionClient client, ChromaHttpClient httpClient, string? documentCopyKey, string? documentDeletionKey, bool emptyDocumentDeletions)
@@ -71,6 +96,7 @@ public class ChromaCollectionClient
 		_httpClient = httpClient;
 		_byName = client._byName;
 		_resolved = client._resolved;
+		_getOrCreate = client._getOrCreate;
 		_tenant = client._tenant;
 		_database = client._database;
 		_server = client._server;
@@ -135,7 +161,7 @@ public class ChromaCollectionClient
 		var retries = _httpClient.ReadRetries;
 		if (attemptsBefore > 0)
 		{
-			await Task.Delay(retries.Delay(attemptsBefore - 1, Jitter()), cancellationToken);
+			await Task.Delay(retries.Delay(attemptsBefore - 1, retries.Jitter?.Invoke() ?? Jitter()), cancellationToken);
 		}
 		for (var attempt = attemptsBefore + 1; ; attempt++)
 		{
@@ -145,7 +171,7 @@ public class ChromaCollectionClient
 			}
 			catch (ChromaException ex) when (attempt < retries.MaxAttempts && CanPass(ex) && handledElsewhere?.Invoke(ex) != true)
 			{
-				await Task.Delay(retries.Delay(attempt - 1, Jitter()), cancellationToken);
+				await Task.Delay(retries.Delay(attempt - 1, retries.Jitter?.Invoke() ?? Jitter()), cancellationToken);
 			}
 		}
 	}
@@ -174,7 +200,7 @@ public class ChromaCollectionClient
 		var resolved = _resolved;
 		if (!resolved)
 		{
-			await Resolve(cancellationToken);
+			await ResolveOnce(cancellationToken);
 		}
 		try
 		{
@@ -205,8 +231,51 @@ public class ChromaCollectionClient
 		}
 	}
 
+	// The first read is one request, which the operations that start before it ends wait for, each with its own cancellation: it goes on
+	// without the token of any of them. When it fails, each of them throws, and the next operation reads again, also when every one of
+	// them was cancelled before: a failed read is never waited for again.
+	private Task ResolveOnce(CancellationToken cancellationToken)
+	{
+		// An operation cancelled before it starts sends nothing, also not the creation of the collection.
+		cancellationToken.ThrowIfCancellationRequested();
+		Task read;
+		lock (_firstReadLock)
+		{
+			if (_firstRead is { IsFaulted: true } or { IsCanceled: true })
+			{
+				_firstRead = null;
+			}
+			read = _firstRead ??= Resolve(CancellationToken.None);
+		}
+		return WaitWithCancellation(read, cancellationToken);
+	}
+
+	private static async Task WaitWithCancellation(Task task, CancellationToken cancellationToken)
+	{
+#if NET8_0_OR_GREATER
+		await task.WaitAsync(cancellationToken);
+#else
+		if (!cancellationToken.CanBeCanceled || task.IsCompleted)
+		{
+			await task;
+			return;
+		}
+		var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+		using (cancellationToken.Register(() => cancelled.TrySetCanceled(cancellationToken)))
+		{
+			await await Task.WhenAny(task, cancelled.Task);
+		}
+#endif
+	}
+
 	private async Task Resolve(CancellationToken cancellationToken)
 	{
+		if (_getOrCreate is { } getOrCreate)
+		{
+			_collection = await getOrCreate(_httpClient, cancellationToken);
+			_resolved = true;
+			return;
+		}
 		var requestParams = new RequestQueryParams()
 			.Insert("{collectionName}", _collection.Name)
 			.Insert("{tenant}", _tenant)
