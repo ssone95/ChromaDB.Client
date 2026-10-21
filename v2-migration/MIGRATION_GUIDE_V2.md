@@ -107,7 +107,7 @@ Some applications kept 1.x working on Chroma 1.x with a `DelegatingHandler` that
 
 ## Dependency injection
 
-`ChromaDotNet.Client.DependencyInjection` registers the client in `Microsoft.Extensions.DependencyInjection`: `services.AddChromaClient(_ => options)`, `AddKeyedChromaClient` for more than one server, tenant or database, and `serviceProvider.CreateChromaClient(options, httpClientName)` for a client kept elsewhere. The client sends its requests through `IHttpClientFactory`, so a DNS change of the server is seen. See [docs/dependency-injection.md](../docs/dependency-injection.md).
+`ChromaDotNet.Client.DependencyInjection` registers the client in `Microsoft.Extensions.DependencyInjection`: `services.AddChromaClient(_ => options)`, `AddKeyedChromaClient` for more than one server, tenant or database, and `serviceProvider.CreateChromaClient(options, httpClientName)` for a client kept elsewhere. `AddChromaClientFromServices(serviceProvider => options)` makes the options from the services of the application, like `IConfiguration`, when the client is resolved. The client sends its requests through `IHttpClientFactory`, so a DNS change of the server is seen. See [docs/dependency-injection.md](../docs/dependency-injection.md).
 
 ## Behaviors to know
 
