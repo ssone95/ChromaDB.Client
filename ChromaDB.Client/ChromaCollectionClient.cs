@@ -24,6 +24,18 @@ public class ChromaCollectionClient
 	// The first read of a client made by name, which the operations that start before it ends share.
 	private Task? _firstRead;
 	private readonly object _firstReadLock = new();
+
+	// The first read in flight, or null: only the tests read it, to wait for it.
+	internal Task? FirstRead
+	{
+		get
+		{
+			lock (_firstReadLock)
+			{
+				return _firstRead;
+			}
+		}
+	}
 	private readonly string _tenant;
 	private readonly string _database;
 	private readonly Uri _server;
@@ -219,29 +231,20 @@ public class ChromaCollectionClient
 	}
 
 	// The first read is one request, which the operations that start before it ends wait for, each with its own cancellation: it goes on
-	// without the token of any of them. When it fails, each of them throws, and the next operation reads again.
-	private async Task ResolveOnce(CancellationToken cancellationToken)
+	// without the token of any of them. When it fails, each of them throws, and the next operation reads again, also when every one of
+	// them was cancelled before: a failed read is never waited for again.
+	private Task ResolveOnce(CancellationToken cancellationToken)
 	{
 		Task read;
 		lock (_firstReadLock)
 		{
+			if (_firstRead is { IsFaulted: true } or { IsCanceled: true })
+			{
+				_firstRead = null;
+			}
 			read = _firstRead ??= Resolve(CancellationToken.None);
 		}
-		try
-		{
-			await WaitWithCancellation(read, cancellationToken);
-		}
-		catch when (read.IsFaulted || read.IsCanceled)
-		{
-			lock (_firstReadLock)
-			{
-				if (_firstRead == read)
-				{
-					_firstRead = null;
-				}
-			}
-			throw;
-		}
+		return WaitWithCancellation(read, cancellationToken);
 	}
 
 	private static async Task WaitWithCancellation(Task task, CancellationToken cancellationToken)

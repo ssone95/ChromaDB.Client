@@ -213,6 +213,23 @@ public class CollectionClientByNameTests
 		Assert.That(server.Requests.Count(x => x == "POST collections"), Is.EqualTo(1));
 	}
 
+	// Every operation waiting for the first read is cancelled, and the read then fails: the next operation sends a new request.
+	[Test]
+	public async Task AFailureAfterEveryWaiterIsCancelledIsNotKept()
+	{
+		var server = new FakeServer(First) { CreateGate = new(TaskCreationOptions.RunContinuationsAsynchronously), CreateFailures = 1 };
+		var collection = Client(server).GetCollectionClient("c", createIfMissing: true);
+		using var cancellation = new CancellationTokenSource();
+		var cancelled = collection.CountAsync(cancellation.Token);
+		var read = collection.FirstRead!;
+		cancellation.Cancel();
+		await Assert.ThatAsync(() => cancelled.WaitAsync(TimeSpan.FromSeconds(5)), Throws.InstanceOf<OperationCanceledException>());
+		server.CreateGate.SetResult(true);
+		await Assert.ThatAsync(() => read, Throws.InstanceOf<ChromaException>());
+		Assert.That(await collection.CountAsync(), Is.EqualTo(3));
+		Assert.That(server.Requests.Count(x => x == "POST collections"), Is.EqualTo(2));
+	}
+
 	// A creation that fails throws in the operation, and the next operation asks again.
 	[Test]
 	public async Task AFailedCreationGoesAgainAtTheNextOperation()
