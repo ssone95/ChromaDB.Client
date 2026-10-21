@@ -74,6 +74,54 @@ public class InputChecksTests
 		Assert.That(() => collection.UpdateAsync(["a"], metadatas: [new Dictionary<string, object> { ["n"] = new object[] { true, 1 } }]), Throws.ArgumentException);
 	}
 
+	// Chroma keeps the document of a record in the metadata key chroma:document. A value that is not a text, in an add, an update or an
+	// upsert, makes Chroma 1.x fail every write and read of the server until it restarts: rejected before the request.
+	public static IEnumerable<object?> ValuesThatAreNotTexts()
+	{
+		yield return 1.0;
+		yield return false;
+		yield return 3;
+		yield return null;
+		yield return new List<object> { "a" };
+		yield return new[] { 1 };
+		yield return JsonDocument.Parse("2.5").RootElement;
+	}
+
+	[TestCaseSource(nameof(ValuesThatAreNotTexts))]
+	public void ChromaDocumentThatIsNotAText(object? value)
+	{
+		var server = new Server();
+		var collection = Collection(server);
+		var metadata = new Dictionary<string, object> { ["chroma:document"] = value! };
+		Assert.That(() => collection.AddAsync(["a"], [Embedding], [metadata]), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => collection.UpdateAsync(["a"], metadatas: [metadata]), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => collection.UpsertAsync(["a"], [Embedding], [metadata]), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(server.Paths, Is.Empty);
+	}
+
+	// What works today goes as it is: chroma:document as a text sets the document, and the other keys with the prefix chroma: go
+	// with any value; Chroma does not return them in reads, filters on them, and reads chroma:uri as the URI of the record.
+	public static IEnumerable<TestCaseData> ReservedKeysThatGo()
+	{
+		yield return new TestCaseData("chroma:document", "x", "\"x\"");
+		yield return new TestCaseData("chroma:document", JsonDocument.Parse("\"x\"").RootElement, "\"x\"");
+		yield return new TestCaseData("chroma:foo", 1.5, "1.5");
+		yield return new TestCaseData("chroma:uri", "u", "\"u\"");
+	}
+
+	[TestCaseSource(nameof(ReservedKeysThatGo))]
+	public async Task ReservedKeyThatGoes(string key, object value, string json)
+	{
+		var server = new Server();
+		var collection = Collection(server);
+		var metadata = new Dictionary<string, object> { [key] = value };
+		await collection.AddAsync(["a"], [Embedding], [metadata]);
+		await collection.UpdateAsync(["a"], metadatas: [metadata]);
+		await collection.UpsertAsync(["a"], [Embedding], [metadata]);
+		Assert.That(server.Bodies.Select(x => x.Path.Split('/').Last()), Is.EqualTo(new[] { "add", "update", "upsert" }));
+		Assert.That(server.Bodies.Select(x => x.Body.GetProperty("metadatas")[0].GetProperty(key).GetRawText()), Is.All.EqualTo(json));
+	}
+
 	// A record without keys comes back with an empty metadata when the metadatas are read, and with none when they are not.
 	[Test]
 	public async Task RecordsWithoutKeys()

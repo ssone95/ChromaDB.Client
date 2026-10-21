@@ -42,6 +42,23 @@ public class MetadataTests : ChromaTestsBase
 		Assert.That(found.Select(e => e.Id), Is.EqualTo(new[] { "a" }));
 	}
 
+	// The keys with the prefix chroma: that work today keep working: chroma:document as a text sets the document in an update, and a
+	// filter finds a record by chroma:foo, which Chroma does not return in reads. A chroma:document that is not a text is rejected
+	// before the request (KD-58).
+	[Test]
+	public async Task ReservedKeysThatWork()
+	{
+		var client = await Init(BaseConfigurationOptions.WithMetadataValues(ChromaMetadataValues.Exact));
+		await client.AddAsync(new ChromaRecords(["a"]) { Embeddings = [Embedding1], Documents = ["old"], Metadatas = [new Dictionary<string, object> { ["chroma:foo"] = "tag", ["k"] = 1L }] });
+		await client.UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [new Dictionary<string, object> { ["chroma:document"] = "new" }] });
+		var entry = (await client.GetAsync("a", include: ChromaGetInclude.Documents | ChromaGetInclude.Metadatas))!;
+		Assert.That(entry.Document, Is.EqualTo("new"));
+		Assert.That(entry.Metadata!.Keys, Is.EqualTo(new[] { "k" }));
+		var found = await client.GetAsync(where: ChromaWhereOperator.Equal("chroma:foo", "tag"), include: ChromaGetInclude.None);
+		Assert.That(found.Select(e => e.Id), Is.EqualTo(new[] { "a" }));
+		Assert.That(() => client.UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [new Dictionary<string, object> { ["chroma:document"] = 1.0 }] }), Throws.ArgumentException);
+	}
+
 	// A null deletes the key in an update and in an upsert on every tested Chroma, and a record left without keys comes back with
 	// Metadata null; AddAsync rejects a null before the request.
 	[Test]
