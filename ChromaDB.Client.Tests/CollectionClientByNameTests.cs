@@ -213,6 +213,19 @@ public class CollectionClientByNameTests
 		Assert.That(server.Requests.Count(x => x == "POST collections"), Is.EqualTo(1));
 	}
 
+	// An operation cancelled before it starts sends no request, also not the creation, and GetOrCreateCollectionClientAsync neither.
+	[Test]
+	public async Task AnOperationCancelledBeforeItStartsCreatesNothing()
+	{
+		var server = new FakeServer(First);
+		var client = Client(server);
+		using var cancellation = new CancellationTokenSource();
+		cancellation.Cancel();
+		await Assert.ThatAsync(() => client.GetCollectionClient("c", createIfMissing: true).CountAsync(cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+		await Assert.ThatAsync(() => client.GetOrCreateCollectionClientAsync("c", cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+		Assert.That(server.Requests, Is.Empty);
+	}
+
 	// Every operation waiting for the first read is cancelled, and the read then fails: the next operation sends a new request.
 	[Test]
 	public async Task AFailureAfterEveryWaiterIsCancelledIsNotKept()

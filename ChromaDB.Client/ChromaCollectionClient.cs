@@ -236,6 +236,8 @@ public class ChromaCollectionClient
 	// them was cancelled before: a failed read is never waited for again.
 	private Task ResolveOnce(CancellationToken cancellationToken)
 	{
+		// An operation cancelled before it starts sends nothing, also not the creation of the collection.
+		cancellationToken.ThrowIfCancellationRequested();
 		Task read;
 		lock (_firstReadLock)
 		{
