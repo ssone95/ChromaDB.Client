@@ -74,6 +74,86 @@ public class InputChecksTests
 		Assert.That(() => collection.UpdateAsync(["a"], metadatas: [new Dictionary<string, object> { ["n"] = new object[] { true, 1 } }]), Throws.ArgumentException);
 	}
 
+	// Chroma keeps the document of a record in the metadata key chroma:document. A value that is not a text, in an add, an update or an
+	// upsert, makes Chroma 1.x fail every write and read of the server until it restarts: rejected before the request.
+	public static IEnumerable<object?> ValuesThatAreNotTexts()
+	{
+		yield return 1.0;
+		yield return false;
+		yield return 3;
+		yield return null;
+		yield return new List<object> { "a" };
+		yield return new[] { 1 };
+		yield return JsonDocument.Parse("2.5").RootElement;
+		yield return new DerivedInts { 1 };
+		// A value whose JSON the client cannot tell, which it could not write either.
+		yield return new Action(() => { });
+	}
+
+	public sealed class DerivedInts : List<int> { }
+
+	[TestCaseSource(nameof(ValuesThatAreNotTexts))]
+	public void ChromaDocumentThatIsNotAText(object? value)
+	{
+		var server = new Server();
+		var collection = Collection(server);
+		var metadata = new Dictionary<string, object> { ["chroma:document"] = value! };
+		Assert.That(() => collection.AddAsync(["a"], [Embedding], [metadata]), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => collection.UpdateAsync(["a"], metadatas: [metadata]), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => collection.UpsertAsync(["a"], [Embedding], [metadata]), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(server.Paths, Is.Empty);
+	}
+
+	// The document copy key and the document deletion key add metadata after the given one is checked: under chroma:document they would
+	// write a null, or true, which Chroma 1.x fails on in the same way. Rejected before the request; a copy of a text goes.
+	[Test]
+	public async Task ChromaDocumentAsTheKeyOfCopiesOrMarks()
+	{
+		var server = new Server();
+		var copies = Collection(server).WithDocumentCopyKey("chroma:document");
+		var marks = Collection(server).WithDocumentDeletionKey("chroma:document");
+		ChromaRecords Deletion() => new(["a"]) { Embeddings = [Embedding], Documents = [null], NullDocumentsDelete = true };
+		ChromaRecords Text() => new(["a"]) { Embeddings = [Embedding], Documents = ["text"] };
+		Assert.That(() => copies.UpdateAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => copies.UpsertAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpdateAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpsertAsync(Deletion()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpdateAsync(Text()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(() => marks.UpsertAsync(Text()), Throws.ArgumentException.With.Message.Contains("chroma:document"));
+		Assert.That(server.Bodies, Is.Empty);
+		await copies.AddAsync(Text());
+		await copies.UpdateAsync(Text());
+		Assert.That(server.Bodies.Select(x => x.Body.GetProperty("metadatas")[0].GetProperty("chroma:document").GetString()), Is.EqualTo(new[] { "text", "text" }));
+	}
+
+	// What works today goes as it is: chroma:document as a text sets the document, and the other keys with the prefix chroma: go
+	// with any value; Chroma does not return them in reads, filters on them, and reads chroma:uri as the URI of the record.
+	public static IEnumerable<TestCaseData> ReservedKeysThatGo()
+	{
+		yield return new TestCaseData("chroma:document", "x", "\"x\"");
+		yield return new TestCaseData("chroma:document", JsonDocument.Parse("\"x\"").RootElement, "\"x\"");
+		// The values the client writes as JSON strings are texts for Chroma too.
+		yield return new TestCaseData("chroma:document", Guid.Empty, "\"00000000-0000-0000-0000-000000000000\"");
+		yield return new TestCaseData("chroma:document", new DateTime(2026, 10, 21, 8, 30, 0, DateTimeKind.Utc), "\"2026-10-21T08:30:00Z\"");
+		yield return new TestCaseData("chroma:document", new DateTimeOffset(2026, 10, 21, 8, 30, 0, TimeSpan.FromHours(2)), "\"2026-10-21T08:30:00+02:00\"");
+		yield return new TestCaseData("chroma:document", new byte[] { 1, 2 }, "\"AQI=\"");
+		yield return new TestCaseData("chroma:foo", 1.5, "1.5");
+		yield return new TestCaseData("chroma:uri", "u", "\"u\"");
+	}
+
+	[TestCaseSource(nameof(ReservedKeysThatGo))]
+	public async Task ReservedKeyThatGoes(string key, object value, string json)
+	{
+		var server = new Server();
+		var collection = Collection(server);
+		var metadata = new Dictionary<string, object> { [key] = value };
+		await collection.AddAsync(["a"], [Embedding], [metadata]);
+		await collection.UpdateAsync(["a"], metadatas: [metadata]);
+		await collection.UpsertAsync(["a"], [Embedding], [metadata]);
+		Assert.That(server.Bodies.Select(x => x.Path.Split('/').Last()), Is.EqualTo(new[] { "add", "update", "upsert" }));
+		Assert.That(server.Bodies.Select(x => x.Body.GetProperty("metadatas")[0].GetProperty(key).GetRawText()), Is.All.EqualTo(json));
+	}
+
 	// A record without keys comes back with an empty metadata when the metadatas are read, and with none when they are not.
 	[Test]
 	public async Task RecordsWithoutKeys()

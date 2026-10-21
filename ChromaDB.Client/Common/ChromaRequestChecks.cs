@@ -123,6 +123,48 @@ internal static class ChromaRequestChecks
 		}
 	}
 
+	// Works around KD-58 (docs/COMPATIBILITY.md)
+	// Chroma keeps the document of a record in the metadata key chroma:document: a text there sets the document, and another value
+	// makes Chroma 1.x fail every write and read of the server until it restarts. The Python client rejects the key with any value;
+	// here only the values that are not texts, so that what works today keeps working.
+	public const string DocumentKey = "chroma:document";
+
+	// A text is what the client writes as a JSON string: a string, and a Guid, a date or a byte[] in base64 too. The value is written as
+	// the request writes it, as an object: without reflection a type the JSON context does not list goes as the type it derives from,
+	// like a list derived from List<int>. A value whose JSON cannot be told is not a text.
+	public static bool IsText(object? value)
+	{
+		if (value is null)
+		{
+			return false;
+		}
+		if (value is string or JsonElement { ValueKind: JsonValueKind.String })
+		{
+			return true;
+		}
+		try
+		{
+			return JsonSerializer.SerializeToElement(value, HttpClientHelpers.PostJsonSerializerOptions.TypeInfo<object>()).ValueKind == JsonValueKind.String;
+		}
+		catch (Exception e) when (e is NotSupportedException or InvalidOperationException or ArgumentException)
+		{
+			return false;
+		}
+	}
+
+	// The metadata a document copy key or a document deletion key adds after the given one is checked: under chroma:document, a
+	// deleted document or a mark would go as a value that is not a text.
+	public static void GeneratedDocumentKey(IReadOnlyList<IReadOnlyDictionary<string, object>?>? metadatas, string paramName)
+	{
+		foreach (var metadata in metadatas ?? [])
+		{
+			if (metadata is not null && metadata.TryGetValue(DocumentKey, out var value) && !IsText(value))
+			{
+				throw new ArgumentException($"The document copy key or the document deletion key of the collection client is \"{DocumentKey}\", which holds the document of the record in Chroma: a deleted document or a mark would write a value that is not a text there, and that makes Chroma 1.x fail every write and read of the server until it restarts. Choose another key.", paramName);
+			}
+		}
+	}
+
 	// What the Python client checks too: a list holds values of one type, strings, integers, floating-point numbers or Booleans. The
 	// server answers with an error that does not say what is wrong. A list that can be read once is not read here.
 	public static void MetadataValues(IReadOnlyList<IReadOnlyDictionary<string, object>?>? metadatas, string paramName)
@@ -131,6 +173,10 @@ internal static class ChromaRequestChecks
 		{
 			foreach (var pair in metadata ?? Enumerable.Empty<KeyValuePair<string, object>>())
 			{
+				if (pair.Key == DocumentKey && !IsText(pair.Value))
+				{
+					throw new ArgumentException($"The metadata key \"{DocumentKey}\" holds the document of the record in Chroma and takes a text only: another value makes Chroma 1.x fail every write and read of the server until it restarts.", paramName);
+				}
 				if (IsList(pair.Value) && pair.Value is JsonElement or ICollection && Kinds(pair.Value).Distinct().Skip(1).Any())
 				{
 					throw new ArgumentException($"The list of the metadata key \"{pair.Key}\" holds values of more than one type: Chroma takes strings, integers, floating-point numbers or Booleans, one type in a list.", paramName);

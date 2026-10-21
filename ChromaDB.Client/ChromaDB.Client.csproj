@@ -7,7 +7,7 @@
 		<IsPackable>true</IsPackable>
 		<!-- The analyzers of trimming and NativeAOT run on the target that has them. -->
 		<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-		<VersionPrefix>2.17.0</VersionPrefix>
+		<VersionPrefix>2.17.1</VersionPrefix>
 		<PackageId>ChromaDB.Client</PackageId>
 		<!-- -p:PackageIdPrefix=Name publishes the package as Name.Client. -->
 		<PackageId Condition="'$(PackageIdPrefix)' != ''">$(PackageIdPrefix).Client</PackageId>
@@ -29,7 +29,8 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<NoWarn>$(NoWarn);RS0026;RS0027</NoWarn>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<PackageReleaseNotes>2.14.0: GetAsync, PeekAsync, QueryAsync, SearchAsync and CountAsync go again after an answer 429, 500, 502, 503 or 504, a request that fails on the network, or an answer whose lists do not have one item for every record, with the exponential backoff with full jitter of AWS: by default 4 attempts at most, a base delay of 50 ms and a largest delay of 1 second. A write never goes again. New: ChromaReadRetries, with Default, None, MaxAttempts, BaseDelay and MaxDelay, and ChromaConfigurationOptions.ReadRetries and WithReadRetries; ChromaReadRetries.None keeps the behavior of 2.13.0. An uneven answer that stays throws a ChromaException instead of an ArgumentOutOfRangeException. All the releases: $(PackageProjectUrl)/releases. Tested versions: $(PackageProjectUrl)/blob/main/docs/COMPATIBILITY.md. Migration from 1.x: $(PackageProjectUrl)#migrating-from-chromadbclient-1x</PackageReleaseNotes>
+		<!-- The notes link the GitHub release of the version, so they follow every release. -->
+		<PackageReleaseNotes>Release notes: $(PackageProjectUrl)/releases/tag/v$(VersionPrefix). Tested versions: $(PackageProjectUrl)/blob/main/docs/COMPATIBILITY.md. Migration from 1.x: $(PackageProjectUrl)#migrating-from-chromadbclient-1x</PackageReleaseNotes>
 	</PropertyGroup>
 	<ItemGroup>
 		<!-- The public API, checked at build: PublicAPI.Shipped.txt is the API of the last release, PublicAPI.Unshipped.txt what was

@@ -7,7 +7,7 @@
 		<IsPackable>true</IsPackable>
 		<!-- The analyzers of trimming and NativeAOT run on the target that has them. -->
 		<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-		<VersionPrefix>2.17.0</VersionPrefix>
+		<VersionPrefix>2.17.1</VersionPrefix>
 		<PackageId>ChromaDB.Client.DependencyInjection</PackageId>
 		<!-- -p:PackageIdPrefix=Name publishes the package as Name.Client.DependencyInjection. -->
 		<PackageId Condition="'$(PackageIdPrefix)' != ''">$(PackageIdPrefix).Client.DependencyInjection</PackageId>
@@ -29,7 +29,8 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<NoWarn>$(NoWarn);RS0026;RS0027</NoWarn>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<PackageReleaseNotes>2.14.0: with ChromaDotNet.Client 2.14.0. All the releases: $(PackageProjectUrl)/releases.</PackageReleaseNotes>
+		<!-- The notes link the GitHub release of the version, so they follow every release. -->
+		<PackageReleaseNotes>With ChromaDotNet.Client $(VersionPrefix). Release notes: $(PackageProjectUrl)/releases/tag/v$(VersionPrefix).</PackageReleaseNotes>
 	</PropertyGroup>
 	<ItemGroup>
 		<!-- The public API, checked at build: PublicAPI.Shipped.txt is the API of the last release, PublicAPI.Unshipped.txt what was
