@@ -1,5 +1,30 @@
 # Embeddings
 
+## The embeddings of the Python client
+
+[ChromaDotNet.Embeddings](https://www.nuget.org/packages/ChromaDotNet.Embeddings) computes the vectors of the default embedding function of Chroma, the one the Python client uses when a collection has no other: the model all-MiniLM-L6-v2, with 384 dimensions. So .NET and Python read the same collection with the same embeddings.
+
+```
+dotnet add package ChromaDotNet.Embeddings --prerelease
+```
+
+```csharp
+using ChromaDB.Client;
+using ChromaDB.Client.Models;
+using ChromaDotNet.Embeddings;
+
+using var embeddings = await ChromaDefaultEmbeddingGenerator.CreateAsync();
+var collection = await client.GetOrCreateCollectionAsync(new ChromaCollectionDefinition("fruits") { EmbeddingGenerator = embeddings });
+var fruits = client.GetCollectionClient(collection).WithEmbeddingGenerator(embeddings);
+
+await fruits.AddAsync(["apple", "lemon"], documents: ["A crunchy apple", "A sour lemon"]);
+var nearest = await fruits.QueryAsync("something sour", nResults: 1);
+```
+
+The first `CreateAsync` downloads the model into the cache of the Python client, or uses the one Python downloaded. The definition declares the function `default`, as the Python client does. The package is a preview, and runs in 64-bit processes only, not on Intel Macs: see its [repository](https://github.com/ChromaDotNet/ChromaDB.Embeddings).
+
+The [SearchByText](https://github.com/ChromaDotNet/ChromaDB.Local/tree/main/samples/SearchByText) sample of ChromaDotNet.Local stores and searches texts this way, on a Chroma started without Docker. [Open it in a Codespace](https://codespaces.new/ChromaDotNet/ChromaDB.Local?quickstart=1).
+
 ## Embeddings from a generator
 
 ```csharp
