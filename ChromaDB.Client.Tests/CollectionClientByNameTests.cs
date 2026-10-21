@@ -373,10 +373,18 @@ public class CollectionClientByNameTests
 		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			var path = request.RequestUri!.AbsolutePath.Replace("/api/v2/tenants/default_tenant/databases/default_database/", "");
-			Requests.Add($"{request.Method} {path}");
+			// The first operations of a test can send their requests at the same time: List<T> takes one writer at a time.
+			lock (Requests)
+			{
+				Requests.Add($"{request.Method} {path}");
+			}
 			if (request.Content is not null)
 			{
-				Bodies.Add((path, JsonDocument.Parse(await request.Content.ReadAsStringAsync(cancellationToken)).RootElement.Clone()));
+				var parsed = JsonDocument.Parse(await request.Content.ReadAsStringAsync(cancellationToken)).RootElement.Clone();
+				lock (Bodies)
+				{
+					Bodies.Add((path, parsed));
+				}
 			}
 			if (path == "collections" && request.Method == HttpMethod.Post)
 			{
