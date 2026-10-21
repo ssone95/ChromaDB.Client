@@ -230,6 +230,19 @@ public class CollectionClientByNameTests
 		Assert.That(server.Requests.Count(x => x == "POST collections"), Is.EqualTo(2));
 	}
 
+	// The collection a client of WithMetadataValues gets or creates is read with its own way of reading metadata values, as when it is
+	// read by name.
+	[Test]
+	public async Task TheCreationReadsWithTheMetadataValuesOfTheClient()
+	{
+		var server = new FakeServer(First) { CollectionMetadata = """{"date":"2026-10-04"}""" };
+		var inferred = new ChromaClient(new ChromaConfigurationOptions("http://localhost:8000").WithMetadataValues(ChromaMetadataValues.Inferred), new HttpClient(server));
+		var exact = inferred.GetCollectionClient("c", createIfMissing: true).WithMetadataValues(ChromaMetadataValues.Exact);
+		Assert.That((await exact.GetCollectionAsync()).Metadata!["date"], Is.EqualTo("2026-10-04"));
+		var byName = inferred.GetCollectionClient("c").WithMetadataValues(ChromaMetadataValues.Exact);
+		Assert.That((await byName.GetCollectionAsync()).Metadata!["date"], Is.EqualTo("2026-10-04"));
+	}
+
 	// A creation that fails throws in the operation, and the next operation asks again.
 	[Test]
 	public async Task AFailedCreationGoesAgainAtTheNextOperation()
@@ -340,6 +353,7 @@ public class CollectionClientByNameTests
 		// get_or_create: answered when the gate opens, with an error for the first CreateFailures.
 		public TaskCompletionSource<bool>? CreateGate { get; init; }
 		public int CreateFailures { get; set; }
+		public string? CollectionMetadata { get; init; }
 		public List<string> Requests { get; } = [];
 		public List<(string Path, JsonElement Body)> Bodies { get; } = [];
 
@@ -365,7 +379,7 @@ public class CollectionClientByNameTests
 				path = "collections/c";
 			}
 			var (status, body) = path == "collections/c" && NameMissing ? (HttpStatusCode.NotFound, """{"error":"NotFoundError","message":"Collection [c] does not exist"}""")
-				: path == "collections/c" ? (HttpStatusCode.OK, $$$"""{"id":"{{{Id}}}","name":"c","configuration_json":{"hnsw":{"space":"l2"}},"schema":{{{Schema ?? "null"}}}}""")
+				: path == "collections/c" ? (HttpStatusCode.OK, $$$"""{"id":"{{{Id}}}","name":"c","configuration_json":{"hnsw":{"space":"l2"}},"metadata":{{{CollectionMetadata ?? "null"}}},"schema":{{{Schema ?? "null"}}}}""")
 				: MissingId is { } missing && path.Contains(missing) ? MissingAnswer
 				: path.EndsWith("/count") ? (HttpStatusCode.OK, "3")
 				: path.EndsWith("/version") ? (HttpStatusCode.OK, "\"1.5.9\"")

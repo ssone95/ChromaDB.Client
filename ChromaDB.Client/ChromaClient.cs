@@ -381,7 +381,7 @@ public class ChromaClient : IDisposable
 			throw new ArgumentNullException(nameof(definition));
 		}
 		return createIfMissing
-			? new(definition.Name, _options, _httpClient, cancellationToken => GetOrCreateCollectionAsync(definition, cancellationToken: cancellationToken))
+			? new(definition.Name, _options, _httpClient, (httpClient, cancellationToken) => new ChromaClient(_options, httpClient).GetOrCreateCollectionAsync(definition, cancellationToken: cancellationToken))
 			: GetCollectionClient(definition.Name);
 	}
 

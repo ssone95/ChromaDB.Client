@@ -19,8 +19,9 @@ public class ChromaCollectionClient
 	private readonly ChromaHttpClient _httpClient;
 	private readonly bool _byName;
 	private volatile bool _resolved;
-	// A client of GetCollectionClient(name, createIfMissing: true): gets or creates the collection instead of reading it.
-	private readonly Func<CancellationToken, Task<ChromaCollection>>? _getOrCreate;
+	// A client of GetCollectionClient(name, createIfMissing: true): gets or creates the collection instead of reading it, with the
+	// ChromaHttpClient of this client, so with its way of reading metadata values.
+	private readonly Func<ChromaHttpClient, CancellationToken, Task<ChromaCollection>>? _getOrCreate;
 	// The first read of a client made by name, which the operations that start before it ends share.
 	private Task? _firstRead;
 	private readonly object _firstReadLock = new();
@@ -81,7 +82,7 @@ public class ChromaCollectionClient
 	}
 
 	// The client of the collection with the name, which gets or creates it: ChromaClient.GetCollectionClient(name, createIfMissing: true).
-	internal ChromaCollectionClient(string name, ChromaConfigurationOptions options, ChromaHttpClient httpClient, Func<CancellationToken, Task<ChromaCollection>> getOrCreate)
+	internal ChromaCollectionClient(string name, ChromaConfigurationOptions options, ChromaHttpClient httpClient, Func<ChromaHttpClient, CancellationToken, Task<ChromaCollection>> getOrCreate)
 		: this(name, options, httpClient)
 	{
 		_getOrCreate = getOrCreate;
@@ -269,7 +270,7 @@ public class ChromaCollectionClient
 	{
 		if (_getOrCreate is { } getOrCreate)
 		{
-			_collection = await getOrCreate(cancellationToken);
+			_collection = await getOrCreate(_httpClient, cancellationToken);
 			_resolved = true;
 			return;
 		}
