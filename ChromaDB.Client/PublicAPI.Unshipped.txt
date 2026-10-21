@@ -61,8 +61,10 @@ ChromaDB.Client.ChromaConfigurationOptions.WithReadRetries(ChromaDB.Client.Chrom
 ChromaDB.Client.ChromaReadRetries
 ChromaDB.Client.ChromaReadRetries.BaseDelay.get -> System.TimeSpan
 ChromaDB.Client.ChromaReadRetries.ChromaReadRetries(int maxAttempts, System.TimeSpan baseDelay, System.TimeSpan maxDelay) -> void
+ChromaDB.Client.ChromaReadRetries.ChromaReadRetries(int maxAttempts, System.TimeSpan minDelay, System.TimeSpan baseDelay, System.TimeSpan maxDelay) -> void
 ChromaDB.Client.ChromaReadRetries.MaxAttempts.get -> int
 ChromaDB.Client.ChromaReadRetries.MaxDelay.get -> System.TimeSpan
+ChromaDB.Client.ChromaReadRetries.MinDelay.get -> System.TimeSpan
 static ChromaDB.Client.ChromaReadRetries.Default.get -> ChromaDB.Client.ChromaReadRetries!
 static ChromaDB.Client.ChromaReadRetries.None.get -> ChromaDB.Client.ChromaReadRetries!
 virtual ChromaDB.Client.ChromaCollectionClient.DeleteAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
