@@ -68,3 +68,7 @@ ChromaDB.Client.ChromaReadRetries.MinDelay.get -> System.TimeSpan
 static ChromaDB.Client.ChromaReadRetries.Default.get -> ChromaDB.Client.ChromaReadRetries!
 static ChromaDB.Client.ChromaReadRetries.None.get -> ChromaDB.Client.ChromaReadRetries!
 virtual ChromaDB.Client.ChromaCollectionClient.DeleteAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<int>!
+virtual ChromaDB.Client.ChromaClient.GetCollectionClient(ChromaDB.Client.Models.ChromaCollectionDefinition! definition, bool createIfMissing) -> ChromaDB.Client.ChromaCollectionClient!
+virtual ChromaDB.Client.ChromaClient.GetCollectionClient(string! name, bool createIfMissing) -> ChromaDB.Client.ChromaCollectionClient!
+virtual ChromaDB.Client.ChromaClient.GetOrCreateCollectionClientAsync(ChromaDB.Client.Models.ChromaCollectionDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChromaDB.Client.ChromaCollectionClient!>!
+virtual ChromaDB.Client.ChromaClient.GetOrCreateCollectionClientAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<ChromaDB.Client.ChromaCollectionClient!>!
