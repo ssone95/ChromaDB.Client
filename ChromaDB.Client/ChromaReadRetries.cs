@@ -63,6 +63,10 @@ public sealed class ChromaReadRetries
 	/// </summary>
 	public static ChromaReadRetries None { get; } = new(1, TimeSpan.Zero, TimeSpan.Zero);
 
+	// The random number from 0 to 1 of each delay; null takes the shared Random of the client. Only the tests set it, to make a delay
+	// certain.
+	internal Func<double>? Jitter { get; init; }
+
 	// The delay before the attempt after the given number of attempts that went again, for a random number from 0 to 1.
 	internal TimeSpan Delay(int retry, double random)
 	{

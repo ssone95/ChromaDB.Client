@@ -135,7 +135,7 @@ public class ChromaCollectionClient
 		var retries = _httpClient.ReadRetries;
 		if (attemptsBefore > 0)
 		{
-			await Task.Delay(retries.Delay(attemptsBefore - 1, Jitter()), cancellationToken);
+			await Task.Delay(retries.Delay(attemptsBefore - 1, retries.Jitter?.Invoke() ?? Jitter()), cancellationToken);
 		}
 		for (var attempt = attemptsBefore + 1; ; attempt++)
 		{
@@ -145,7 +145,7 @@ public class ChromaCollectionClient
 			}
 			catch (ChromaException ex) when (attempt < retries.MaxAttempts && CanPass(ex) && handledElsewhere?.Invoke(ex) != true)
 			{
-				await Task.Delay(retries.Delay(attempt - 1, Jitter()), cancellationToken);
+				await Task.Delay(retries.Delay(attempt - 1, retries.Jitter?.Invoke() ?? Jitter()), cancellationToken);
 			}
 		}
 	}

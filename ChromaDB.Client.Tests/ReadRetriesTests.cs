@@ -194,13 +194,14 @@ public class ReadRetriesTests
 		Assert.That(() => new ChromaConfigurationOptions(Local).WithReadRetries(null!), Throws.ArgumentNullException.With.Property("ParamName").EqualTo("readRetries"));
 	}
 
-	// A cancellation during the delay after a failed attempt stops the read at once: no other attempt goes.
+	// A cancellation during the delay after a failed attempt stops the read at once: no other attempt goes. The jitter is 1, so the delay
+	// is 10 minutes: with a random one, a delay under the 200 ms of the cancellation would let the second attempt go first.
 	[Test]
 	public void ACancellationBetweenTheAttempts()
 	{
 		using var cancellation = new CancellationTokenSource();
 		var server = new Server(fail: 1, (HttpStatusCode.InternalServerError, FindingId)) { OnFail = () => cancellation.CancelAfter(TimeSpan.FromMilliseconds(200)) };
-		var client = Client(server, Local, new ChromaReadRetries(2, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10)));
+		var client = Client(server, Local, new ChromaReadRetries(2, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10)) { Jitter = () => 1 });
 		var watch = System.Diagnostics.Stopwatch.StartNew();
 		Assert.That(() => client.GetAsync(cancellationToken: cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
 		Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)), "the delay stops at the cancellation");
