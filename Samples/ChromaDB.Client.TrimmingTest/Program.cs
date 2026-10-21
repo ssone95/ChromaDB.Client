@@ -203,6 +203,20 @@ await Check("DependencyInjection", async () =>
 	await provider.GetRequiredKeyedService<ChromaClient>("k").HeartbeatAsync();
 	return (await provider.GetRequiredService<ChromaClient>().HeartbeatAsync()).NanosecondHeartbeat.ToString();
 });
+// chroma:document takes a text only (KD-58). Without reflection, a list derived from List<int>, which the JSON context does not list,
+// would go as an array: it must be rejected before the request.
+await Check("chroma:document", async () =>
+{
+	try
+	{
+		await collectionClient.UpdateAsync(new ChromaRecords(["a"]) { Metadatas = [new Dictionary<string, object> { ["chroma:document"] = new DerivedInts { 1 } }] });
+	}
+	catch (ArgumentException)
+	{
+		return "rejected before the request";
+	}
+	throw new Exception("a list under chroma:document went to the server");
+});
 await Check("DeleteCollection", async () =>
 {
 	await client.DeleteCollectionAsync(name);
@@ -219,6 +233,8 @@ static ChromaConfigurationOptions CloudOptions(string host)
 	options = Environment.GetEnvironmentVariable("CHROMA_TENANT") is { Length: > 0 } tenant ? options.WithTenant(tenant) : options;
 	return Environment.GetEnvironmentVariable("CHROMA_DATABASE") is { Length: > 0 } database ? options.WithDatabase(database) : options;
 }
+
+sealed class DerivedInts : List<int> { }
 
 // One dimension for each letter from a to e, by the first letter of the text, and one for the rest. Its metadata is that of the generator
 // of the default embedding function of Chroma, so that a new collection declares "default".

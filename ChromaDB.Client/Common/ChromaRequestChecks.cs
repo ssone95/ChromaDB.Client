@@ -129,8 +129,9 @@ internal static class ChromaRequestChecks
 	// here only the values that are not texts, so that what works today keeps working.
 	public const string DocumentKey = "chroma:document";
 
-	// A text is what the client writes as a JSON string: a string, and a Guid, a date or a byte[] in base64 too. A value the client
-	// cannot write goes on, and fails as before when the request is written.
+	// A text is what the client writes as a JSON string: a string, and a Guid, a date or a byte[] in base64 too. The value is written as
+	// the request writes it, as an object: without reflection a type the JSON context does not list goes as the type it derives from,
+	// like a list derived from List<int>. A value whose JSON cannot be told is not a text.
 	public static bool IsText(object? value)
 	{
 		if (value is null)
@@ -143,11 +144,11 @@ internal static class ChromaRequestChecks
 		}
 		try
 		{
-			return JsonSerializer.SerializeToElement(value, HttpClientHelpers.PostJsonSerializerOptions.GetTypeInfo(value.GetType())).ValueKind == JsonValueKind.String;
+			return JsonSerializer.SerializeToElement(value, HttpClientHelpers.PostJsonSerializerOptions.TypeInfo<object>()).ValueKind == JsonValueKind.String;
 		}
 		catch (Exception e) when (e is NotSupportedException or InvalidOperationException or ArgumentException)
 		{
-			return true;
+			return false;
 		}
 	}
 

@@ -85,7 +85,12 @@ public class InputChecksTests
 		yield return new List<object> { "a" };
 		yield return new[] { 1 };
 		yield return JsonDocument.Parse("2.5").RootElement;
+		yield return new DerivedInts { 1 };
+		// A value whose JSON the client cannot tell, which it could not write either.
+		yield return new Action(() => { });
 	}
+
+	public sealed class DerivedInts : List<int> { }
 
 	[TestCaseSource(nameof(ValuesThatAreNotTexts))]
 	public void ChromaDocumentThatIsNotAText(object? value)
