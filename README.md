@@ -1,5 +1,8 @@
 # ChromaDB.Client
 
+> [!NOTE]
+> The [ChromaDB.Client](https://www.nuget.org/packages/ChromaDB.Client) package is no longer maintained. The development continues in [ChromaDotNet/ChromaDB.Client](https://github.com/ChromaDotNet/ChromaDB.Client).
+
 _ChromaDB.Client_ is a .NET SDK that offers a seamless connection to the Chroma database. It allows creating and managing collections, performing CRUD operations, and executing nearest neighbor search and filtering.
 
 ## Example
