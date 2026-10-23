@@ -11,7 +11,7 @@ internal static class CollectionQueryEntryMapper
 			.Select((_, i) => response.Ids[i]
 				.Select((id, j) => new ChromaCollectionQueryEntry(id)
 				{
-					Distance = response.Distances[i].Span[j],
+					Distance = response.Distances?[i][j] ?? 0f,
 					Metadata = response.Metadatas?[i][j],
 					Embeddings = response.Embeddings?[i][j],
 					Document = response.Documents?[i][j],

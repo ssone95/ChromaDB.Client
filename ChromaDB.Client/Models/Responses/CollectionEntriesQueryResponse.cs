@@ -8,7 +8,7 @@ internal class CollectionEntriesQueryResponse
 	public required List<List<string>> Ids { get; init; }
 
 	[JsonPropertyName("distances")]
-	public required List<ReadOnlyMemory<float>> Distances { get; init; }
+	public required List<List<float>>? Distances { get; init; }
 
 	[JsonPropertyName("metadatas")]
 	public required List<List<Dictionary<string, object>>>? Metadatas { get; init; }
@@ -23,5 +23,5 @@ internal class CollectionEntriesQueryResponse
 	public required List<List<List<string?>>>? Uris { get; init; }
 
 	[JsonPropertyName("data")]
-	public required dynamic? Data { get; init; }
+	public dynamic? Data { get; init; }
 }

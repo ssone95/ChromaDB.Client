@@ -15,7 +15,7 @@ public abstract class ChromaTestsBase
 	{
 		_container = ConfigureContainer(new ChromaDBBuilder()).Build();
 		await _container.StartAsync();
-		_baseConfigurationOptions = new ChromaConfigurationOptions(uri: $"http://{_container.IpAddress}:{_container.GetMappedPublicPort(ChromaDBBuilder.ChromaDBPort)}/api/v1/");
+		_baseConfigurationOptions = new ChromaConfigurationOptions(uri: $"http://{_container.IpAddress}:{_container.GetMappedPublicPort(ChromaDBBuilder.ChromaDBPort)}/api/v2/");
 	}
 
 	[OneTimeTearDown]

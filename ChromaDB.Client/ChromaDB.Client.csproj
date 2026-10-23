@@ -5,7 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<IsPackable>true</IsPackable>
-		<VersionPrefix>1.0.1</VersionPrefix>
+		<VersionPrefix>2.0.0</VersionPrefix>
 		<PackageId>ChromaDB.Client</PackageId>
 		<PackageDescription>.NET SDK for Chroma database</PackageDescription>
 		<PackageTags>chroma chromadb vector database</PackageTags>
@@ -16,6 +16,7 @@
 		<PackageProjectUrl>https://github.com/ssone95/ChromaDB.Client</PackageProjectUrl>
 		<IncludeSymbols>true</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<PackageReleaseNotes>v2.0.0: Migration to ChromaDB API v2 - Breaking change: Update your configuration URI from /api/v1/ to /api/v2/. See MIGRATION_GUIDE_V2.md for details.</PackageReleaseNotes>
 	</PropertyGroup>
 	<ItemGroup>
 		<None Include="..\README.md" Pack="true" PackagePath="\" />
